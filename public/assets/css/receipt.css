@@ -1,0 +1,59 @@
+.receipt-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+}
+
+#receipt {
+    width: 350px;                 /* 80mm receipt width */
+    background: #fff;
+    padding: 15px;
+    font-size: 13px;
+    font-family: monospace;       /* More POS feeling */
+    border: 1px solid #ddd;
+}
+
+#receipt h4 {
+    margin: 5px 0;
+    font-weight: bold;
+}
+
+#receipt table {
+    width: 100%;
+    font-size: 12px;
+}
+
+#receipt hr {
+    border-top: 1px dashed #000;
+    margin: 8px 0;
+}
+
+.logo {
+    max-height: 60px;
+}
+
+/* ===== PRINT STYLE ===== */
+@media print {
+
+    body * {
+        visibility: hidden;
+    }
+
+    #receipt, #receipt * {
+        visibility: visible;
+    }
+
+    #receipt {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+        border: none;
+    }
+
+    button,
+    .btn {
+        display: none !important;
+    }
+
+}

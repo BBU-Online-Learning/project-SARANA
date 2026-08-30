@@ -1,0 +1,1773 @@
+/* public/css/teamstyle.css */
+:root {
+    --teams-primary: #6264a7;
+    --teams-primary-dark: #464775;
+    --teams-primary-soft: #ececff;
+    --teams-bg: #f5f5f7;
+    --teams-panel: #ffffff;
+    --teams-panel-soft: #fafafa;
+    --teams-border: #e5e5ea;
+    --teams-text: #242424;
+    --teams-muted: #616161;
+    --teams-muted-2: #8a8a8a;
+    --teams-danger: #c4314b;
+    --teams-success: #16a34a;
+    --teams-shadow: 0 2px 10px rgba(0, 0, 0, .06);
+    --teams-radius: 12px;
+}
+
+/* =========================================================
+   CHAT PAGE BASE
+   Works for both:
+   - admin inside layouts.app
+   - teacher/student inside layouts.chat
+   ========================================================= */
+
+body.chat-page {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: var(--teams-bg);
+    color: var(--teams-text);
+    overflow: hidden;
+}
+
+/* Admin shell only */
+body.admin-chat .page-content {
+    padding-bottom: 0 !important;
+    height: calc(100vh - var(--osen-topbar-height));
+    overflow: hidden;
+}
+
+/* Student/teacher shell only */
+body.student-chat {
+    height: 100vh;
+}
+
+body.student-chat .teams-chat-page,
+body.student-chat .teams-chat-shell {
+    height: 100vh;
+    min-height: 100vh;
+}
+
+/* Shared chat wrapper */
+.chat-page .teams-chat-page,
+.chat-page .teams-chat-shell {
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.teams-chat-shell {
+    display: grid;
+    grid-template-columns: 72px minmax(300px, 360px) minmax(0, 1fr);
+    background: var(--teams-bg);
+}
+
+.chat-sidebar {
+    height: 100%;
+    min-height: 0;
+    background: var(--teams-primary-dark);
+    color: #fff;
+}
+
+#chat-room-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.teams-sidebar-inner {
+    height: 100%;
+    padding: 14px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.teams-app-mark,
+.teams-profile-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+}
+
+.teams-app-mark {
+    background: #fff;
+    color: var(--teams-primary);
+    margin-bottom: 20px;
+}
+
+.teams-profile-avatar {
+    background: rgba(255, 255, 255, .18);
+    color: #fff;
+}
+
+.teams-nav-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.teams-nav-link {
+    width: 52px;
+    height: 48px;
+    border-radius: var(--teams-radius);
+    color: rgba(255, 255, 255, .82);
+    display: grid;
+    place-items: center;
+    position: relative;
+    text-decoration: none;
+    transition: background .18s ease, color .18s ease;
+}
+
+.teams-nav-link i {
+    font-size: 23px;
+}
+
+.teams-nav-link:hover,
+.teams-nav-link:focus,
+.teams-nav-link.active {
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+}
+
+.teams-nav-link.active::before {
+    content: "";
+    position: absolute;
+    left: -10px;
+    top: 10px;
+    width: 4px;
+    height: 28px;
+    border-radius: 999px;
+    background: #fff;
+}
+
+.conversation-list {
+    height: 100%;
+    min-height: 0;
+    background: var(--teams-panel);
+    border-right: 1px solid var(--teams-border);
+    overflow: hidden;
+}
+
+.teams-conversation-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.teams-panel-header {
+    padding: 20px 18px 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+}
+
+.teams-panel-header h1,
+.teams-chat-header h1 {
+    font-size: 20px;
+    line-height: 1.2;
+    margin: 0;
+    font-weight: 700;
+}
+
+.teams-panel-header p,
+.teams-chat-header p {
+    margin: 4px 0 0;
+    color: var(--teams-muted);
+    font-size: 13px;
+}
+
+.teams-icon-button {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--teams-muted);
+    display: inline-grid;
+    place-items: center;
+    transition: background .18s ease, color .18s ease;
+}
+
+.teams-icon-button:hover,
+.teams-icon-button:focus {
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+}
+
+.teams-new-chat-button {
+    background: var(--teams-primary);
+    color: #fff;
+}
+
+.teams-new-chat-button:hover,
+.teams-new-chat-button:focus {
+    background: var(--teams-primary-dark);
+    color: #fff;
+}
+
+.teams-search-box {
+    margin: 0 18px 12px;
+    height: 42px;
+    border: 1px solid var(--teams-border);
+    border-radius: var(--teams-radius);
+    background: var(--teams-panel-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+}
+
+.teams-search-box input {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    width: 100%;
+    font-size: 14px;
+}
+
+.teams-filter-row {
+    display: flex;
+    gap: 8px;
+    padding: 0 18px 12px;
+}
+
+.teams-filter-row button {
+    border: 1px solid var(--teams-border);
+    background: #fff;
+    color: var(--teams-muted);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.teams-filter-row button.active {
+    background: var(--teams-primary-soft);
+    border-color: var(--teams-primary-soft);
+    color: var(--teams-primary);
+    font-weight: 600;
+}
+
+.teams-room-scroll {
+    overflow-y: auto;
+    padding: 4px 8px 14px;
+}
+
+/* Keep the rest of your existing chat component styles below this line */
+
+.teams-room-card {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 4px;
+    border-radius: var(--teams-radius);
+    cursor: pointer;
+    transition: background .18s ease, box-shadow .18s ease;
+}
+
+.teams-room-card:hover,
+.teams-room-card:focus {
+    background: #f3f2f1;
+    outline: none;
+}
+
+.teams-room-card.active {
+    background: var(--teams-primary-soft);
+    box-shadow: inset 4px 0 0 var(--teams-primary);
+}
+
+.teams-room-avatar {
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 50%;
+    background: var(--teams-primary);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    position: relative;
+}
+
+.teams-room-avatar-lg {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+}
+
+.presence-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #a0a0a0;
+    border: 2px solid #fff;
+    position: absolute;
+    right: 0;
+    bottom: 0;
+}
+
+.teams-room-content {
+    min-width: 0;
+    flex: 1;
+}
+
+.teams-room-title-row,
+.teams-room-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.teams-room-title-row h2 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.room-last-time {
+    color: var(--teams-muted-2);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.room-last-message {
+    margin: 4px 0 0;
+    color: var(--teams-muted);
+    font-size: 13px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.room-last-message span {
+    color: var(--teams-text);
+}
+
+.unread-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--teams-danger);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-grid;
+    place-items: center;
+}
+
+.chat-room-area {
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    background: var(--teams-bg);
+    display: flex;
+    flex-direction: column;
+}
+
+.teams-chat-area {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.teams-chat-header {
+    height: 76px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--teams-border);
+    background: var(--teams-panel);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.teams-chat-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.teams-chat-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.messages-container,
+.teams-message-viewport {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px 24px;
+}
+
+.teams-message {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+}
+
+.teams-message.is-own {
+    flex-direction: row-reverse;
+}
+
+.teams-message-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #d9dbf5;
+    color: var(--teams-primary-dark);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 13px;
+    flex: 0 0 34px;
+}
+
+.teams-message-stack {
+    max-width: min(720px, 78%);
+    position: relative;
+}
+
+.teams-message-toolbar {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+
+    display: none;
+
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+
+    padding: 4px;
+    gap: 4px;
+}
+
+.message-item:hover .teams-message-toolbar {
+    display: flex;
+}
+
+.teams-message.is-own .teams-message-stack {
+    align-items: flex-end;
+}
+
+.teams-message-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+    color: var(--teams-muted);
+    font-size: 12px;
+}
+
+.teams-message.is-own .teams-message-meta {
+    justify-content: flex-end;
+}
+
+.teams-message-meta strong {
+    color: var(--teams-text);
+    font-size: 13px;
+}
+
+.teams-message-bubble {
+    background: #fff;
+    border: 1px solid var(--teams-border);
+    border-radius: 14px;
+    padding: 10px 13px;
+    box-shadow: var(--teams-shadow);
+    color: var(--teams-text);
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.teams-message.is-own .teams-message-bubble {
+    background: var(--teams-primary-soft);
+    border-color: #d9dbf5;
+}
+
+.teams-reply-preview {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: rgba(98, 100, 167, .06);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    cursor: pointer;
+}
+
+.reply-line {
+    width: 4px;
+    min-height: 100%;
+    border-radius: 999px;
+    background: var(--teams-primary);
+}
+
+.reply-content {
+    flex: 1;
+}
+
+.reply-author {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teams-primary);
+}
+
+.reply-text {
+    font-size: 13px;
+    color: var(--teams-muted);
+}
+
+.teams-edited-label {
+    margin-left: 4px;
+    color: var(--teams-muted-2);
+}
+
+.teams-read-row {
+    margin-top: 3px;
+    text-align: right;
+    color: var(--teams-primary);
+    font-size: 12px;
+}
+
+.teams-composer-wrap {
+    padding: 8px 20px 18px;
+    background: var(--teams-bg);
+    position: relative;
+}
+
+.teams-composer.is-voice-active {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.voice-compose-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #f6f8fc 0%, #e9eef7 100%);
+    border: 1px solid #d7e1ef;
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+    backdrop-filter: blur(8px);
+}
+
+.voice-compose-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.voice-record-status {
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+}
+
+.voice-action-btn {
+    min-width: 84px;
+    height: 42px;
+    border: 0;
+    border-radius: 999px;
+    padding: 0 16px;
+    font-weight: 700;
+}
+
+.voice-cancel-btn {
+    background: #eef2f7;
+    color: #334155;
+}
+
+.voice-send-btn {
+    background: #0f62fe;
+    color: #fff;
+}
+
+.voice-message-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, #f7faff 0%, #edf3ff 100%);
+    border: 1px solid #d7e3ff;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.08);
+    max-width: 360px;
+}
+
+.voice-message-pending {
+    opacity: 0.85;
+}
+
+.voice-message-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #dbeafe;
+    color: #1d4ed8;
+    flex: 0 0 auto;
+}
+
+.voice-message-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    color: #0f172a;
+}
+
+.voice-message-body audio {
+    width: 240px;
+    max-width: 100%;
+}
+
+.teams-typing-indicator {
+    display: none;
+    min-height: 20px;
+    color: var(--teams-muted);
+    font-size: 13px;
+    padding: 0 4px 4px;
+
+}
+
+.teams-typing-indicator.active {
+    display: block;
+}
+
+.teams-composer {
+    min-height: 58px;
+    border: 1px solid var(--teams-border);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: var(--teams-shadow);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 10px;
+}
+
+.teams-composer-tools {
+    display: flex;
+    gap: 2px;
+}
+
+.teams-composer-tools button,
+.teams-send-button {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--teams-muted);
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+}
+
+.teams-composer-tools button:hover,
+.teams-send-button:hover {
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+}
+
+.teams-composer input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    font-size: 14px;
+}
+
+.teams-send-button {
+    background: var(--teams-primary);
+    color: #fff;
+}
+
+.teams-send-button:hover {
+    background: var(--teams-primary-dark);
+    color: #fff;
+}
+
+.teams-empty-chat,
+.teams-empty-panel {
+    height: 100%;
+    display: grid;
+    place-content: center;
+    text-align: center;
+    color: var(--teams-muted);
+    padding: 24px;
+}
+
+.teams-empty-chat-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 16px;
+    border-radius: 50%;
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+    display: grid;
+    place-items: center;
+}
+
+.teams-empty-chat-icon i {
+    font-size: 34px;
+}
+
+.teams-empty-chat h1 {
+    color: var(--teams-text);
+    font-size: 22px;
+    margin: 0 0 6px;
+}
+
+.teams-empty-chat p,
+.teams-empty-panel p {
+    margin: 0;
+}
+
+.teams-empty-panel {
+    min-height: 260px;
+}
+
+.teams-empty-panel i {
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 1100px) {
+    .teams-chat-shell {
+        grid-template-columns: 64px minmax(270px, 310px) minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .teams-chat-shell {
+        height: 100%;
+        grid-template-columns: 56px minmax(230px, 42vw) minmax(0, 1fr);
+    }
+
+    .teams-chat-actions .teams-icon-button:nth-child(1),
+    .teams-chat-actions .teams-icon-button:nth-child(2) {
+        display: none;
+    }
+
+    .teams-message-stack {
+        max-width: 86%;
+    }
+
+    .teams-composer-tools button:nth-child(3),
+    .teams-composer-tools button:nth-child(4) {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .teams-chat-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-sidebar {
+        display: none;
+    }
+
+    .conversation-list {
+        display: none;
+    }
+
+    .chat-room-area {
+        display: block;
+    }
+
+    .teams-chat-header {
+        padding: 10px 12px;
+    }
+
+    .messages-container,
+    .teams-message-viewport {
+        padding: 16px 12px;
+    }
+
+    .teams-composer-wrap {
+        padding: 8px 10px 12px;
+    }
+}
+
+.message-actions {
+    opacity: 0;
+    transition: .15s;
+}
+
+.teams-message:hover .message-actions {
+    opacity: 1;
+}
+
+.reply-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.message-highlight {
+    animation: highlightMessage 2s;
+}
+
+@keyframes highlightMessage {
+
+    0% {
+        background: #fff3a0;
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+/* edit message  */
+
+.edit-message-input {
+    width: 100%;
+
+    min-height: 80px;
+
+    border: 1px solid #d1d5db;
+
+    border-radius: 8px;
+
+    padding: 8px;
+
+    resize: vertical;
+
+    outline: none;
+}
+
+.edit-actions {
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 8px;
+
+    margin-top: 8px;
+}
+
+.edit-actions button {
+    border: none;
+
+    border-radius: 8px;
+
+    padding: 6px 12px;
+
+    cursor: pointer;
+}
+
+
+/*
+|==========================================================================
+| teamstyle.css — PATCH
+|==========================================================================
+
+
+/*
+|--------------------------------------------------------------------------
+| COMPOSER CONTEXT BAR
+|--------------------------------------------------------------------------
+| Shared base for both #edit-preview and #reply-preview.  Each bar slides
+| in just above the composer input, carrying an icon, a label + preview
+| line, and a cancel (×) button — identical layout to Telegram / Teams.
+*/
+.composer-context-bar {
+    display: flex;
+    /* toggled to flex by JS */
+    align-items: center;
+    gap: 10px;
+
+    margin: 0 0 6px;
+    padding: 8px 12px;
+
+    background: var(--teams-panel);
+    border: 1px solid var(--teams-border);
+    border-radius: var(--teams-radius);
+
+    animation: contextBarSlideIn .18s ease;
+    overflow: hidden;
+}
+
+@keyframes contextBarSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/*
+| Left accent line — edit uses primary purple, reply uses a softer tint.
+| We add it as a pseudo-element on the icon container so no extra markup.
+*/
+.composer-context-bar::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 999px 0 0 999px;
+    background: var(--teams-primary);
+}
+
+/* The wrapper needs position:relative for the pseudo-element above */
+.composer-context-bar {
+    position: relative;
+}
+
+/* Icon circle */
+.composer-context-icon {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+    display: grid;
+    place-items: center;
+    font-size: 15px;
+}
+
+/* Text column */
+.composer-context-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.composer-context-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--teams-primary);
+    line-height: 1.2;
+}
+
+.composer-context-text {
+    font-size: 13px;
+    color: var(--teams-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* Cancel button */
+.composer-context-cancel {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    color: var(--teams-muted-2);
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.composer-context-cancel:hover {
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+}
+
+/*
+|--------------------------------------------------------------------------
+| EDIT MESSAGE BUTTON — toolbar button style tweak
+|--------------------------------------------------------------------------
+| The .edit-message-btn lives in .teams-message-toolbar.  Give it the same
+| look as the reply button so the two feel like siblings.
+*/
+.edit-message-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--teams-muted);
+    display: grid;
+    place-items: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color .15s ease, background .15s ease;
+}
+
+.edit-message-btn:hover {
+    color: var(--teams-primary);
+    background: var(--teams-primary-soft);
+}
+
+/*
+|--------------------------------------------------------------------------
+| EDITED FLASH ANIMATION  (keep as-is, already in your file)
+|--------------------------------------------------------------------------
+*/
+.message-edited-highlight {
+    animation: editedFlash .8s;
+}
+
+@keyframes editedFlash {
+    0% {
+        background: #fff5c2;
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DELETED MESSAGE BUBBLE
+|--------------------------------------------------------------------------
+*/
+.teams-message-deleted {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-style: italic;
+    color: var(--teams-muted-2);
+    background: transparent !important;
+    border: 1px dashed var(--teams-border) !important;
+    box-shadow: none !important;
+}
+
+.teams-message-deleted i {
+    font-size: 14px;
+    color: var(--teams-muted-2);
+}
+
+/*
+|--------------------------------------------------------------------------
+| HIDE TOOLBAR on deleted messages
+|--------------------------------------------------------------------------
+*/
+.message-item.is-deleted .teams-message-toolbar {
+    /*Find any .teams-message-toolbar inside a .message-item.is-deleted.*/
+    display: none !important;
+}
+
+/*
+|--------------------------------------------------------------------------
+| DELETE BUTTON — same visual as edit/reply buttons in toolbar
+|--------------------------------------------------------------------------
+*/
+.delete-message-btn,
+.hide-message-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--teams-muted);
+    display: grid;
+    place-items: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color .15s ease, background .15s ease;
+}
+
+.delete-message-btn:hover,
+.hide-message-btn:hover {
+    color: var(--teams-danger);
+    background: #fce8ec;
+}
+
+/*
+|--------------------------------------------------------------------------
+| MESSAGE REACTIONS
+|--------------------------------------------------------------------------
+*/
+
+.message-reactions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.reaction-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--teams-border);
+    border-radius: 999px;
+    background: var(--teams-panel);
+    color: var(--teams-text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, transform .1s ease;
+    line-height: 1.6;
+}
+
+.reaction-pill:hover {
+    background: var(--teams-primary-soft);
+    border-color: var(--teams-primary);
+    transform: scale(1.08);
+}
+
+.reaction-pill.is-mine {
+    background: var(--teams-primary-soft);
+    border-color: var(--teams-primary);
+    font-weight: 600;
+}
+
+/*
+|--------------------------------------------------------------------------
+| REACTION PICKER POPUP
+|--------------------------------------------------------------------------
+*/
+
+.reaction-picker {
+    display: none;
+    /* toggled to flex by JS */
+    flex-wrap: wrap;
+    max-width: 252px;
+    /* 4 emoji per row × ~63px each, cleaner wrap than 360px */
+    justify-content: flex-start;
+    position: absolute;
+    z-index: 100;
+    bottom: calc(100% + 6px);
+    left: 0;
+    gap: 2px;
+    padding: 6px 8px;
+    background: var(--teams-panel);
+    border: 1px solid var(--teams-border);
+    border-radius: var(--teams-radius);
+    box-shadow: var(--teams-shadow);
+    animation: contextBarSlideIn .15s ease;
+}
+
+/* Own messages: anchor picker to right side */
+.teams-message.is-own .reaction-picker {
+    left: auto;
+    right: 0;
+}
+
+.reaction-picker-emoji {
+    font-size: 20px;
+    /* slightly smaller so 4-per-row fits comfortably */
+    width: 36px;
+    /* fixed width keeps the grid even instead of ragged */
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    transition: background .13s ease, transform .1s ease;
+}
+
+.reaction-picker-emoji:hover {
+    background: var(--teams-primary-soft);
+    transform: scale(1.2);
+}
+
+/*
+|--------------------------------------------------------------------------
+| REACTION TRIGGER BUTTON — in toolbar
+|--------------------------------------------------------------------------
+*/
+
+.reaction-trigger-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--teams-muted);
+    display: grid;
+    place-items: center;
+    padding: 4px;
+    border-radius: 6px;
+    transition: color .15s ease, background .15s ease;
+}
+
+.reaction-trigger-btn:hover {
+    color: var(--teams-primary);
+    background: var(--teams-primary-soft);
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| SEEN-BY AVATAR STACK (group chats)
+|--------------------------------------------------------------------------
+| Telegram-style overlapping circles under the sender's own message bubble.
+| Lives inside .teams-read-row, replacing the single checkmark for groups.
+*/
+.seen-by-stack {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 18px;
+}
+
+/* Reserve the row's height even with zero seen-by avatars, so layout doesn't jump */
+.seen-by-stack.is-empty {
+    min-height: 18px;
+}
+
+.seen-by-avatar,
+.seen-by-overflow {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1;
+    border: 1.5px solid #fff;
+    background: var(--teams-primary);
+    color: #fff;
+    margin-left: -6px;
+    box-shadow: 0 0 0 0.5px rgba(0, 0, 0, .04);
+}
+
+/* First avatar in the stack shouldn't have the negative overlap margin */
+.seen-by-stack .seen-by-avatar:first-child {
+    margin-left: 0;
+}
+
+.seen-by-overflow {
+    background: var(--teams-muted-2);
+    font-size: 8px;
+}
+
+/* Subtle pop-in when a new viewer is added to the stack in real time */
+.seen-by-avatar.seen-by-new {
+    animation: seenByPopIn .25s ease;
+}
+
+@keyframes seenByPopIn {
+    from {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| IN-CHAT SEARCH BAR
+|--------------------------------------------------------------------------
+*/
+.teams-room-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--teams-panel);
+    border-bottom: 1px solid var(--teams-border);
+}
+
+.teams-room-search-bar i {
+    color: var(--teams-muted);
+    font-size: 16px;
+}
+
+.teams-room-search-bar input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    font-size: 14px;
+    background: transparent;
+}
+
+.room-search-count {
+    font-size: 12px;
+    color: var(--teams-muted-2);
+    white-space: nowrap;
+    min-width: 46px;
+    text-align: right;
+}
+
+.message-item.search-match-active .teams-message-bubble {
+    box-shadow: 0 0 0 2px var(--teams-primary);
+}
+
+
+
+/*
+|--------------------------------------------------------------------------
+| ATTACHMENT PREVIEW BAR (composer)
+|--------------------------------------------------------------------------
+*/
+.attachment-preview-bar {
+    align-items: flex-start;
+}
+
+.attachment-preview-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.attachment-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 220px;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid var(--teams-border);
+    border-radius: 10px;
+    background: var(--teams-panel-soft);
+    font-size: 12px;
+}
+
+.attachment-chip img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex: 0 0 28px;
+}
+
+.attachment-chip-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 6px;
+    background: var(--teams-primary-soft);
+    color: var(--teams-primary);
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.attachment-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--teams-text);
+}
+
+.attachment-chip-remove {
+    border: none;
+    background: transparent;
+    color: var(--teams-muted-2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    font-size: 12px;
+    flex: 0 0 auto;
+}
+
+.attachment-chip-remove:hover {
+    color: var(--teams-danger);
+}
+
+/*
+|--------------------------------------------------------------------------
+| IN-MESSAGE ATTACHMENTS
+|--------------------------------------------------------------------------
+*/
+.message-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.message-attachment-thumb {
+    width: 220px;
+    max-width: 100%;
+    max-height: 260px;
+    object-fit: cover;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid var(--teams-border);
+    transition: opacity .15s ease;
+}
+
+.message-attachment-thumb:hover {
+    opacity: .92;
+}
+
+.attachment-file-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 240px;
+    padding: 10px 12px;
+    border: 1px solid var(--teams-border);
+    border-radius: 12px;
+    background: var(--teams-panel-soft);
+    text-decoration: none;
+    color: var(--teams-text);
+    transition: background .15s ease;
+}
+
+.attachment-file-card:hover {
+    background: var(--teams-primary-soft);
+}
+
+.attachment-file-icon {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: var(--teams-primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+}
+
+.attachment-file-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.attachment-file-name {
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attachment-file-size {
+    font-size: 11px;
+    color: var(--teams-muted);
+}
+
+.attachment-uploading-bubble {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--teams-muted);
+    font-style: italic;
+}
+
+.attachment-uploading-bubble i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| IMAGE PREVIEW MODAL (Feature 10)
+|--------------------------------------------------------------------------
+*/
+.image-preview-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, .86);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+}
+
+.image-preview-modal.show {
+    display: flex;
+}
+
+.image-preview-modal img {
+    max-width: 90vw;
+    max-height: 82vh;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .4);
+}
+
+.image-preview-caption {
+    margin-top: 14px;
+    color: #fff;
+    font-size: 13px;
+    opacity: .85;
+}
+
+.image-preview-close {
+    position: absolute;
+    top: 20px;
+    right: 24px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .12);
+    color: #fff;
+    font-size: 18px;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.image-preview-close:hover {
+    background: rgba(255, 255, 255, .22);
+}
+
+/* =========================================================
+   CHAT FULL-SCREEN FIX
+   It forces the chat page to fill the entire viewport and
+   removes the old "subtract topbar height" calculation.
+   ========================================================= */
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    /* Prevent page scroll; chat panels scroll instead */
+}
+
+body {
+    background: var(--teams-bg);
+}
+
+/* If this page uses layouts.chat, there is no admin topbar.
+   So we must use the full viewport height here. */
+.teams-chat-shell {
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+/* Make every main column stretch to the full shell height */
+.chat-sidebar,
+.conversation-list,
+.chat-room-area,
+.teams-chat-area,
+.teams-conversation-panel,
+#chat-room-container {
+    height: 100%;
+    min-height: 0;
+}
+
+/* Allow only the inner content to scroll */
+.teams-room-scroll,
+.messages-container,
+.teams-message-viewport {
+    overflow-y: auto;
+}
+
+/* Mobile safety: still keep full height */
+@media (max-width: 576px) {
+    .teams-chat-shell {
+        height: 100vh;
+        min-height: 100vh;
+    }
+}
+
+/* =========================================================
+   CHAT PAGE FIX
+   Paste at the bottom of public/css/teamstyle.css
+   This makes chat fill the screen for:
+   - admin inside layouts.app
+   - teacher/student inside layouts.chat
+   ========================================================= */
+
+/* Shared chat page wrapper */
+body.chat-page {
+    overflow: hidden;
+}
+
+/* The wrapper that contains the chat UI */
+.chat-page .teams-chat-shell {
+    width: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Admin layout: fill the space below the topbar */
+body.admin-chat .page-content {
+    height: calc(100vh - var(--osen-topbar-height));
+    padding-bottom: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Admin layout: make the chat content use the full page-content area */
+body.admin-chat .page-content .teams-chat-page {
+    height: 100%;
+}
+
+/* Teacher/student layout: no admin shell, so use full viewport */
+body.student-chat {
+    height: 100vh;
+}
+
+body.student-chat .teams-chat-page,
+body.student-chat .teams-chat-shell {
+    height: 100vh;
+    min-height: 100vh;
+}
+
+/* Make the inner columns stretch properly */
+.chat-page .chat-sidebar,
+.chat-page .conversation-list,
+.chat-page .chat-room-area,
+.chat-page .teams-chat-area,
+.chat-page .teams-conversation-panel,
+.chat-page #chat-room-container {
+    height: 100%;
+    min-height: 0;
+}
+
+/* Only inner areas should scroll */
+.chat-page .teams-room-scroll,
+.chat-page .messages-container,
+.chat-page .teams-message-viewport {
+    overflow-y: auto;
+}
+
+/* Mobile safety */
+@media (max-width: 576px) {
+    body.admin-chat .page-content {
+        height: calc(100vh - var(--osen-topbar-height));
+    }
+
+    body.student-chat .teams-chat-shell {
+        height: 100vh;
+        min-height: 100vh;
+    }
+}
+/* =========================================================
+   ADMIN + STUDENT/TEACHER CHAT HEIGHT FIX
+   Paste at the bottom of teamstyle.css
+   This keeps the composer input inside the visible screen.
+   ========================================================= */
+
+/* Shared chat page */
+body.chat-page {
+    overflow: hidden;
+}
+
+/* Admin page-content must act like a vertical flex container
+   so the chat can fill the available space under the topbar. */
+body.admin-chat .page-content {
+    height: calc(100vh - var(--osen-topbar-height));
+    padding-bottom: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The chat wrapper must stretch to fill the page-content area */
+body.admin-chat .page-content > .teams-chat-page {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+/* The main 3-column chat shell must also stretch fully */
+body.admin-chat .teams-chat-shell {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Chat column must behave like a vertical layout */
+body.admin-chat .chat-room-area,
+body.admin-chat .teams-chat-area {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Message list gets the scroll area */
+body.admin-chat .messages-container,
+body.admin-chat .teams-message-viewport {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Composer stays at the bottom of the chat column */
+body.admin-chat .teams-composer-wrap {
+    flex: 0 0 auto;
+}
+
+/* Teacher/student layout: full screen without admin shell */
+body.student-chat {
+    height: 100vh;
+    overflow: hidden;
+}
+
+body.student-chat .teams-chat-page {
+    height: 100vh;
+    min-height: 0;
+    display: flex;
+}
+
+body.student-chat .teams-chat-shell {
+    flex: 1;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Mobile safety */
+@media (max-width: 768px) {
+    body.admin-chat .page-content {
+        height: calc(100vh - var(--osen-topbar-height));
+    }
+
+    body.admin-chat .teams-chat-shell,
+    body.student-chat .teams-chat-shell {
+        height: 100%;
+    }
+}

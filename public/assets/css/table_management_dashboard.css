@@ -1,0 +1,28 @@
+
+.stat-card {
+    color: white;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.table-card {
+    border-radius: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+    color: white;
+}
+
+.table-card:hover {
+    transform: scale(1.05);
+}
+
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.2);
+}
+
+.available { background: #28a745; }
+.occupied { background: #dc3545; }
+.reserved { background: #ffc107; color: black; }
+.cleaning { background: #17a2b8; }
