@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordRecoveryController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassChannelMessageController;
 use App\Http\Controllers\SchoolClassController;
@@ -22,6 +23,11 @@ Route::get('/login', function () {
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
     ->middleware(['auth', 'twofactor.setup'])
     ->name('home');
+
+Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+});
 
 Route::middleware(['auth', 'twofactor.setup', 'can:access-admin'])->group(function () {
     Route::resource('roles', RoleController::class)->only('index');
@@ -66,6 +72,9 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::get('/classes/{schoolClass}', [SchoolClassController::class, 'show'])->name('classes.show');
     Route::get('/classes/{schoolClass}/avatar', [SchoolClassController::class, 'avatar'])->name('classes.avatar');
     Route::patch('/classes/{schoolClass}', [SchoolClassController::class, 'update'])->name('classes.update');
+    Route::post('/classes/{schoolClass}/archive', [SchoolClassController::class, 'archive'])->name('classes.archive');
+    Route::post('/classes/{schoolClass}/unarchive', [SchoolClassController::class, 'unarchive'])->name('classes.unarchive');
+    Route::post('/classes/{schoolClass}/regenerate-code', [SchoolClassController::class, 'regenerateCode'])->name('classes.regenerate-code');
     Route::post('/classes/{schoolClass}/enroll', [SchoolClassController::class, 'enroll'])->name('classes.enroll');
     Route::post('/classes/{schoolClass}/owner', [SchoolClassController::class, 'transferOwnership'])->name('classes.owner');
 
@@ -76,6 +85,10 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
         ->name('classes.channels.messages.store');
     Route::get('/classes/{schoolClass}/channels/{channel}/messages', [SchoolClassChannelMessageController::class, 'index'])
         ->name('classes.channels.messages.index');
+    Route::patch('/classes/{schoolClass}/channels/{channel}/messages/{message}', [SchoolClassChannelMessageController::class, 'update'])
+        ->middleware('throttle:messages')->name('classes.channels.messages.update');
+    Route::delete('/classes/{schoolClass}/channels/{channel}/messages/{message}', [SchoolClassChannelMessageController::class, 'destroy'])
+        ->withTrashed()->middleware('throttle:messages')->name('classes.channels.messages.destroy');
 
     Route::post('/classes/{schoolClass}/members', [SchoolClassController::class, 'addMember'])
         ->middleware('can:manage-school-class,schoolClass')

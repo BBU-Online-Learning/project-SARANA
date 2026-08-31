@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -35,10 +34,16 @@ class SchoolClassChannel extends Model
         return $this->belongsTo(SchoolClass::class, 'school_class_id');
     }
 
+    public function isAnnouncement(): bool
+    {
+        return $this->is_default && $this->slug === 'announcement';
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
     public function messages(): HasMany
     {
         return $this->hasMany(SchoolClassChannelMessage::class, 'school_class_channel_id');

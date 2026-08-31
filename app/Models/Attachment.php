@@ -1,19 +1,20 @@
 <?php
+
 // app\Models\Attachment.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
-
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Attachment extends Model implements HasMedia
 {
-    use SoftDeletes;
     use InteractsWithMedia;
+    use SoftDeletes;
 
     protected $fillable = [
         'message_id',
@@ -23,7 +24,7 @@ class Attachment extends Model implements HasMedia
         'storage_path',
         'mime_type',
         'file_size',
-        'extension'
+        'extension',
     ];
 
     /*
@@ -67,20 +68,31 @@ class Attachment extends Model implements HasMedia
     public function registerMediaCollections(): void
     {
         $this->addMediaCollection('attachment')
+            ->useDisk('chat_private')
+            ->storeConversionsOnDisk('chat_private')
             ->singleFile();
     }
+
     public function registerMediaConversions(?Media $media = null): void
     {
+        if (! in_array($media?->mime_type, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)) {
+            return;
+        }
+
         $this->addMediaConversion('thumb')
+            ->format('jpg')
+            ->nonOptimized()
             ->width(400)
             ->height(400)
             ->performOnCollections('attachment')
             ->nonQueued();
     }
+
     public function isImage(): bool
     {
         return Str::startsWith($this->mime_type ?? '', 'image/');
     }
+
     public function isDocument(): bool
     {
         return in_array(
@@ -88,33 +100,40 @@ class Attachment extends Model implements HasMedia
             ['doc', 'docx', 'xls', 'xlsx']
         );
     }
+
     public function url(): ?string
     {
-        return $this->getFirstMediaUrl('attachment');
+        return $this->getFirstMedia('attachment')
+            ? route('chat.attachments.show', $this)
+            : null;
     }
+
     public function thumbUrl(): ?string
     {
         if (! $this->isImage()) {
             return null;
         }
 
-        return $this->getFirstMediaUrl('attachment', 'thumb')
-            ?: $this->url();
+        return $this->getFirstMedia('attachment')
+            ? route('chat.attachments.thumbnail', $this)
+            : null;
     }
+
     public function humanSize(): string
     {
         $bytes = $this->file_size ?? 0;
 
         if ($bytes >= 1048576) {
-            return round($bytes / 1048576, 1) . ' MB';
+            return round($bytes / 1048576, 1).' MB';
         }
 
         if ($bytes >= 1024) {
-            return round($bytes / 1024, 1) . ' KB';
+            return round($bytes / 1024, 1).' KB';
         }
 
-        return $bytes . ' B';
+        return $bytes.' B';
     }
+
     public function isAudio(): bool
     {
         // Voice notes are usually saved as browser-produced audio/webm or audio/ogg blobs.
@@ -125,6 +144,7 @@ class Attachment extends Model implements HasMedia
                 true
             );
     }
+
     public function fileIcon(): string
     {
         if ($this->isAudio()) {

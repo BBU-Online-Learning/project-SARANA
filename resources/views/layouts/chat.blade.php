@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Chat</title>
+    <script src="{{ asset('backend/assets/js/config.js') }}"></script>
 
     {{-- Keep the same assets your chat page needs --}}
     <link href="{{ asset('backend/assets/css/vendor.min.css') }}" rel="stylesheet" type="text/css" />
@@ -16,6 +17,7 @@
 
     {{-- Chat styling --}}
     <link href="{{ asset('css/teamstyle.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/workspace.css') }}" rel="stylesheet">
 
     @yield('styles')
 </head>
@@ -28,6 +30,7 @@
 
     <script src="{{ asset('backend/assets/js/vendor.min.js') }}"></script>
     <script src="{{ asset('backend/assets/js/app.js') }}"></script>
+    <script src="{{ asset('js/workspace.js') }}" defer></script>
 
     {{-- Global CSRF token for fetch/axios --}}
     <script>

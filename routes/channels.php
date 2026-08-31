@@ -2,23 +2,20 @@
 
 // Laravel automatically loads this file for broadcasting authentication.
 use Illuminate\Support\Facades\Broadcast;   // Used to define channel authorization rules
-use Illuminate\Support\Facades\DB;   //
 
-Broadcast::channel('chat.room.{roomId}', function ($user, $roomId) {    // Broadcast::channel(  "This registers a broadcasting authorization callback. Meaning: “When someone tries to subscribe to this channel, run this logic.”
-    // CHANNEL NAME 'chat.room.{roomId}', Defines a dynamic private channel pattern.
-    if (DB::table('chat_room_members')
-        ->where('room_id', $roomId)
-        ->where('user_id', $user->id)
-        ->exists()
-    ) {
+//
 
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-        ];
+Broadcast::channel('chat.room.{roomId}', function (\App\Models\User $user, string $roomId): array|false {
+    $room = \App\Models\ChatRoom::find($roomId);
+    if ($room?->type === 'direct' && app(\App\Services\Chat\ChatAccessService::class)->access($user, $room)) {
+        return ['id' => $user->id, 'name' => $user->name];
     }
 
     return false;
+});
+
+Broadcast::channel('chat.membership.{membershipId}', function (\App\Models\User $user, string $membershipId): bool {
+    return ctype_digit($membershipId) && app(\App\Services\Chat\ChatAccessService::class)->subscription($user, (int) $membershipId);
 });
 
 // Create Presence Channel

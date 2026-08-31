@@ -2,9 +2,15 @@
 @section('bodyClass', 'class-page')
 @section('content')
     <div class="page-container">
+        @if (session('error')) <div class="alert alert-danger" role="alert">{{ session('error') }}</div> @endif
+        @if (session('success')) <div class="alert alert-success" role="status">{{ session('success') }}</div> @endif
         @php
             $currentRole = strtolower($schoolClass->members->firstWhere('id', auth()->id())?->pivot->role ?? '');
         @endphp
+        @if ($schoolClass->isArchived())
+            <div class="alert alert-warning">Archived class: history remains readable. Restore the class before editing, posting, joining, or changing membership.</div>
+        @endif
+        @error('class') <div class="alert alert-danger">{{ $message }}</div> @enderror
 
         <div class="card class-hero mb-4">
             <div class="card-body">
@@ -42,7 +48,7 @@
                             <strong>{{ $schoolClass->creator?->name ?? 'Unknown' }}</strong>
                         </div>
 
-                        @if ($currentRole && $currentRole !== 'owner')
+                        @if ($currentRole && $currentRole !== 'owner' && ! $schoolClass->isArchived())
                             <form method="POST" action="{{ route('classes.leave', $schoolClass) }}">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-danger">
@@ -102,6 +108,30 @@
                         </div>
                     </div>
                 </div>
+
+                @can('manageLifecycle', $schoolClass)
+                    <div class="card mt-3"><div class="card-body">
+                        <h5>Class Lifecycle</h5>
+                        <p class="text-muted">Archive instead of deleting. Messages and members are retained.</p>
+                        <form method="POST" action="{{ route($schoolClass->isArchived() ? 'classes.unarchive' : 'classes.archive', $schoolClass) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-warning">
+                                {{ $schoolClass->isArchived() ? 'Restore Class' : 'Archive Class' }}
+                            </button>
+                        </form>
+                    </div></div>
+                @endcan
+
+                @can('regenerateCode', $schoolClass)
+                    <div class="card mt-3"><div class="card-body">
+                        <h5>Join Code</h5>
+                        <p>Regenerating the code invalidates the previous code. Existing members stay enrolled.</p>
+                        <form method="POST" action="{{ route('classes.regenerate-code', $schoolClass) }}">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-secondary">Regenerate Join Code</button>
+                        </form>
+                    </div></div>
+                @endcan
 
                 @can('enroll', $schoolClass)
                     <div class="card mt-3"><div class="card-body">

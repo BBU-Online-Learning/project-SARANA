@@ -1,16 +1,8 @@
 {{-- resources/views/chat/index.blade.php --}}
-@php
-    // Pick the layout once:
-    // admin -> normal dashboard shell
-    // teacher/student -> clean chat shell
-    $roleName = strtolower(auth()->user()->role->name ?? '');
-    $layout = $roleName === 'admin' ? 'layouts.app' : 'layouts.chat';
-@endphp
-
-@extends($layout)
+@extends('layouts.chat')
 
 @section('bodyClass')
-    chat-page {{ $roleName === 'admin' ? 'admin-chat' : 'student-chat' }}
+    chat-page student-chat
 @endsection
 
 @section('hideFooter')
@@ -20,9 +12,14 @@
 @endsection
 
 @section('content')
+    <div class="chat-mobile-toolbar">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-chat-menu aria-controls="chat-navigation" aria-expanded="false">Menu</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-chat-list>Conversations</button>
+    </div>
+    <div id="chat-load-status" class="alert alert-info chat-load-status" role="status" aria-live="polite" hidden></div>
     <div class="teams-chat-page">
         <div class="teams-chat-shell">
-            <aside class="chat-sidebar" aria-label="Main navigation">
+            <aside class="chat-sidebar" id="chat-navigation" aria-label="Main navigation">
                 @include('chat.partials.sidebar')
             </aside>
 
@@ -77,6 +74,10 @@
                     return;
                 }
 
+                if (window.chat.roomType === 'group') {
+                    axios.post(`/chat/groups/${window.chat.activeRoomId}/typing`).catch(() => {});
+                    return;
+                }
                 window.chat.channel.whisper('typing', {
                     userId: window.chat.currentUserId,
                     userName: window.chat.currentUserName

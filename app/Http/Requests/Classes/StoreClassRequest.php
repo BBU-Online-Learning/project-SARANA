@@ -21,6 +21,8 @@ class StoreClassRequest extends FormRequest
                 'exists:users,id',
             ],
             'created_by' => ['prohibited'],
+            'archived_at' => ['prohibited'],
+            'deleted_at' => ['prohibited'],
             'join_code' => ['prohibited'],
             'name' => [
                 'required',

@@ -41,6 +41,14 @@ class AccountManagementService
             }
             $attributes = array_intersect_key($attributes, array_flip($allowed));
 
+            if ($target) {
+                $newRole = Role::query()->findOrFail($attributes['role_id']);
+                $changingRole = (int) $target->role_id !== (int) $newRole->id && $newRole->name !== Role::TEACHER;
+                if ($changingRole || ($attributes['status'] ?? $target->status) !== 'active') {
+                    $this->assertOwnershipAllowsAccountChange($target);
+                }
+            }
+
             if (($attributes['profile'] ?? null) instanceof UploadedFile) {
                 $path = $attributes['profile']->store('images/users', 'public');
                 $attributes['profile'] = Storage::disk('public')->url($path);
@@ -68,6 +76,7 @@ class AccountManagementService
     public function delete(User $actor, User $target): void
     {
         $this->withTarget($actor, $target, 'delete', function (User $target): void {
+            $this->assertOwnershipAllowsAccountChange($target, includeArchived: true);
             $target->delete();
         });
     }
@@ -95,6 +104,7 @@ class AccountManagementService
                 throw ValidationException::withMessages(['user' => 'Select an existing active account with a fixed role and confirm its exact email.']);
             }
 
+            $this->assertOwnershipAllowsAccountChange($user);
             if ($commit) {
                 $user->update(['role_id' => $role->id]);
             }
@@ -113,6 +123,21 @@ class AccountManagementService
 
             return $callback($target);
         });
+    }
+
+    private function assertOwnershipAllowsAccountChange(User $target, bool $includeArchived = false): void
+    {
+        $classes = $target->schoolClasses()->wherePivot('role', 'owner');
+        if (! $includeArchived) {
+            $classes->whereNull('school_classes.archived_at');
+        }
+        if ($classes->exists()) {
+            throw ValidationException::withMessages([
+                'user' => $includeArchived
+                    ? 'Reassign class ownership before deleting this account, including archived classes.'
+                    : 'Reassign ownership of all active classes before suspending or changing this owner to a non-Teacher role.',
+            ]);
+        }
     }
 
     private function locked(Closure $callback): mixed

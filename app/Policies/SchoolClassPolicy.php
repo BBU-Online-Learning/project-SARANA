@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\SchoolClassChannel;
+use App\Models\SchoolClassChannelMessage;
 use App\Models\User;
 use App\Services\ClassAccessService;
 
@@ -36,13 +37,36 @@ class SchoolClassPolicy
 
     public function update(User $user, SchoolClass $schoolClass): bool
     {
+        return ! $schoolClass->isArchived() && $this->manageLifecycle($user, $schoolClass);
+    }
+
+    public function manageLifecycle(User $user, SchoolClass $schoolClass): bool
+    {
         return ! $schoolClass->trashed() && ($this->access->administrator($user)
             || $this->access->teachingRole($user, $schoolClass) === 'owner');
     }
 
+    public function regenerateCode(User $user, SchoolClass $schoolClass): bool
+    {
+        return ! $schoolClass->isArchived() && $this->access->teachingRole($user, $schoolClass) === 'owner';
+    }
+
+    public function sendMessage(User $user, SchoolClass $schoolClass, SchoolClassChannel $channel): bool
+    {
+        return ! $schoolClass->isArchived() && $this->viewChannel($user, $schoolClass, $channel)
+            && (! $channel->isAnnouncement() || $this->access->teachingRole($user, $schoolClass) !== null);
+    }
+
+    public function manageOwnMessage(User $user, SchoolClass $schoolClass, SchoolClassChannel $channel, SchoolClassChannelMessage $message): bool
+    {
+        return $this->sendMessage($user, $schoolClass, $channel)
+            && $message->school_class_channel_id === $channel->id
+            && $message->sender_id === $user->id;
+    }
+
     public function manageMembers(User $user, SchoolClass $schoolClass): bool
     {
-        return ! $schoolClass->trashed() && ($this->access->administrator($user)
+        return ! $schoolClass->isArchived() && ! $schoolClass->trashed() && ($this->access->administrator($user)
             || $this->access->teachingRole($user, $schoolClass) !== null);
     }
 
@@ -53,7 +77,7 @@ class SchoolClassPolicy
 
     public function manageChannels(User $user, SchoolClass $schoolClass): bool
     {
-        return $this->access->teachingRole($user, $schoolClass) !== null;
+        return ! $schoolClass->isArchived() && $this->access->teachingRole($user, $schoolClass) !== null;
     }
 
     public function addMember(User $user, SchoolClass $schoolClass, User $target, string $role): bool
@@ -95,7 +119,7 @@ class SchoolClassPolicy
 
     public function enroll(User $user, SchoolClass $schoolClass): bool
     {
-        return ! $schoolClass->trashed() && $this->access->administrator($user)
+        return ! $schoolClass->isArchived() && ! $schoolClass->trashed() && $this->access->administrator($user)
             && ! $this->access->membership($user, $schoolClass);
     }
 

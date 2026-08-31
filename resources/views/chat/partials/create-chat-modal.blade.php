@@ -1,14 +1,17 @@
-<div class="modal fade" id="createChatModal">
+<div class="modal fade" id="createChatModal" tabindex="-1" aria-labelledby="create-chat-title" aria-hidden="true">
 
     <div class="modal-dialog">
 
         <div class="modal-content">
 
             <div class="modal-header">
-                <h5>Create Chat</h5>
+                <h5 id="create-chat-title">Create Chat</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <div class="modal-body">
+                <div id="create-chat-error" class="alert alert-danger" role="alert" hidden></div>
+                @if($users->isEmpty())<p class="text-muted">No other active, onboarded users are available. You may create a group and add members later.</p>@endif
 
                 <ul class="nav nav-tabs mb-3">
 
@@ -39,6 +42,7 @@
 
                         <select 
                             id="direct-user-id"
+                            aria-label="Select a user"
                             class="form-select">
 
                             <option value="">
@@ -75,12 +79,14 @@
                         <input
                             type="text"
                             id="group-name"
+                            aria-label="Group name" maxlength="100"
                             class="form-control mb-3"
                             placeholder="Group Name">
 
                         <select
                             multiple
                             id="group-members"
+                            aria-label="Group members"
                             class="form-select">
 
                             @foreach($users as $user)

@@ -27,6 +27,11 @@
                 <div class="card">
 
                     <div class="card-body">
+                        @if ($user->schoolClasses()->wherePivot('role', 'owner')->whereNull('school_classes.archived_at')->exists())
+                            <div class="alert alert-warning">
+                                This account owns active classes. Reassign ownership before suspending it or changing it to a non-Teacher role.
+                            </div>
+                        @endif
                         @if ($errors->any())
                             <div class="alert alert-danger" role="alert">
                                 @foreach ($errors->all() as $error)

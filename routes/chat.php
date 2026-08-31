@@ -1,25 +1,38 @@
 <?php
 
+use App\Http\Controllers\Chat\AttachmentController;
 use App\Http\Controllers\Chat\ChatRoomController;
+use App\Http\Controllers\Chat\GroupMembershipController;
 use App\Http\Controllers\Chat\MessageController;
 use App\Http\Controllers\Chat\MessageReactionController;
 use App\Http\Controllers\Chat\MessageSearchController;
 use App\Http\Controllers\Chat\PresenceController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
+Route::middleware(['auth', 'twofactor.setup'])->prefix('chat')->group(function (): void {
+    Route::get('/rooms/{room}/access', [GroupMembershipController::class, 'access'])->name('chat.rooms.access');
+    Route::get('/groups/{room}', [GroupMembershipController::class, 'show'])->name('chat.groups.show');
+    Route::patch('/groups/{room}', [GroupMembershipController::class, 'update'])->name('chat.groups.update');
+    Route::post('/groups/{room}/members', [GroupMembershipController::class, 'add'])->name('chat.groups.members.store');
+    Route::delete('/groups/{room}/members/{user}', [GroupMembershipController::class, 'remove'])->withTrashed()->name('chat.groups.members.destroy');
+    Route::post('/groups/{room}/leave', [GroupMembershipController::class, 'leave'])->name('chat.groups.leave');
+    Route::post('/groups/{room}/typing', [GroupMembershipController::class, 'typing'])->middleware('throttle:messages')->name('chat.groups.typing');
+});
 
+Route::middleware(['auth', 'twofactor.setup'])->prefix('chat/attachments')->name('chat.attachments.')->group(function (): void {
+    Route::get('/{attachment}', [AttachmentController::class, 'show'])->name('show');
+    Route::get('/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])->name('thumbnail');
+    Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
+});
 
-
-
-Route::prefix('chat')  //Adds /chat to the beginning of every route inside the group. ex:/chat/rooms
-    ->name('chat.')     //Adds chat. as a prefix to the route name. ex:chat.index
+Route::prefix('chat')  // Adds /chat to the beginning of every route inside the group. ex:/chat/rooms
+    ->name('chat.')     // Adds chat. as a prefix to the route name. ex:chat.index
     ->middleware([
-        'auth',     //Means the user must be logged in.
+        'auth',     // Means the user must be logged in.
         'twofactor.setup',
-        'throttle:messages',    //Applies rate limiting.
+        'throttle:messages',    // Applies rate limiting.
     ])
-    ->group(function () {   //Everything inside the callback shares the same prefix, name prefix, and middleware.
+    ->group(function () {   // Everything inside the callback shares the same prefix, name prefix, and middleware.
 
         /*
         |--------------------------------------------------------------------------

@@ -78,6 +78,8 @@ class ClassManagementService
                 return null;
             }
 
+            abort_if($schoolClass->isArchived(), 403, 'Archived classes are read-only.');
+
             if (! $this->access->membership($actor, $schoolClass)) {
                 $schoolClass->members()->attach($actor, ['role' => 'student', 'joined_at' => now()]);
                 $this->audit($actor, $schoolClass, $actor,
@@ -110,6 +112,7 @@ class ClassManagementService
     public function leave(User $actor, SchoolClass $schoolClass): ?string
     {
         return $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass): ?string {
+            abort_if($schoolClass->isArchived(), 403, 'Archived classes are read-only.');
             $membership = $this->access->membership($actor, $schoolClass);
             abort_unless($membership, 403);
             if ($membership->role === 'owner') {
@@ -164,6 +167,33 @@ class ClassManagementService
             'old_role' => $oldRole,
             'new_role' => $newRole,
         ]);
+    }
+
+    public function setArchived(User $actor, SchoolClass $schoolClass, bool $archived): void
+    {
+        $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($archived): void {
+            Gate::forUser($actor)->authorize('manageLifecycle', $schoolClass);
+            if ($schoolClass->isArchived() === $archived) {
+                return;
+            }
+            if (! $archived) {
+                $owners = $schoolClass->memberRecords()->where('role', 'owner')->with('user.role')->get();
+                if ($owners->count() !== 1 || ! $owners->sole()->user || ! $this->access->eligibleTeacher($owners->sole()->user)) {
+                    throw ValidationException::withMessages([
+                        'class' => 'Restore requires exactly one active application Teacher owner. Administration must restore the owner account eligibility first.',
+                    ]);
+                }
+            }
+            $schoolClass->forceFill(['archived_at' => $archived ? now() : null])->save();
+        });
+    }
+
+    public function regenerateCode(User $actor, SchoolClass $schoolClass): void
+    {
+        $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass): void {
+            Gate::forUser($actor)->authorize('regenerateCode', $schoolClass);
+            $schoolClass->update(['join_code' => $this->joinCode()]);
+        });
     }
 
     public function joinCode(): string

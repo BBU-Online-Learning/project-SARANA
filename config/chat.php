@@ -1,9 +1,34 @@
 <?php
+
 // File: D:\education\Laravel_Project\Elearning\config\chat.php
 return [
     'allowed_reactions' => ['👍', '🙏', '😁', '❤️', '👎', '😡', '😍'],
     'max_attachment_size_kb' => 20480,
     'max_attachments_per_message' => 10,
+
+    'attachment_mime_types' => [
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'png' => ['image/png'],
+        'gif' => ['image/gif'],
+        'webp' => ['image/webp'],
+        'pdf' => ['application/pdf'],
+        'doc' => ['application/msword', 'application/x-ole-storage', 'application/CDFV2'],
+        'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+        'xls' => ['application/vnd.ms-excel', 'application/x-ole-storage', 'application/CDFV2'],
+        'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
+        'zip' => ['application/zip', 'application/x-zip-compressed'],
+        'ogg' => ['audio/ogg', 'application/ogg'],
+        'oga' => ['audio/ogg', 'application/ogg'],
+        'webm' => ['audio/webm', 'video/webm'],
+        'mp3' => ['audio/mpeg'],
+        'wav' => ['audio/wav', 'audio/x-wav', 'audio/vnd.wave'],
+        'm4a' => ['audio/mp4', 'audio/x-m4a', 'video/mp4'],
+        'aac' => ['audio/aac', 'audio/x-hx-aac-adts'],
+        'mpeg' => ['audio/mpeg'],
+        'mpga' => ['audio/mpeg'],
+        'mp4' => ['audio/mp4', 'video/mp4'],
+    ],
 
     // Voice messages are stored as audio attachments, so audio mime/types must be allowed here.
     'allowed_attachment_extensions' => [

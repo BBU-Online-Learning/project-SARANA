@@ -2,7 +2,6 @@
 
 namespace App\Events\Chat;
 
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -16,11 +15,9 @@ class SidebarUpdated implements ShouldBroadcastNow
         public array $payload
     ) {}
 
-    public function broadcastOn()
+    public function broadcastOn(): array
     {
-        return new PrivateChannel(
-            'user.' . $this->userId
-        );
+        return app(\App\Services\Chat\ChatAccessService::class)->userChannels($this->userId, (int) ($this->payload['room_id'] ?? 0));
     }
 
     public function broadcastAs()

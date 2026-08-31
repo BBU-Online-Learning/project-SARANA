@@ -3,25 +3,26 @@
 
 @section('content')
 <div class="page-container">
+    @if (session('error')) <div class="alert alert-danger" role="alert">{{ session('error') }}</div> @endif
+    @if (session('success')) <div class="alert alert-success" role="status">{{ session('success') }}</div> @endif
     <div class="card class-hero mb-4">
         <div class="card-body">
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
                 <div class="flex-grow-1">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                         <span class="badge class-hero-badge">Class Dashboard</span>
-                        <span class="badge bg-dark">Teams-style layout</span>
                     </div>
 
                     <h4 class="class-title mb-2">Classes</h4>
 
                     <p class="class-description mb-0">
-                        Create, join, and manage your class spaces from one place.
+                        {{ auth()->user()->can('manage-classes') ? 'Create, join, and manage your class spaces from one place.' : 'Join your classes and open your class conversations.' }}
                     </p>
                 </div>
 
                 <div class="class-meta-pill">
                     <span>Available actions</span>
-                    <strong>Create, Join, Open</strong>
+                    <strong>{{ auth()->user()->can('manage-classes') ? 'Create, Join, Open' : 'Join, Open' }}</strong>
                 </div>
             </div>
         </div>
@@ -122,6 +123,9 @@
                                 <div class="flex-grow-1">
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                         <span class="badge class-hero-badge">Class</span>
+                                        @if ($schoolClass->isArchived())
+                                            <span class="badge bg-warning text-dark">Archived</span>
+                                        @endif
                                         <span class="badge bg-dark">{{ $schoolClass->channels->count() }} channels</span>
                                     </div>
 

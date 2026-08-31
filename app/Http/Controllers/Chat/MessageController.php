@@ -4,17 +4,21 @@
 
 namespace App\Http\Controllers\Chat;
 
-use App\Events\Chat\MessageDeleted;
-use App\Events\Chat\MessageUpdated;
-use App\Http\Controllers\Controller;        // This gives access to Laravel controller features.
-use App\Http\Requests\Chat\StoreMessageRequest;
 use App\Events\Chat\ConversationUpdated;
+use App\Events\Chat\MessageDeleted;
+use App\Events\Chat\MessageUpdated;        // This gives access to Laravel controller features.
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\StoreMessageRequest;
+use App\Http\Requests\Chat\UpdateMessageRequest;
 use App\Models\ChatRoom;
 use App\Models\Message;
 use App\Models\MessageUserDeletion;
+use App\Models\User;
+use App\Services\Chat\ChatAccessService;
 use App\Services\Chat\MessageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class MessageController extends Controller
 {
@@ -63,25 +67,26 @@ class MessageController extends Controller
     {
 
         $this->authorize('access', $room);
-        $message = $this->messageService->sendMessage($room, $request->validated());
+        $message = app(ChatAccessService::class)->withRoom($request->user(), $room,
+            fn (User $actor, ChatRoom $room) => $this->messageService->sendMessage($room, $request->validated()));
 
         return response()->json([
             'success' => true,
         ]);
     }
 
-    public function update(Request $request, Message $message)
+    public function update(UpdateMessageRequest $request, Message $message)
     {
         $this->authorize('update', $message);
 
-        $validated = $request->validate([
-            'body' => ['required', 'string', 'max:5000'],
-        ]);
+        $message = app(ChatAccessService::class)->withRoom($request->user(), $message->room,
+            function (User $actor, ChatRoom $room) use ($message, $request): Message {
+                $message = $room->messages()->lockForUpdate()->findOrFail($message->id);
+                Gate::forUser($actor)->authorize('update', $message);
+                $message->update(['body' => $request->validated('body'), 'edited_at' => now(), 'is_edited' => true]);
 
-        $message->update([
-            'body' => $validated['body'],
-            'edited_at' => now(),
-        ]);
+                return $message;
+            });
 
         $message->load([
             'sender',
@@ -111,7 +116,14 @@ class MessageController extends Controller
     {
         $this->authorize('delete', $message);
 
-        $message->update(['deleted_for_everyone_at' => now(),]);
+        $message = app(ChatAccessService::class)->withRoom(Auth::user(), $message->room,
+            function (User $actor, ChatRoom $room) use ($message): Message {
+                $message = $room->messages()->lockForUpdate()->findOrFail($message->id);
+                Gate::forUser($actor)->authorize('delete', $message);
+                $message->update(['deleted_for_everyone_at' => now()]);
+
+                return $message;
+            });
         // Load relations so the sidebar can update immediately after delete.
         $message->load(['sender', 'attachments']);
 

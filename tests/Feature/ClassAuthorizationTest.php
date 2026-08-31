@@ -57,7 +57,7 @@ test('administrators manage metadata but must explicitly enroll for messages', f
     $this->from(route('classes.show', $this->schoolClass))->post(route('classes.enroll', $this->schoolClass))
         ->assertRedirect(route('classes.show', $this->schoolClass));
     $this->get(route('classes.channels.show', [$this->schoolClass, $this->channel]))->assertOk()->assertSee('Class-only body');
-    $this->postJson(route('classes.channels.messages.store', [$this->schoolClass, $this->channel]), ['body' => 'Enrolled'])->assertRedirect();
+    $this->postJson(route('classes.channels.messages.store', [$this->schoolClass, $this->channel]), ['body' => 'Enrolled'])->assertCreated()->assertJsonPath('message.body', 'Enrolled');
     $this->postJson(route('classes.channels.store', $this->schoolClass), ['name' => 'Forbidden'])->assertForbidden();
     $this->assertDatabaseHas('class_membership_audits', [
         'actor_id' => $admin->id, 'target_id' => $admin->id, 'action' => 'administrative_enrollment', 'new_role' => 'student',
@@ -369,61 +369,7 @@ test('a disabled application role cannot list classes or retain subscriptions', 
 });
 
 test('the realtime client fetches authorized content and clears a revoked class page', function (): void {
-    $script = <<<'JS'
-const fs = require('node:fs');
-const vm = require('node:vm');
-const assert = require('node:assert/strict');
-(async () => {
-    let start, listener, interval, cleared, left, topic, calls = 0, revoked = false;
-    const list = {
-        querySelectorAll: () => [{dataset: {classMessageId: '10'}}],
-        querySelector: () => null,
-        appendChild: () => { throw new Error('No message body may come from an empty signal'); },
-    };
-    const page = {
-        dataset: {membershipId: '7', messagesUrl: '/classes/1/channels/1/messages'},
-        replaceChildren: (node) => { revoked = node.textContent.includes('no longer available'); },
-    };
-    vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
-        URL,
-        document: {
-            addEventListener: (_event, callback) => { start = callback; },
-            getElementById: (id) => id === 'school-class-channel-page' ? page : list,
-            createElement: () => ({}),
-        },
-        window: {
-            location: {origin: 'http://localhost'},
-            addEventListener: () => {},
-            Echo: {
-                private: (name) => { topic = name; return {listen: (_event, callback) => { listener = callback; }}; },
-                leave: (name) => { left = name; },
-            },
-        },
-        setInterval: (callback) => { interval = callback; return 42; },
-        clearInterval: (id) => { cleared = id; },
-        fetch: async (url, options) => {
-            calls++;
-            assert.equal(options.cache, 'no-store');
-            assert.equal(url.searchParams.get('after_id'), '10');
-            if (calls === 1) {
-                return {ok: true, status: 200, json: async () => ({messages: [], next_id: 10, has_more: false})};
-            }
-            return {ok: false, status: 403};
-        },
-    });
-    start();
-    await new Promise(setImmediate);
-    assert.equal(topic, 'school-class.membership.7');
-    await listener({body: 'Untrusted socket data', message_id: 11});
-    assert.equal(calls, 2);
-    assert.equal(revoked, true);
-    assert.equal(left, topic);
-    assert.equal(cleared, 42);
-    await interval();
-    assert.equal(calls, 2);
-})().catch((error) => { console.error(error); process.exit(1); });
-JS;
-    $process = new \Symfony\Component\Process\Process(['node', '-e', $script, public_path('js/classes/channel-realtime.js')]);
+    $process = new \Symfony\Component\Process\Process(['node', base_path('tests/class-channel-client.cjs'), public_path('js/classes/channel-realtime.js'), 'revoked']);
     $process->mustRun();
     expect($process->isSuccessful())->toBeTrue();
 });

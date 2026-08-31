@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+    @error('user') <div class="alert alert-danger" role="alert">{{ $message }}</div> @enderror
     <div class="page-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h4>Users</h4>

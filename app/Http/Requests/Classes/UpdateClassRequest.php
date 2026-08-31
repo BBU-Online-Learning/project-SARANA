@@ -17,6 +17,8 @@ class UpdateClassRequest extends FormRequest
             'name' => ['required', 'string', 'min:3', 'max:100'],
             'description' => ['nullable', 'string', 'max:1000'],
             'created_by' => ['prohibited'],
+            'archived_at' => ['prohibited'],
+            'deleted_at' => ['prohibited'],
             'owner_id' => ['prohibited'],
             'join_code' => ['prohibited'],
             'avatar' => ['prohibited'],

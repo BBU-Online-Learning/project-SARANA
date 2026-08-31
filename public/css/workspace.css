@@ -1,0 +1,52 @@
+/* Shared navigation only. Class and conversation content keep their own themes. */
+.application-shell { --osen-sidenav-width: 240px; --osen-topbar-height: 72px; overflow-y: auto; }
+.application-shell .sidenav-menu { width: 240px; margin-left: 0 !important; opacity: 1 !important; position: fixed; inset: 0 auto 0 0; overflow-y: auto; background: #fff; border-right: 1px solid #e5e5ea; z-index: 1040; }
+.workspace-brand { display: block; padding: 24px 20px; font-size: 20px; font-weight: 700; color: #242424; overflow-wrap: anywhere; }
+.workspace-nav { display: flex; flex-direction: column; gap: 6px; padding: 12px; }
+.workspace-nav-link { display: flex; align-items: center; gap: 12px; border: 0; border-radius: 8px; padding: 12px; color: #343449; background: transparent; width: 100%; text-align: left; }
+.workspace-nav-link:hover, .workspace-nav-link.active { background: #ececff; color: #464775; }
+.workspace-nav-link:focus-visible, .teams-nav-link:focus-visible { outline: 3px solid #8e91d1; outline-offset: -3px; }
+.application-shell .page-content { display: block; margin-left: 240px; min-height: 100dvh; padding: 88px 0 24px; min-width: 0; }
+.application-shell .app-topbar { position: fixed; inset: 0 0 auto 240px; margin-left: 0 !important; width: auto; height: 72px; z-index: 1030; }
+.application-shell .app-topbar > .page-container { height: 100%; padding: 0 20px; display: flex; gap: 16px; align-items: center; }
+.workspace-account-link { margin-left: auto; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-flash:has(.alert) { padding: 0 24px; }
+.workspace-page { max-width: 1280px; }
+.workspace-page .card { overflow-wrap: anywhere; }
+.workspace-count { color: inherit; height: 100%; }
+.workspace-count strong { display: block; font-size: 30px; margin-top: 8px; }
+.workspace-photo { object-fit: cover; }
+.workspace-mobile-only, .workspace-backdrop { display: none; }
+.workspace-skip-link { position: fixed; top: -80px; left: 12px; z-index: 1100; padding: 12px; background: white; }
+.workspace-skip-link:focus { top: 8px; }
+.chat-page .teams-sidebar-inner { overflow-y: auto; }
+.chat-page .teams-nav-list form { margin: 0; }
+.chat-page button.teams-nav-link { border: 0; background: transparent; }
+.chat-mobile-toolbar { display: none; }
+.chat-load-status { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1055; max-width: calc(100vw - 24px); box-shadow: 0 3px 12px #0002; }
+@media (max-width: 991px) {
+    .workspace-mobile-only { display: inline-block; }
+    .application-shell .sidenav-menu { transform: translateX(-100%) !important; visibility: hidden; }
+    .application-shell.workspace-nav-open .sidenav-menu { transform: translateX(0) !important; visibility: visible; }
+    .application-shell .page-content { margin-left: 0 !important; }
+    .application-shell .app-topbar { left: 0 !important; }
+    .workspace-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; z-index: 1035; background: #0007; border: 0; }
+    .application-shell.workspace-nav-open { overflow: hidden; }
+}
+@media (max-width: 576px) {
+    .chat-load-status { top: 58px; }
+    .application-shell .app-topbar > .page-container { padding: 0 12px; gap: 8px; }
+    .workspace-account-link { max-width: 25%; }
+    .chat-page .chat-mobile-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; height: 52px; background: #fff; }
+    .chat-page.student-chat .teams-chat-page, .chat-page.student-chat .teams-chat-shell { height: calc(100dvh - 52px); min-height: 0; }
+    .chat-page .teams-chat-shell { grid-template-columns: 1fr; }
+    .chat-page .conversation-list { display: block; }
+    .chat-page .chat-room-area { display: none; }
+    .chat-page.chat-mobile-room .conversation-list { display: none; }
+    .chat-page.chat-mobile-room .chat-room-area { display: block; }
+    .chat-page.chat-mobile-navigation .chat-sidebar { display: block; position: fixed; inset: 52px 0 0; z-index: 1040; height: auto; }
+    .chat-page.chat-mobile-navigation .teams-nav-list { align-items: stretch; }
+    .chat-page.chat-mobile-navigation .teams-nav-link { width: 100%; gap: 12px; padding: 12px 20px; justify-content: flex-start; }
+    .chat-page.chat-mobile-navigation .teams-nav-link .visually-hidden { position: static !important; width: auto !important; height: auto !important; clip: auto !important; white-space: normal !important; }
+    .chat-page .teams-chat-actions #open-room-search-btn { display: inline-flex; }
+}

@@ -103,7 +103,7 @@
                         <input id="verification-code" name="code" inputmode="numeric" pattern="[0-9]{6}" class="form-control mb-2" autocomplete="one-time-code" required>
                         <p class="hint">Wait for a fresh code if you just used one to log in or complete setup.</p>
                     @endif
-                    <p><a href="{{ route('password.request') }}">Forgot your password? Log out and request an email reset.</a></p>
+                    <p>Forgot your password? Use Log out below, then choose Forgot Password on the login page.</p>
 
                     <!-- NEW PASSWORD -->
                     <div class="mb-3">
@@ -144,6 +144,7 @@
 
                 </form>
                 @if (auth()->user()->google2fa_enabled && ! auth()->user()->must_change_password)
+                    <a href="{{ route('profile.edit') }}" class="btn btn-outline-secondary mt-3">Back to my profile</a>
                     <hr>
                     <h5>Replace Authenticator</h5>
                     <p class="hint">Removing it signs out other sessions and requires a new setup before using the application.</p>

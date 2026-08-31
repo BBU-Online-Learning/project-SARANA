@@ -54,21 +54,13 @@
         </div>
 
         <div class="teams-chat-actions">
+            @unless($isDirect)
+                <a href="{{ route('chat.groups.show', $room) }}" class="btn btn-sm btn-outline-secondary">Members</a>
+            @endunless
             <button type="button" id="open-room-search-btn" class="teams-icon-button" aria-label="Search in chat">
                 <i class="ti ti-search"></i>
             </button>
 
-            <button type="button" class="teams-icon-button" aria-label="Start audio call">
-                <i class="ti ti-phone"></i>
-            </button>
-
-            <button type="button" class="teams-icon-button" aria-label="Start video call">
-                <i class="ti ti-video"></i>
-            </button>
-
-            <button type="button" class="teams-icon-button" aria-label="More actions">
-                <i class="ti ti-dots"></i>
-            </button>
         </div>
         {{-- IN-CHAT MESSAGE SEARCH BAR (Telegram-style) --}}
         <div id="room-search-bar" class="teams-room-search-bar" style="display:none;">
@@ -165,9 +157,6 @@
                         <i class="ti ti-microphone"></i>
                     </button>
 
-                    <button type="button" class="teams-icon-button" aria-label="Emoji">
-                        <i class="ti ti-mood-smile" aria-hidden="true"></i>
-                    </button>
                 </div>
 
                 {{-- Text composer --}}

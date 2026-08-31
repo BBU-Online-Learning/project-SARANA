@@ -187,6 +187,27 @@ class SchoolClassController extends Controller
         return back()->with('success', 'Your administrative enrollment has been recorded.');
     }
 
+    public function archive(SchoolClass $schoolClass): RedirectResponse
+    {
+        $this->classes->setArchived(Auth::user(), $schoolClass, true);
+
+        return redirect()->route('classes.show', $schoolClass)->with('success', 'Class archived. Existing members retain read-only access.');
+    }
+
+    public function unarchive(SchoolClass $schoolClass): RedirectResponse
+    {
+        $this->classes->setArchived(Auth::user(), $schoolClass, false);
+
+        return redirect()->route('classes.show', $schoolClass)->with('success', 'Class restored.');
+    }
+
+    public function regenerateCode(SchoolClass $schoolClass): RedirectResponse
+    {
+        $this->classes->regenerateCode(Auth::user(), $schoolClass);
+
+        return redirect()->route('classes.show', $schoolClass)->with('success', 'Join code regenerated. Previous codes no longer work.');
+    }
+
     public function transferOwnership(TransferClassOwnershipRequest $request, SchoolClass $schoolClass): RedirectResponse
     {
         $this->classes->transfer($request->user(), $schoolClass, (int) $request->validated('owner_id'));

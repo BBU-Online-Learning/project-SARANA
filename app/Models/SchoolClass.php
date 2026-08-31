@@ -25,6 +25,16 @@ class SchoolClass extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    protected function casts(): array
+    {
+        return ['archived_at' => 'datetime'];
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'school_class_members')
@@ -34,6 +44,7 @@ class SchoolClass extends Model
             ])
             ->withTimestamps();
     }
+
     public function users(): BelongsToMany
     {
         return $this->members();

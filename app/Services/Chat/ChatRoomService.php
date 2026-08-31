@@ -34,14 +34,14 @@ class ChatRoomService   // The manager between controllers and repositories.
             $existing = ChatRoom::where('type', 'direct')
                 ->whereHas(
                     'members',
-                    fn($q) => $q->where(
+                    fn ($q) => $q->where(
                         'users.id',
                         $currentUser
                     )
                 )
                 ->whereHas(
                     'members',
-                    fn($q) => $q->where(
+                    fn ($q) => $q->where(
                         'users.id',
                         $otherUser
                     )
@@ -57,7 +57,7 @@ class ChatRoomService   // The manager between controllers and repositories.
                 'created_by' => $currentUser,
             ]);
 
-            $room->members()->attach([ //This inserts records into the chat_room_members pivot table.
+            $room->members()->attach([ // This inserts records into the chat_room_members pivot table.
                 $currentUser,
                 $otherUser,
             ]);
@@ -66,27 +66,8 @@ class ChatRoomService   // The manager between controllers and repositories.
         });
     }
 
-    public function createGroupRoom(int $creator, string $name, array $members)
+    public function createGroupRoom(int $creator, string $name, array $members): ChatRoom
     {
-        return DB::transaction(function () use ($creator, $name, $members) {
-            $memberIds = collect($members)
-                ->map(fn($id) => (int) $id)
-                ->filter(fn($id) => $id > 0)
-                ->unique()
-                ->push($creator)
-                ->unique()
-                ->values()
-                ->all();
-
-            $room = ChatRoom::create([
-                'type' => 'group',
-                'name' => $name,
-                'created_by' => $creator,
-            ]);
-
-            $room->members()->attach($memberIds);
-
-            return $room;
-        });
+        return app(GroupMembershipService::class)->create(\App\Models\User::findOrFail($creator), $name, $members);
     }
 }

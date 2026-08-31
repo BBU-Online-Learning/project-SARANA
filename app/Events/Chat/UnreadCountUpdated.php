@@ -1,8 +1,9 @@
 <?php
+
 // app\Events\Chat\UnreadCountUpdated.php
+
 namespace App\Events\Chat;
 
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -19,9 +20,7 @@ class UnreadCountUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('user.' . $this->userId),
-        ];
+        return app(\App\Services\Chat\ChatAccessService::class)->userChannels($this->userId, $this->roomId);
     }
 
     public function broadcastAs(): string
@@ -32,7 +31,7 @@ class UnreadCountUpdated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'room_id'      => $this->roomId,
+            'room_id' => $this->roomId,
             'unread_count' => $this->unreadCount,
         ];
     }

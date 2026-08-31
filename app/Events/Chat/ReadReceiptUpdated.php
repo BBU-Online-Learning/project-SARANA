@@ -2,7 +2,6 @@
 
 namespace App\Events\Chat;
 
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -20,11 +19,7 @@ class ReadReceiptUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
-            new PresenceChannel(
-                'chat.room.' . $this->roomId
-            )
-        ];
+        return app(\App\Services\Chat\ChatAccessService::class)->broadcastChannels($this->roomId);
     }
 
     public function broadcastAs(): string

@@ -3,19 +3,20 @@
 namespace App\Http\Requests\Chat;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class CreateGroupRoomRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return Auth::check();
+        return $this->user() && app(\App\Services\Chat\ChatAccessService::class)->ready($this->user());
     }
 
     public function rules(): array
     {
         return [
+            'owner_id' => ['prohibited'], 'created_by' => ['prohibited'], 'role' => ['prohibited'],
+            'role_id' => ['prohibited'], 'type' => ['prohibited'],
             'name' => [
                 'required',
                 'string',
@@ -29,7 +30,7 @@ class CreateGroupRoomRequest extends FormRequest
             ],
             'members.*' => [
                 'integer',
-                'different:' . Auth::id(),
+                'distinct',
                 Rule::exists('users', 'id')->whereNull('deleted_at'),
             ],
         ];
@@ -47,5 +48,12 @@ class CreateGroupRoomRequest extends FormRequest
             'members.*.different' => 'You cannot add yourself as a group member.',
             'members.*.exists' => 'One of the selected members does not exist.',
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('name'))) {
+            $this->merge(['name' => trim($this->input('name'))]);
+        }
     }
 }

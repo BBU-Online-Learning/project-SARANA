@@ -99,8 +99,19 @@ while (! is_file($argv[3])) {
 }
 try {
     $service = app(App\Services\AccountManagementService::class);
-    if ($job['operation'] === 'class_enroll') {
+    if ($job['operation'] === 'group_add') {
+        app(App\Services\Chat\GroupMembershipService::class)->add($actor, App\Models\ChatRoom::findOrFail($job['room']), [$target->id]);
+    } elseif ($job['operation'] === 'group_leave') {
+        app(App\Services\Chat\GroupMembershipService::class)->remove($actor, App\Models\ChatRoom::findOrFail($job['room']), $actor->id, true);
+    } elseif ($job['operation'] === 'class_enroll') {
         app(App\Services\ClassManagementService::class)->enroll($actor, App\Models\SchoolClass::findOrFail($job['class']));
+    } elseif ($job['operation'] === 'class_message') {
+        app(App\Services\ClassMessageService::class)->send($actor, App\Models\SchoolClass::findOrFail($job['class']),
+            App\Models\SchoolClassChannel::findOrFail($job['channel']), ['body' => 'Concurrent message', 'client_uuid' => $job['uuid']]);
+    } elseif ($job['operation'] === 'class_restore') {
+        app(App\Services\ClassManagementService::class)->setArchived($actor, App\Models\SchoolClass::findOrFail($job['class']), false);
+    } elseif ($job['operation'] === 'class_join') {
+        app(App\Services\ClassManagementService::class)->join($actor, $job['code']);
     } elseif ($job['operation'] === 'class_transfer') {
         app(App\Services\ClassManagementService::class)->transfer($actor, App\Models\SchoolClass::findOrFail($job['class']), $target->id);
     } elseif ($job['operation'] === 'provision') {
@@ -170,6 +181,52 @@ PHP;
 
     return $test->accountProcesses;
 }
+
+test('class restoration racing suspension never produces an inactive owner of an active class', function (): void {
+    $admin = securityTestUser('admin');
+    $teacher = securityTestUser('teacher');
+    $schoolClass = \App\Models\SchoolClass::create(['name' => 'Restore race', 'created_by' => $teacher->id, 'join_code' => 'RESTORE1']);
+    $schoolClass->members()->attach($teacher, ['role' => 'owner']);
+    app(\App\Services\ClassManagementService::class)->setArchived($admin, $schoolClass, true);
+    $workers = concurrentAccountWorkers($this, [
+        ['operation' => 'class_restore', 'actor' => $admin->id, 'user' => $teacher->id, 'class' => $schoolClass->id],
+        ['operation' => 'update', 'actor' => $admin->id, 'user' => $teacher->id, 'status' => 'suspended'],
+    ]);
+    $codes = array_map(fn (Process $worker): ?int => $worker->getExitCode(), $workers);
+    sort($codes);
+    expect($codes)->toBe([0, 4]);
+    expect($teacher->fresh()->status)->toBe($schoolClass->fresh()->isArchived() ? 'suspended' : 'active');
+});
+
+test('ownership assignment racing teacher demotion preserves owner eligibility', function (): void {
+    $admin = securityTestUser('admin');
+    $owner = securityTestUser('teacher');
+    $target = securityTestUser('teacher');
+    $schoolClass = \App\Models\SchoolClass::create(['name' => 'Owner race', 'created_by' => $owner->id, 'join_code' => 'OWNER123']);
+    $schoolClass->members()->attach($owner, ['role' => 'owner']);
+    $workers = concurrentAccountWorkers($this, [
+        ['operation' => 'class_transfer', 'actor' => $admin->id, 'user' => $target->id, 'class' => $schoolClass->id],
+        ['operation' => 'update', 'actor' => $admin->id, 'user' => $target->id, 'role_id' => Role::where('name', 'student')->sole()->id],
+    ]);
+    $codes = array_map(fn (Process $worker): ?int => $worker->getExitCode(), $workers);
+    sort($codes);
+    expect($codes)->toBe([0, 4]);
+    $currentOwner = $schoolClass->memberRecords()->where('role', 'owner')->sole()->user;
+    expect($currentOwner->role->name)->toBe('teacher');
+    expect($currentOwner->status)->toBe('active');
+});
+
+test('simultaneous join code submissions add one membership without duplicate audits', function (): void {
+    $teacher = securityTestUser('teacher');
+    $student = securityTestUser();
+    $schoolClass = \App\Models\SchoolClass::create(['name' => 'Join race', 'created_by' => $teacher->id, 'join_code' => 'JOIN1234']);
+    $schoolClass->members()->attach($teacher, ['role' => 'owner']);
+    $job = ['operation' => 'class_join', 'actor' => $student->id, 'user' => $student->id, 'code' => $schoolClass->join_code];
+    $workers = concurrentAccountWorkers($this, [$job, $job]);
+    expect(array_map(fn (Process $worker): ?int => $worker->getExitCode(), $workers))->toBe([0, 0]);
+    expect($schoolClass->memberRecords()->where('user_id', $student->id)->count())->toBe(1);
+    expect(\App\Models\ClassMembershipAudit::where('target_id', $student->id)->where('action', 'joined')->count())->toBe(1);
+});
 
 test('competing administrative class enrollments produce one membership and one audit', function (): void {
     $admin = securityTestUser('admin');
@@ -292,4 +349,42 @@ test('concurrent reset requests consume an email token exactly once', function (
     sort($codes);
     expect($codes)->toBe([0, 4]);
     expect($user->fresh()->auth_version)->toBe(1);
+});
+
+test('concurrent repeated class sends create exactly one message', function (): void {
+    $owner = securityTestUser('teacher');
+    $schoolClass = \App\Models\SchoolClass::create(['name' => 'Send race', 'created_by' => $owner->id, 'join_code' => 'SENDRACE']);
+    $schoolClass->members()->attach($owner, ['role' => 'owner']);
+    $channel = $schoolClass->channels()->create(['name' => 'General', 'slug' => 'general', 'created_by' => $owner->id]);
+    $job = ['operation' => 'class_message', 'actor' => $owner->id, 'user' => $owner->id, 'class' => $schoolClass->id,
+        'channel' => $channel->id, 'uuid' => (string) \Illuminate\Support\Str::uuid()];
+    foreach (concurrentAccountWorkers($this, [$job, $job]) as $worker) {
+        expect($worker->getExitCode())->toBe(0);
+    }
+    expect($channel->messages()->where('client_uuid', $job['uuid'])->count())->toBe(1);
+});
+
+test('simultaneous group additions create one membership without changing the owner', function (): void {
+    $owner = securityTestUser();
+    $member = securityTestUser();
+    $room = app(\App\Services\Chat\GroupMembershipService::class)->create($owner, 'Concurrent group', []);
+    $job = ['operation' => 'group_add', 'actor' => $owner->id, 'user' => $member->id, 'room' => $room->id];
+    foreach (concurrentAccountWorkers($this, [$job, $job]) as $worker) {
+        expect($worker->getExitCode())->toBe(0);
+    }
+    expect($room->roomMembers()->where('user_id', $member->id)->count())->toBe(1)
+        ->and($room->roomMembers()->where('role', 'owner')->sole()->user_id)->toBe($owner->id);
+});
+
+test('an owner leaving concurrently with adding a member cannot make the group ownerless', function (): void {
+    $owner = securityTestUser();
+    $member = securityTestUser();
+    $room = app(\App\Services\Chat\GroupMembershipService::class)->create($owner, 'Owner race', []);
+    $workers = concurrentAccountWorkers($this, [
+        ['operation' => 'group_add', 'actor' => $owner->id, 'user' => $member->id, 'room' => $room->id],
+        ['operation' => 'group_leave', 'actor' => $owner->id, 'user' => $owner->id, 'room' => $room->id],
+    ]);
+    expect(array_map(fn (Process $worker): ?int => $worker->getExitCode(), $workers))->toBe([0, 4])
+        ->and($room->roomMembers()->where('role', 'owner')->sole()->user_id)->toBe($owner->id)
+        ->and($room->roomMembers()->count())->toBe(2);
 });

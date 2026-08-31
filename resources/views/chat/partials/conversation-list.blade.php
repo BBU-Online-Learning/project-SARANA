@@ -23,12 +23,6 @@
         <p>No conversations found</p>
     </div>
 
-    <div class="teams-filter-row" aria-label="Conversation filters">
-        <button type="button" class="active">All</button>
-        <button type="button">Unread</button>
-        <button type="button">Groups</button>
-    </div>
-
     <div class="teams-room-scroll">
         @forelse($rooms as $room)
             @include('chat.partials.conversation-item')

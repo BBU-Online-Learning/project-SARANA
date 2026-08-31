@@ -1,8 +1,10 @@
 <?php
-//  app\Http\Requests\Chat\StoreMessageRequest.php 
+
+//  app\Http\Requests\Chat\StoreMessageRequest.php
 
 namespace App\Http\Requests\Chat;
 
+use App\Rules\SafeChatAttachment;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,8 @@ class StoreMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'sender_id' => ['prohibited'],
+            'room_id' => ['prohibited'],
 
             'body' => [
                 'nullable',
@@ -60,17 +64,7 @@ class StoreMessageRequest extends FormRequest
                 'uuid',
             ],
 
-            'attachments' => [
-                'nullable',
-                'array',
-                'max:' . config('chat.max_attachments_per_message'),
-            ],
-
-            'attachments.*' => [
-                'file',
-                'max:' . config('chat.max_attachment_size_kb'),
-                'mimes:' . implode(',', config('chat.allowed_attachment_extensions')),
-            ],
+            ...SafeChatAttachment::rules(),
         ];
     }
 
@@ -82,7 +76,7 @@ class StoreMessageRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->body) {
+        if (is_string($this->input('body'))) {
 
             $body = trim(strip_tags($this->input('body')));
 
@@ -91,6 +85,7 @@ class StoreMessageRequest extends FormRequest
             ]);
         }
     }
+
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
@@ -107,5 +102,15 @@ class StoreMessageRequest extends FormRequest
                 );
             }
         });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'attachments.array' => 'Attachments must be a list of files.',
+            'attachments.max' => 'You may attach at most :max files to a message.',
+            'attachments.*.file' => 'Each attachment must be a valid uploaded file.',
+            'attachments.*.max' => 'Each attachment must not exceed :max KB.',
+        ];
     }
 }

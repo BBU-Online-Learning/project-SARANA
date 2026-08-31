@@ -1,10 +1,6 @@
 //public\js\chat\chat.js
 
 document.addEventListener("DOMContentLoaded", () => {
-    subscribeSidebarUpdates();
-
-    subscribePresence();
-    startPresencePing();
     /*
     |--------------------------------------------------------------------------
     | GLOBAL CHAT STATE
@@ -13,6 +9,13 @@ document.addEventListener("DOMContentLoaded", () => {
     window.chat = window.chat || {};
 
     window.chat.activeRoomId = window.chat.activeRoomId || null;
+    if (window.Echo) {
+        subscribeSidebarUpdates();
+        subscribePresence();
+    } else {
+        showChatLoadStatus('Live updates are unavailable. Reload to reconnect.', true);
+    }
+    startPresencePing();
     /*
     |--------------------------------------------------------------------------
     | EVENT DELEGATION
@@ -36,7 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
         |--------------------------------------------------------------------------
         */
 
-        if (window.chat.activeRoomId == roomId) {
+        if (window.chat.activeRoomId == roomId && document.getElementById('chat-load-status')?.hidden !== false) {
             return;
         }
 
@@ -51,8 +54,65 @@ document.addEventListener("DOMContentLoaded", () => {
 */
 let roomRequestController = null;
 let currentLoadToken = 0;
+let checkingMembership = false;
+
+function showChatLoadStatus(message, failed = false) {
+    const status = document.getElementById('chat-load-status');
+    if (!status) return;
+    status.textContent = message;
+    status.hidden = !message;
+    status.classList.toggle('alert-danger', failed);
+    status.classList.toggle('alert-info', !failed);
+}
+
+function revokeRoom(roomId) {
+    document.querySelector(`.room-item[data-room-id="${roomId}"]`)?.remove();
+    if (String(window.chat.activeRoomId) !== String(roomId)) return;
+    currentLoadToken++;
+    window.Echo?.leave(window.chat.roomTopic);
+    window.ChatVoice?.reset();
+    document.getElementById('image-preview-close')?.click();
+    document.querySelectorAll('#chat-room-container audio').forEach(audio => audio.pause());
+    window.chat.activeRoomId = null;
+    window.chat.channel = null;
+    window.chat.voiceDraftFile = null;
+    const warning = document.createElement('div');
+    warning.className = 'alert alert-warning m-3';
+    warning.textContent = 'You no longer have access to this conversation.';
+    document.getElementById('chat-room-container').replaceChildren(warning);
+}
+
+async function refreshRoomMembership() {
+    const roomId = window.chat?.activeRoomId;
+    if (!roomId || checkingMembership) return;
+    checkingMembership = true;
+    try {
+        const response = await axios.get(`/chat/rooms/${roomId}/access`, { headers: { Accept: 'application/json' }, timeout: 10000 });
+        if (String(window.chat.activeRoomId) !== String(roomId)) return;
+        if (!response.data.membership_id) { revokeRoom(roomId); return; }
+        if (window.chat.membershipId !== response.data.membership_id) {
+            window.chat.membershipId = response.data.membership_id;
+            subscribeToRoom(roomId, roomId);
+        }
+        if (response.data.type === 'group') {
+            const title = document.querySelector('#chat-room-container .teams-chat-title-group h1');
+            if (title) title.textContent = response.data.name;
+            const sidebar = document.querySelector(`.room-item[data-room-id="${roomId}"] .room-name`);
+            if (sidebar) sidebar.textContent = response.data.name;
+        }
+    } catch (error) {
+        if ([401, 403, 404, 419].includes(error.response?.status)) revokeRoom(roomId);
+    } finally {
+        checkingMembership = false;
+    }
+}
+
+setInterval(refreshRoomMembership, 15000);
+window.addEventListener('online', refreshRoomMembership);
+window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
 async function loadRoom(roomId, roomItem = null) {
     const token = ++currentLoadToken;
+    showChatLoadStatus('Loading conversation...');
     try {
         //REQUEST ROOM DATA
 
@@ -66,6 +126,14 @@ async function loadRoom(roomId, roomItem = null) {
             signal: roomRequestController.signal, //if .abort is call Axios will cancels request
         }); //show route room.show
 
+        if (token !== currentLoadToken) return;
+
+        if (!response.data.membership_id || !response.data.room_type) {
+            revokeRoom(roomId);
+            showChatLoadStatus('Your session changed. Reload the page and sign in again.', true);
+            return;
+        }
+
         window.chat.nextCursor = response.data.next_cursor;
         window.chat.loadingOlderMessages = false;
 
@@ -74,6 +142,8 @@ async function loadRoom(roomId, roomItem = null) {
         // STORE ACTIVE ROOM
         const previousRoomId = window.chat.activeRoomId;
         window.chat.activeRoomId = roomId;
+        window.chat.roomType = response.data.room_type;
+        window.chat.membershipId = response.data.membership_id;
         subscribeToRoom(roomId, previousRoomId);
 
         /*
@@ -84,6 +154,8 @@ async function loadRoom(roomId, roomItem = null) {
 
         document.getElementById("chat-room-container").innerHTML =
             response.data.html;
+        document.body.classList.add('chat-mobile-room');
+        showChatLoadStatus(window.Echo ? '' : 'Live updates are unavailable. Reload to reconnect.', !window.Echo);
 
         initializeInfiniteScroll();
         /*
@@ -110,12 +182,21 @@ async function loadRoom(roomId, roomItem = null) {
         // ← ADD THIS
         updatePresenceUI();
     } catch (error) {
+        if (token !== currentLoadToken) return;
+        if ([401, 403, 404, 419].includes(error.response?.status)) {
+            revokeRoom(roomId);
+        }
+        showChatLoadStatus('Could not open this conversation. Choose it again to retry, or reload to check your access.', true);
         console.error("Failed loading room:", error);
     }
 }
 
 //Subscribe To Room Channel
 function subscribeToRoom(roomId, previousRoomId) {
+    if (!window.Echo) {
+        window.chat.channel = null;
+        return;
+    }
     if (window.chat.channel) {
         window.chat.channel.stopListening(".message.sent");
         window.chat.channel.stopListening(".conversation.updated");
@@ -124,15 +205,19 @@ function subscribeToRoom(roomId, previousRoomId) {
         window.chat.channel.stopListening(".message.deleted");
         window.chat.channel.stopListening(".reaction.updated");
 
-        window.Echo.leave(`chat.room.${previousRoomId}`);
+        window.Echo.leave(window.chat.roomTopic || `chat.room.${previousRoomId}`);
     }
 
-    const channel = window.Echo.join(`chat.room.${roomId}`); //channel get id and name of user join this channel
+    window.chat.roomTopic = window.chat.roomType === 'group'
+        ? `chat.membership.${window.chat.membershipId}` : `chat.room.${roomId}`;
+    const channel = window.chat.roomType === 'group'
+        ? window.Echo.private(window.chat.roomTopic) : window.Echo.join(window.chat.roomTopic);
 
     channel.listen(".message.sent", window.ChatRealtime.handleIncomingMessage);
     channel.listen(".conversation.updated", updateConversationList);
     channel.listen(".read.updated", handleReadReceipt);
     channel.listenForWhisper("typing", window.ChatRealtime.handleUserTyping);
+    channel.listen('.group.typing', window.ChatRealtime.handleUserTyping);
     channel.listen(".message.updated", handleMessageUpdated);
     channel.listen(".message.deleted", handleMessageDeleted);
     channel.listen(".reaction.updated", handleReactionUpdated);
@@ -614,7 +699,7 @@ function renderReactionPills(container, messageId, reactions) {
 
 window.addEventListener("pagehide", () => {
     if (window.chat?.activeRoomId && window.Echo) {
-        window.Echo.leave(`chat.room.${window.chat.activeRoomId}`);
+        window.Echo.leave(window.chat.roomTopic || `chat.room.${window.chat.activeRoomId}`);
     }
     if (!window.chat?.currentUserId) {
         return;

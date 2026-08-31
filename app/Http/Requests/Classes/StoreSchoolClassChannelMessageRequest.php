@@ -19,7 +19,7 @@ class StoreSchoolClassChannelMessageRequest extends FormRequest
             return false;
         }
 
-        return $this->user()?->can('viewChannel', [$schoolClass, $channel]) ?? false;
+        return $this->user()?->can('sendMessage', [$schoolClass, $channel]) ?? false;
     }
 
     public function rules(): array
@@ -28,6 +28,9 @@ class StoreSchoolClassChannelMessageRequest extends FormRequest
             'sender_id' => ['prohibited'],
             'school_class_channel_id' => ['prohibited'],
             'school_class_id' => ['prohibited'],
+            'is_edited' => ['prohibited'],
+            'edited_at' => ['prohibited'],
+            'deleted_at' => ['prohibited'],
             'body' => [
                 'required',
                 'string',
@@ -44,6 +47,7 @@ class StoreSchoolClassChannelMessageRequest extends FormRequest
     {
         return [
             'body.required' => 'Message text is required.',
+            'body.string' => 'Message text must be a string.',
             'body.max' => 'Message may not be longer than 5000 characters.',
             'client_uuid.uuid' => 'Invalid client identifier.',
         ];

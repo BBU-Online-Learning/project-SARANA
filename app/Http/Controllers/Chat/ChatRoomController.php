@@ -4,16 +4,15 @@
 
 namespace App\Http\Controllers\Chat;
 
-use App\Http\Requests\Chat\CreateDirectRoomRequest;
-use App\Http\Requests\Chat\CreateGroupRoomRequest;
 use App\Events\Chat\ReadReceiptUpdated;
 use App\Events\Chat\UnreadCountUpdated;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\CreateDirectRoomRequest;
+use App\Http\Requests\Chat\CreateGroupRoomRequest;
 use App\Models\ChatRoom;
 use App\Models\User;
 use App\Services\Chat\ChatRoomService;
 use App\Services\Chat\MessageService;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ChatRoomController extends Controller
@@ -39,7 +38,10 @@ class ChatRoomController extends Controller
         $rooms = $this->chatRoomService
             ->getUserRooms(Auth::id());
 
-        $users = User::select('id', 'name')->orderBy('name')->get();
+        $users = User::select('id', 'name')->where('id', '!=', Auth::id())
+            ->where('status', 'active')->where('google2fa_enabled', true)->where('must_change_password', false)
+            ->whereHas('role', fn ($query) => $query->where('status', true)->whereIn('name', \App\Models\Role::NAMES))
+            ->orderBy('name')->get();
 
         return view(
             'chat.index',
@@ -99,8 +101,11 @@ class ChatRoomController extends Controller
 
             'room_id' => $room->id,
 
+            'room_type' => $room->type,
+            'membership_id' => $room->roomMembers()->where('user_id', Auth::id())->sole()->id,
+
             'next_cursor' => optional($messages->nextCursor())->encode(),
-        ]);
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     public function createDirectMessage(CreateDirectRoomRequest $request)
