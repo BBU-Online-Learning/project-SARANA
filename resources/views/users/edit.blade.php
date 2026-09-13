@@ -101,7 +101,7 @@
                                     {{-- Preview --}}
                                     <div class="mt-2">
                                         <img id="profilePreview"
-                                            src="{{ $user->profile ? asset($user->profile) : asset('images/error.png') }}"
+                                            src="{{ $user->profileUrl() ?? asset('images/error.png') }}"
                                             alt="Preview" class="img-thumbnail"
                                             style="width:120px; height:120px; object-fit:cover;">
                                     </div>
@@ -171,7 +171,7 @@
             if (!file) return;
 
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
+                window.AppNotifications?.warning('Please select a JPG, PNG or WebP image.');
                 event.target.value = '';
                 return;
             }

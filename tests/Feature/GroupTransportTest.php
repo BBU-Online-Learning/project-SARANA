@@ -1,6 +1,7 @@
 <?php
 
 use App\Events\Chat\MessageUpdated;
+use App\Events\Chat\ReadReceiptUpdated;
 use App\Events\Chat\SidebarUpdated;
 use App\Services\Chat\GroupMembershipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,6 +35,7 @@ test('real group sockets stop receiving after removal including legacy shared an
         'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'MAIL_MAILER' => 'array',
         'REVERB_APP_ID' => 'group-wire-test', 'REVERB_APP_KEY' => $key, 'REVERB_APP_SECRET' => $secret,
         'REVERB_HOST' => '127.0.0.1', 'REVERB_PORT' => (string) $port, 'REVERB_SCHEME' => 'http',
+        'REVERB_ALLOWED_ORIGINS' => '127.0.0.1',
         'REVERB_SCALING_ENABLED' => 'false', 'REVERB_SERVER_PATH' => '',
     ]);
     $server->setTimeout(30);
@@ -43,11 +45,12 @@ test('real group sockets stop receiving after removal including legacy shared an
         'GROUP_TEST_TOPICS' => json_encode($topics),
     ], $input);
     $clients->setTimeout(30);
-    $waitFor = function (Closure $condition, string $description): void {
+    $waitFor = function (Closure $condition, string $description) use ($server, $clients, $secret): void {
         $deadline = microtime(true) + 10;
         while (! $condition()) {
             if (microtime(true) > $deadline) {
-                throw new RuntimeException('Timed out waiting for '.$description);
+                $details = $server->getErrorOutput().$server->getOutput().$clients->getErrorOutput().$clients->getOutput();
+                throw new RuntimeException('Timed out waiting for '.$description."\n".str_replace($secret, '[redacted]', $details));
             }
             usleep(20000);
         }
@@ -71,13 +74,22 @@ test('real group sockets stop receiving after removal including legacy shared an
         Broadcast::purge('reverb');
         $clients->start();
         $waitFor(fn () => substr_count($clients->getOutput(), 'ready:') === 4, 'current and previously authorized subscriptions');
+        event(new \App\Events\Chat\VoiceCallSignal(123, $owner->id, $member->id, 'offer', [
+            'description' => ['type' => 'offer', 'sdp' => str_repeat('a', 20000)],
+        ]));
+        $waitFor(fn () => str_contains($clients->getOutput(), 'voice-call.signal:3:20000'), 'large video SDP on the private user channel');
+        expect($clients->getOutput())->not->toContain('voice-call.signal:0:', 'voice-call.signal:1:', 'voice-call.signal:2:');
         event(new MessageUpdated($message));
         $waitFor(fn () => substr_count($clients->getOutput(), 'message.updated:') === 2, 'both current members');
+        event(new ReadReceiptUpdated($room->id, $member->id, now()->toISOString(), '', $message->id));
+        $waitFor(fn () => substr_count($clients->getOutput(), 'read.updated:') === 2, 'read receipt on both member sockets');
         $input->write("reconnect\n");
         $waitFor(fn () => substr_count($clients->getOutput(), 'ready:') === 5, 'member reconnect');
         event(new MessageUpdated($message));
         $waitFor(fn () => substr_count($clients->getOutput(), 'message.updated:') === 4, 'delivery after reconnect');
         $groups->remove($owner, $room, $member->id);
+        event(new ReadReceiptUpdated($room->id, $owner->id, now()->toISOString(), '', $message->id));
+        $waitFor(fn () => substr_count($clients->getOutput(), 'read.updated:0') === 2, 'receipt after removal');
         event(new MessageUpdated($message));
         event(new SidebarUpdated($member->id, ['room_id' => $room->id, 'body' => 'Must not arrive']));
         $waitFor(fn () => substr_count($clients->getOutput(), 'message.updated:0') === 3, 'remaining owner');
@@ -87,6 +99,11 @@ test('real group sockets stop receiving after removal including legacy shared an
         usleep(200000);
         expect(substr_count($clients->getOutput(), 'message.updated:1'))->toBe(2)
             ->and($clients->getOutput())->not->toContain('message.updated:2', 'sidebar.updated:3');
+        expect(substr_count($clients->getOutput(), 'read.updated:1'))->toBe(1)
+            ->and($clients->getOutput())->not->toContain('read.updated:2', 'read.updated:3');
+        $room->update(['type' => 'direct']);
+        event(new ReadReceiptUpdated($room->id, $owner->id, now()->toISOString(), '', $message->id));
+        $waitFor(fn () => substr_count($clients->getOutput(), 'read.updated:2') === 1, 'direct presence receipt');
     } finally {
         $input->write("stop\n");
         $input->close();

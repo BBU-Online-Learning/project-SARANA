@@ -27,6 +27,7 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
 Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->name('users.profile');
 });
 
 Route::middleware(['auth', 'twofactor.setup', 'can:access-admin'])->group(function () {

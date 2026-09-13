@@ -1,6 +1,6 @@
 //public\js\chat\chat.js
 
-document.addEventListener("DOMContentLoaded", () => {
+function initializeChatRealtime() {
     /*
     |--------------------------------------------------------------------------
     | GLOBAL CHAT STATE
@@ -25,27 +25,40 @@ document.addEventListener("DOMContentLoaded", () => {
     |
     */
     document.body.addEventListener("click", async (event) => {
+        if (event.target.closest('[data-user-profile]')) {
+            return;
+        }
         const roomItem = event.target.closest(".room-item");
 
-        if (!roomItem) {
-            return;
-        }
-
-        const roomId = roomItem.dataset.roomId;
-
-        /*
-        |--------------------------------------------------------------------------
-        | PREVENT DUPLICATE REQUESTS
-        |--------------------------------------------------------------------------
-        */
-
-        if (window.chat.activeRoomId == roomId && document.getElementById('chat-load-status')?.hidden !== false) {
-            return;
-        }
-
-        await loadRoom(roomId, roomItem);
+        if (roomItem) await activateRoomItem(roomItem);
     });
-});
+
+    document.body.addEventListener("keydown", async (event) => {
+        if (!['Enter', ' '].includes(event.key) || event.target.closest('a, button, input, textarea, select')) return;
+
+        const roomItem = event.target.closest(".room-item");
+        if (!roomItem) return;
+
+        event.preventDefault();
+        await activateRoomItem(roomItem);
+    });
+}
+
+async function activateRoomItem(roomItem) {
+    const roomId = roomItem.dataset.roomId;
+
+    if (window.chat.activeRoomId == roomId && document.getElementById('chat-load-status')?.hidden !== false) {
+        return;
+    }
+
+    await loadRoom(roomId, roomItem);
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initializeChatRealtime, { once: true });
+} else {
+    initializeChatRealtime();
+}
 
 /*
 |--------------------------------------------------------------------------
@@ -66,6 +79,8 @@ function showChatLoadStatus(message, failed = false) {
 }
 
 function revokeRoom(roomId) {
+    window.ChatReads?.close();
+    window.StickerPicker?.close?.();
     document.querySelector(`.room-item[data-room-id="${roomId}"]`)?.remove();
     if (String(window.chat.activeRoomId) !== String(roomId)) return;
     currentLoadToken++;
@@ -113,6 +128,8 @@ window.addEventListener('pageshow', event => { if (event.persisted) window.locat
 async function loadRoom(roomId, roomItem = null) {
     const token = ++currentLoadToken;
     showChatLoadStatus('Loading conversation...');
+    window.resetRoomSearchState?.();
+    window.StickerPicker?.close?.();
     try {
         //REQUEST ROOM DATA
 
@@ -158,6 +175,7 @@ async function loadRoom(roomId, roomItem = null) {
         showChatLoadStatus(window.Echo ? '' : 'Live updates are unavailable. Reload to reconnect.', !window.Echo);
 
         initializeInfiniteScroll();
+        hideNewMessageIndicator();
         /*
         |--------------------------------------------------------------------------
         | ACTIVE UI STATE
@@ -165,20 +183,21 @@ async function loadRoom(roomId, roomItem = null) {
         */
         document
             .querySelectorAll(".room-item")
-            .forEach((item) => item.classList.remove("active"));
+            .forEach((item) => {
+                item.classList.remove("active");
+                item.removeAttribute("aria-current");
+            });
 
-        if (roomItem) {
-            roomItem.classList.add("active");
-        } else {
-            document
-                .querySelector(`[data-room-id="${roomId}"]`)
-                ?.classList.add("active");
+        const activeRoomItem = roomItem || document.querySelector(`[data-room-id="${roomId}"]`);
+        if (activeRoomItem) {
+            activeRoomItem.classList.add("active");
+            activeRoomItem.setAttribute("aria-current", "true");
         }
 
         // AUTO SCROLL TO BOTTOM
 
         scrollMessagesToBottom();
-        await markRoomAsRead();
+        window.ChatReads?.attach();
         // ← ADD THIS
         updatePresenceUI();
     } catch (error) {
@@ -291,8 +310,11 @@ window.ChatRealtime = {
 
 async function appendIncomingMessage(event) {
     const response = await axios.get(`/chat/messages/${event.message_id}/html`);
+    if (String(event.room_id) !== String(window.chat.activeRoomId)) return;
 
     const html = response.data.html;
+    const container = document.querySelector(".messages-container");
+    const shouldStickToBottom = isNearMessagesBottom(container);
 
     const optimistic = document.querySelector(
         `[data-client-id="${event.client_uuid}"]`,
@@ -303,8 +325,6 @@ async function appendIncomingMessage(event) {
         scrollMessagesToBottom();
         return;
     }
-
-    const container = document.querySelector(".messages-container");
 
     if (!container) {
         return;
@@ -317,8 +337,13 @@ async function appendIncomingMessage(event) {
         return;
     }
     container.insertAdjacentHTML("beforeend", html);
+    const inserted = document.querySelector(`[data-message-id="${response.data.message_id}"]`);
 
-    scrollMessagesToBottom();
+    if (shouldStickToBottom || inserted?.classList.contains("is-own")) {
+        scrollMessagesToBottom();
+    } else {
+        showNewMessageIndicator();
+    }
 }
 
 let typingTimeout;
@@ -349,6 +374,8 @@ function initializeInfiniteScroll() {
     }
 
     container.onscroll = async () => {
+        if (isNearMessagesBottom(container)) hideNewMessageIndicator();
+
         if (container.scrollTop < 100) {
             await loadOlderMessages();
         }
@@ -486,100 +513,61 @@ function formatLastSeen(dateString) {
     return `Last seen ${days}d ago`;
 }
 function handleReadReceipt(event) {
-    const readTimestamp = new Date(event.read_at).getTime() / 1000;
-
-    document.querySelectorAll(".teams-read-row").forEach((row) => {
-        const message = row.closest(".message-item");
-        if (!message) return;
-
-        const senderId = Number(message.dataset.senderId);
-
-        // Read receipts only apply to messages *we* sent
-        if (senderId !== window.chat.currentUserId) return;
-
-        const createdAt = Number(message.dataset.createdAt);
-        if (createdAt > readTimestamp) return; // message was sent after this read event
-
-        const isGroup = row.dataset.isGroup === "1";
-
-        if (!isGroup) {
-            // DIRECT CHAT — unchanged checkmark behavior
-            const receipt = row.querySelector(".read-status");
-            if (receipt) receipt.innerText = "✓✓";
-            return;
-        }
-
-        // GROUP CHAT — update the seen-by avatar stack
-        addReaderToSeenByStack(row, event.reader_id, event.reader_name);
-    });
-}
-
-const MAX_SEEN_BY_AVATARS = 3;
-
-function addReaderToSeenByStack(row, readerId, readerName) {
-    const stack = row.querySelector(".seen-by-stack");
-    if (!stack) return;
-
-    // Already shown? nothing to do.
-    if (stack.querySelector(`.seen-by-avatar[data-user-id="${readerId}"]`)) {
-        return;
-    }
-
-    stack.classList.remove("is-empty");
-
-    const currentAvatarCount = stack.querySelectorAll(".seen-by-avatar").length;
-    const overflowEl = stack.querySelector(".seen-by-overflow");
-
-    if (currentAvatarCount < MAX_SEEN_BY_AVATARS) {
-        const initial = (readerName || "?").trim().charAt(0).toUpperCase();
-
-        const avatar = document.createElement("span");
-        avatar.className = "seen-by-avatar seen-by-new";
-        avatar.dataset.userId = readerId;
-        avatar.title = `Seen by ${readerName}`;
-        avatar.textContent = initial;
-
-        // Insert before the overflow badge if one exists, else append
-        if (overflowEl) {
-            stack.insertBefore(avatar, overflowEl);
-        } else {
-            stack.appendChild(avatar);
-        }
-    } else {
-        // Stack is full — bump (or create) the overflow counter instead
-        if (overflowEl) {
-            const current =
-                parseInt(overflowEl.textContent.replace("+", ""), 10) || 0;
-            overflowEl.textContent = `+${current + 1}`;
-        } else {
-            const badge = document.createElement("span");
-            badge.className = "seen-by-overflow";
-            badge.textContent = "+1";
-            stack.appendChild(badge);
-        }
+    if (String(event.room_id) === String(window.chat.activeRoomId)) {
+        window.ChatReads?.refresh();
     }
 }
 
 async function markRoomAsRead() {
-    if (!window.chat.activeRoomId || document.hidden) {
-        return;
-    }
+    window.ChatReads?.schedule();
+}
+function isNearMessagesBottom(container, threshold = 120) {
+    if (!container) return true;
 
-    try {
-        await axios.post(`/chat/rooms/${window.chat.activeRoomId}/mark-read`);
-    } catch (error) {
-        console.error(error);
-    }
+    return container.scrollHeight - container.scrollTop - container.clientHeight <= threshold;
 }
 
-function scrollMessagesToBottom() {
+function hideNewMessageIndicator() {
+    const button = document.getElementById("jump-to-latest-btn");
+    if (!button) return;
+
+    button.hidden = true;
+    button.dataset.count = "0";
+    const label = button.querySelector("[data-new-message-label]");
+    if (label) label.textContent = "New messages";
+}
+
+function showNewMessageIndicator() {
+    const button = document.getElementById("jump-to-latest-btn");
+    if (!button) return;
+
+    const count = Number(button.dataset.count || 0) + 1;
+    button.dataset.count = String(count);
+    button.hidden = false;
+    const label = button.querySelector("[data-new-message-label]");
+    if (label) label.textContent = count === 1 ? "1 new message" : `${count} new messages`;
+}
+
+document.addEventListener("click", (event) => {
+    if (!event.target.closest("#jump-to-latest-btn")) return;
+
+    scrollMessagesToBottom({ smooth: true });
+});
+
+function scrollMessagesToBottom({ smooth = false } = {}) {
     const messageContainer = document.querySelector(".messages-container");
 
     if (!messageContainer) {
         return;
     }
 
-    messageContainer.scrollTop = messageContainer.scrollHeight;
+    if (smooth && typeof messageContainer.scrollTo === "function") {
+        messageContainer.scrollTo({ top: messageContainer.scrollHeight, behavior: "smooth" });
+    } else {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    hideNewMessageIndicator();
 }
 
 //////////// handle edit message /////////////

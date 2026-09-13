@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -20,6 +21,7 @@ class User extends Authenticatable
         'password',
         'profile',
         'phone',
+        'bio',
         'google2fa_secret',
         'google2fa_enabled',
         'must_change_password',
@@ -112,6 +114,43 @@ class User extends Authenticatable
     public function lastSeenLabel(): ?string
     {
         return $this->last_seen_at?->diffForHumans();
+    }
+
+    public function initials(): string
+    {
+        return collect(preg_split('/\s+/u', trim($this->name)) ?: [])
+            ->filter()->take(2)->map(fn (string $part): string => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: '?';
+    }
+
+    public function profileUrl(): ?string
+    {
+        $profile = $this->profile;
+        if (! is_string($profile) || $profile === '') {
+            return null;
+        }
+        if (filter_var($profile, FILTER_VALIDATE_URL) && in_array(parse_url($profile, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            return $profile;
+        }
+        if (preg_match('~^/?storage/(images/users/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $profile, $matches)) {
+            return Storage::disk('public')->url($matches[1]);
+        }
+        if (preg_match('~^(images/users/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $profile)) {
+            return Storage::disk('public')->url($profile);
+        }
+
+        return null;
+    }
+
+    public function managedProfilePath(): ?string
+    {
+        $profile = $this->profile;
+        if (! is_string($profile)) {
+            return null;
+        }
+        $path = parse_url($profile, PHP_URL_PATH) ?: $profile;
+
+        return preg_match('~^/?(?:storage/)?(images/users/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $path, $matches)
+            ? $matches[1] : null;
     }
 
     public function createdSchoolClasses()

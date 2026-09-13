@@ -27,6 +27,7 @@ class UpdateProfileRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30', 'regex:/^[0-9+().\-\s]+$/'],
+            'bio' => ['nullable', 'string', 'max:1000'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048', 'dimensions:max_width=4096,max_height=4096'],
         ];
     }
@@ -34,7 +35,7 @@ class UpdateProfileRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator): void {
-            foreach (array_diff(array_keys($this->all()), ['name', 'phone', 'photo', '_token', '_method']) as $field) {
+            foreach (array_diff(array_keys($this->all()), ['name', 'phone', 'bio', 'photo', '_token', '_method']) as $field) {
                 $validator->errors()->add($field, 'This field cannot be changed through your profile.');
             }
         }];
@@ -49,6 +50,8 @@ class UpdateProfileRequest extends FormRequest
             'phone.string' => 'Enter a valid phone number.',
             'phone.regex' => 'Use numbers and phone punctuation only.',
             'phone.max' => 'Your phone number may not exceed 30 characters.',
+            'bio.string' => 'Enter a valid bio.',
+            'bio.max' => 'Your bio may not exceed 1,000 characters.',
             'photo.image' => 'Choose a valid image.',
             'photo.mimes' => 'Choose a JPG, PNG or WebP photo.',
             'photo.extensions' => 'Choose a JPG, PNG or WebP photo.',
@@ -59,7 +62,7 @@ class UpdateProfileRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        foreach (['name', 'phone'] as $field) {
+        foreach (['name', 'phone', 'bio'] as $field) {
             if (is_string($this->input($field))) {
                 $this->merge([$field => trim($this->input($field))]);
             }
@@ -73,6 +76,6 @@ class UpdateProfileRequest extends FormRequest
         }
 
         throw new HttpResponseException(redirect()->route('profile.edit')->withErrors($validator)
-            ->withInput($this->only(['name', 'phone'])));
+            ->withInput($this->only(['name', 'phone', 'bio'])));
     }
 }

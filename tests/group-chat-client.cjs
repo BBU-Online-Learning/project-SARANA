@@ -4,15 +4,17 @@ const vm = require('node:vm');
 const path = require('node:path');
 const calls = [];
 const listeners = {};
+const bodyListeners = {};
 const title = {};
 const sidebarTitle = {};
 const loadStatus = { hidden: true, textContent: '', classList: { toggle() {} } };
 const container = { replaceChildren: node => calls.push(['warning', node.textContent]) };
 const channel = () => ({
     listen() { return this; }, listenForWhisper() { return this; }, stopListening() { return this; },
+    here() { return this; }, joining() { return this; }, leaving() { return this; },
 });
 const window = {
-    chat: { activeRoomId: 7, roomType: 'group', membershipId: 11 },
+    chat: { activeRoomId: 7, roomType: 'group', membershipId: 11, currentUserId: 5 },
     Echo: {
         private(topic) { calls.push(['private', topic]); return channel(); },
         join(topic) { calls.push(['join', topic]); return channel(); },
@@ -23,7 +25,9 @@ const window = {
     location: { reload: () => calls.push(['reload']) },
 };
 const document = {
+    readyState: 'complete',
     addEventListener() {},
+    body: { addEventListener(name, callback) { bodyListeners[name] = callback; } },
     querySelector(selector) {
         if (selector.includes('h1')) return title;
         if (selector.includes('.room-name')) return sidebarTitle;
@@ -40,8 +44,10 @@ const axios = { get: async () => ({ data: { membership_id: 12, type: 'group', na
 const context = vm.createContext({ window, document, axios, console: { ...console, error() {} }, AbortController, setInterval() {}, setTimeout, clearTimeout });
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/chat/chat.js'), 'utf8'), context);
 (async () => {
+    assert(calls.some(call => call[0] === 'private' && call[1] === 'user.5'));
+    assert(calls.some(call => call[0] === 'join' && call[1] === 'online'));
     context.subscribeToRoom(7, null);
-    assert.deepEqual(calls[0], ['private', 'chat.membership.11']);
+    assert(calls.some(call => call[0] === 'private' && call[1] === 'chat.membership.11'));
     await context.refreshRoomMembership();
     assert(calls.some(call => call[0] === 'leave' && call[1] === 'chat.membership.11'));
     assert(calls.some(call => call[0] === 'private' && call[1] === 'chat.membership.12'));
@@ -76,6 +82,19 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/chat/chat.js'
     assert.notEqual(window.chat.membershipId, 99);
     listeners.pageshow({ persisted: true });
     assert(calls.some(call => call[0] === 'reload'));
+    assert.equal(context.isNearMessagesBottom({ scrollHeight: 500, scrollTop: 250, clientHeight: 200 }), true);
+    assert.equal(context.isNearMessagesBottom({ scrollHeight: 500, scrollTop: 100, clientHeight: 200 }), false);
+    context.testLoads = [];
+    vm.runInContext('loadRoom = async (roomId) => testLoads.push(roomId)', context);
+    let keyboardPrevented = false;
+    const keyboardRoom = { dataset: { roomId: '44' } };
+    await bodyListeners.keydown({
+        key: 'Enter',
+        preventDefault() { keyboardPrevented = true; },
+        target: { closest: selector => selector === '.room-item' ? keyboardRoom : null },
+    });
+    assert(keyboardPrevented);
+    assert.deepEqual(Array.from(context.testLoads), ['44']);
     window.Echo = undefined;
     context.subscribeToRoom(11, 10);
     assert.equal(window.chat.channel, null);

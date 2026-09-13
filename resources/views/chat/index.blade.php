@@ -2,36 +2,34 @@
 @extends('layouts.chat')
 
 @section('bodyClass')
-    chat-page student-chat
-@endsection
-
-@section('hideFooter')
-@endsection
-@section('styles')
-    <link rel="stylesheet" href="{{ asset('css/teamstyle.css') }}">
+    chat-page workspace-chat
 @endsection
 
 @section('content')
+    <link rel="stylesheet" href="{{ asset('css/chat-read-receipts.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/create-chat.css') }}">
+    <dialog id="chat-read-dialog" aria-labelledby="chat-read-title">
+        <div class="chat-read-heading">
+            <h2 id="chat-read-title">Read by</h2>
+            <button type="button" data-close-read-dialog aria-label="Close read details">×</button>
+        </div>
+        <ul id="chat-read-list" aria-live="polite"></ul>
+    </dialog>
     <div class="chat-mobile-toolbar">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-chat-menu aria-controls="chat-navigation" aria-expanded="false">Menu</button>
-        <button type="button" class="btn btn-sm btn-outline-primary" data-chat-list>Conversations</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-chat-list aria-controls="chat-conversations">Conversations</button>
     </div>
     <div id="chat-load-status" class="alert alert-info chat-load-status" role="status" aria-live="polite" hidden></div>
     <div class="teams-chat-page">
         <div class="teams-chat-shell">
-            <aside class="chat-sidebar" id="chat-navigation" aria-label="Main navigation">
-                @include('chat.partials.sidebar')
-            </aside>
-
-            <aside class="conversation-list" aria-label="Conversation list">
+            <aside class="conversation-list" id="chat-conversations" aria-label="Conversation list">
                 @include('chat.partials.conversation-list')
             </aside>
 
-            <main class="chat-room-area" aria-label="Active chat">
+            <section class="chat-room-area" aria-label="Active chat">
                 <div id="chat-room-container" class="h-100">
                     @include('chat.partials.empty-chat')
                 </div>
-            </main>
+            </section>
         </div>
     </div>
 
@@ -40,8 +38,6 @@
 @endsection
 
 @section('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-
     <script>
         window.chat = {
             activeRoomId: null,
@@ -49,12 +45,19 @@
             currentUserInitial: @json(strtoupper(substr(auth()->user()->name, 0, 1))),
             currentUserId: @json(auth()->id()),
             allowedReactions: @json(config('chat.allowed_reactions')),
+            stickers: @json(\App\Services\Chat\StickerCatalog::forClient()),
             nextCursor: null,
             loadingOlderMessages: false,
             replyingToMessageId: null,
             replyingToMessageText: null,
             voiceDraftFile: null,
         };
+        window.chatAttachmentConfig = Object.freeze({
+            maxFiles: @json(config('chat.max_attachments_per_message')),
+            maxFileSizeBytes: @json(config('chat.max_attachment_size_kb') * 1024),
+            maxTotalSizeBytes: @json(config('chat.max_attachment_total_size_kb') * 1024),
+            allowedExtensions: @json(config('chat.allowed_attachment_extensions')),
+        });
 
         document.addEventListener('input', (e) => {
             if (!e.target.matches('#message-form input[name="body"]')) {
@@ -87,10 +90,12 @@
     </script>
 
     <script src="{{ asset('js/chat/chat.js') }}"></script>
+    <script src="{{ asset('js/chat/read-receipts.js') }}"></script>
     <script src="{{ asset('js/chat/attachments.js') }}"></script>
     <script src="{{ asset('js/chat/voice.js') }}"></script>
     <script src="{{ asset('js/chat/image-preview.js') }}"></script>
     <script src="{{ asset('js/chat/messages.js') }}"></script>
+    <script src="{{ asset('js/chat/stickers.js') }}"></script>
     <script src="{{ asset('js/chat/search.js') }}"></script>
     <script src="{{ asset('js/chat/create-chat.js') }}"></script>
 @endsection

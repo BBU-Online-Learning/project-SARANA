@@ -6,7 +6,7 @@ class AddGroupMembersRequest extends UpdateGroupRequest
 {
     public function rules(): array
     {
-        return [...parent::rules(), 'name' => ['prohibited'],
+        return [...parent::rules(), 'name' => ['prohibited'], 'description' => ['prohibited'], 'avatar' => ['prohibited'],
             'members' => ['required', 'array', 'min:1', 'max:30'],
             'members.*' => ['required', 'integer', 'distinct'],
         ];

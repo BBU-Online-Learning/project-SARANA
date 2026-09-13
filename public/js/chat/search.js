@@ -31,12 +31,34 @@ function filterConversationList(term) {
 let roomSearchDebounce;
 let roomSearchResults = [];
 let roomSearchIndex = -1;
+let roomSearchRequestId = 0;
 
 document.addEventListener("click", (e) => {
-    if (e.target.closest("#open-room-search-btn")) toggleRoomSearchBar();
-    if (e.target.closest("#room-search-close")) closeRoomSearchBar();
-    if (e.target.closest("#room-search-next")) navigateRoomSearch(1);
+    if (e.target.closest("#open-room-search-btn")) {
+        toggleRoomSearchBar();
+        return;
+    }
+
+    if (e.target.closest("#room-search-close")) {
+        closeRoomSearchBar({ restoreFocus: true });
+        return;
+    }
+
+    if (e.target.closest("#room-search-next")) {
+        navigateRoomSearch(1);
+        return;
+    }
+
     if (e.target.closest("#room-search-prev")) navigateRoomSearch(-1);
+});
+
+document.addEventListener("keydown", (e) => {
+    const bar = document.getElementById("room-search-bar");
+
+    if (e.key !== "Escape" || !bar || bar.hidden) return;
+
+    e.preventDefault();
+    closeRoomSearchBar({ restoreFocus: true });
 });
 
 document.addEventListener("input", (e) => {
@@ -58,46 +80,65 @@ document.addEventListener("input", (e) => {
 
 function toggleRoomSearchBar() {
     const bar = document.getElementById("room-search-bar");
+    const trigger = document.getElementById("open-room-search-btn");
     if (!bar) return;
 
-    const opening = bar.style.display === "none" || !bar.style.display;
-
-    if (opening) {
-        bar.style.display = "flex";
+    if (bar.hidden) {
+        bar.hidden = false;
+        trigger?.setAttribute("aria-expanded", "true");
+        if (trigger) trigger.hidden = true;
         document.getElementById("room-search-input")?.focus();
     } else {
-        closeRoomSearchBar();
+        closeRoomSearchBar({ restoreFocus: true });
     }
 }
 
-function closeRoomSearchBar() {
+function closeRoomSearchBar({ restoreFocus = false } = {}) {
     const bar = document.getElementById("room-search-bar");
-    if (bar) bar.style.display = "none";
+    const trigger = document.getElementById("open-room-search-btn");
+
+    if (bar) bar.hidden = true;
+    if (trigger) {
+        trigger.hidden = false;
+        trigger.setAttribute("aria-expanded", "false");
+    }
 
     const input = document.getElementById("room-search-input");
     if (input) input.value = "";
 
+    clearTimeout(roomSearchDebounce);
+    roomSearchRequestId++;
     roomSearchResults = [];
     roomSearchIndex = -1;
     updateRoomSearchCount();
     clearRoomSearchHighlights();
+
+    if (restoreFocus) trigger?.focus();
 }
 
 // Called from chat.js whenever a new room is loaded, so an open search
 // from the previous room doesn't carry stray state into the new one.
 window.resetRoomSearchState = function () {
-    roomSearchResults = [];
-    roomSearchIndex = -1;
+    closeRoomSearchBar();
 };
 
 async function runRoomSearch(keyword) {
     if (!window.chat.activeRoomId) return;
 
+    const requestId = ++roomSearchRequestId;
+    const roomId = window.chat.activeRoomId;
+
     try {
         const response = await axios.get(
-            `/chat/rooms/${window.chat.activeRoomId}/messages/search`,
+            `/chat/rooms/${roomId}/messages/search`,
             { params: { keyword } }
         );
+
+        const bar = document.getElementById("room-search-bar");
+
+        if (requestId !== roomSearchRequestId || roomId !== window.chat.activeRoomId || !bar || bar.hidden) {
+            return;
+        }
 
         roomSearchResults = response.data.results || [];
         // Start from the most recent match — closest to where you're reading

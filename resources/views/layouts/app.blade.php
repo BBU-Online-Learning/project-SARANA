@@ -10,36 +10,57 @@
     <link href="{{ asset('backend/assets/css/vendor.min.css') }}" rel="stylesheet">
     <link href="{{ asset('backend/assets/css/app.min.css') }}" rel="stylesheet" id="app-style">
     <link href="{{ asset('backend/assets/css/icons.min.css') }}" rel="stylesheet">
+    <script>
+        window.reverbRuntimeConfig = Object.freeze({
+            localHost: @json(config('reverb.browser.local_host')),
+            localPort: @json(config('reverb.browser.local_port')),
+            publicHost: @json(config('reverb.browser.public_host')),
+            publicPort: @json(config('reverb.browser.public_port')),
+            publicScheme: @json(config('reverb.browser.public_scheme')),
+        });
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="{{ asset('css/teamstyle.css') }}" rel="stylesheet">
     <link href="{{ asset('css/workspace.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/voice-call.css') }}" rel="stylesheet">
     @yield('styles')
+    @if(in_array(auth()->user()->role->name, ['teacher', 'student'], true))
+        <link href="{{ asset('css/learning-workspace.css') }}" rel="stylesheet">
+    @endif
 </head>
-<body class="application-shell @yield('bodyClass')">
+<body class="application-shell {{ in_array(auth()->user()->role->name, ['teacher', 'student'], true) ? 'learning-workspace' : '' }} @yield('bodyClass')" data-workspace-role="{{ auth()->user()->role->name }}">
     <a href="#main-content" class="workspace-skip-link">Skip to content</a>
     <div class="wrapper">
-        <aside class="sidenav-menu" id="workspace-navigation" aria-label="Main navigation">
-            <a href="{{ route('home') }}" class="workspace-brand">{{ config('app.name') }}</a>
-            <button type="button" class="btn btn-outline-secondary workspace-mobile-only m-3" data-shell-close>Close menu</button>
-            @include('layouts.navigation')
-        </aside>
+        @include('layouts.partials.sidebar')
         <button type="button" class="workspace-backdrop" data-shell-close aria-label="Close navigation" hidden></button>
-        <header class="app-topbar">
-            <div class="page-container topbar-menu">
-                <button type="button" class="btn btn-outline-secondary workspace-mobile-only" data-shell-toggle aria-controls="workspace-navigation" aria-expanded="false">Menu</button>
-                <span class="fw-semibold">{{ ucwords(str_replace('_', ' ', auth()->user()->role->name)) }} workspace</span>
-                <a href="{{ route('profile.edit') }}" class="workspace-account-link">{{ auth()->user()->name }}</a>
-            </div>
-        </header>
+        @include('layouts.partials.header')
         <main class="page-content" id="main-content" tabindex="-1">
-            <div class="workspace-flash">@include('layouts.flash_message')</div>
+            @include('layouts.flash_message')
             @yield('content')
         </main>
     </div>
+    <x-confirmation-dialog />
+    @include('chat.partials.voice-call-overlay')
     <script src="{{ asset('backend/assets/js/vendor.min.js') }}"></script>
     <script src="{{ asset('backend/assets/js/app.js') }}"></script>
+    <script src="{{ asset('js/notifications.js') }}"></script>
+    <script src="{{ asset('js/confirmation-dialog.js') }}"></script>
     <script src="{{ asset('js/workspace.js') }}" defer></script>
     <script>const csrfToken = document.querySelector('meta[name="csrf-token"]').content;</script>
+    <script>
+        window.voiceCallConfig = {
+            userId: @json(auth()->id()),
+            userName: @json(auth()->user()->name),
+            currentUrl: @json(route('chat.calls.current')),
+            callBaseUrl: @json(url('/chat/calls')),
+            chatUrl: @json(route('chat.index')),
+            iceUrl: @json(route('chat.calls.ice')),
+            debug: @json(config('app.debug')),
+        };
+    </script>
+    <script src="{{ asset('js/chat/call-media.js') }}"></script>
+    <script src="{{ asset('js/chat/call-ui.js') }}"></script>
+    <script src="{{ asset('js/chat/voice-call.js') }}"></script>
     @yield('scripts')
 </body>
 </html>

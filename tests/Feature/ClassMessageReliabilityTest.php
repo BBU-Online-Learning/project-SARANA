@@ -101,21 +101,27 @@ test('repeated sends return the same message and never overwrite reuse or revive
 });
 
 test('history is bounded and stable despite equal timestamps and concurrent inserts or deletions', function (): void {
+    $messageIds = [];
+
     for ($i = 1; $i <= 125; $i++) {
-        $this->channel->messages()->create(['sender_id' => $this->student->id, 'body' => 'History item '.$i]);
+        $messageIds[] = $this->channel->messages()->create([
+            'sender_id' => $this->student->id,
+            'body' => 'History item '.$i,
+        ])->id;
     }
     $this->get(route('classes.channels.show', [$this->schoolClass, $this->channel]))
-        ->assertOk()->assertViewHas('messages', fn ($messages) => $messages->count() === 50 && $messages->first()->id === 76);
+        ->assertOk()->assertViewHas('messages', fn ($messages) => $messages->count() === 50
+            && $messages->first()->id === $messageIds[75]);
     $latest = $this->getJson($this->url)->assertJsonCount(50, 'messages')->assertJsonPath('has_more', true);
     $before = $latest->json('before_id');
     $this->channel->messages()->create(['sender_id' => $this->student->id, 'body' => 'Concurrent insert']);
-    SchoolClassChannelMessage::findOrFail(20)->delete();
+    SchoolClassChannelMessage::findOrFail($messageIds[19])->delete();
     $older = $this->getJson($this->url.'?before_id='.$before)->assertJsonCount(50, 'messages');
     expect(array_intersect($latest->json('messages.*.message_id'), $older->json('messages.*.message_id')))->toBe([]);
     $last = $this->getJson($this->url.'?before_id='.$older->json('before_id'))->assertJsonCount(24, 'messages')->assertJsonPath('has_more', false);
     $ids = array_merge($last->json('messages.*.message_id'), $older->json('messages.*.message_id'), $latest->json('messages.*.message_id'));
-    expect($ids)->toBe(array_values(array_diff(range(1, 125), [20])));
-    $this->getJson($this->url.'?after_id=125')->assertJsonCount(1, 'messages')->assertJsonPath('messages.0.body', 'Concurrent insert');
+    expect($ids)->toBe(array_values(array_diff($messageIds, [$messageIds[19]])));
+    $this->getJson($this->url.'?after_id='.end($messageIds))->assertJsonCount(1, 'messages')->assertJsonPath('messages.0.body', 'Concurrent insert');
 });
 
 test('cursor and synchronization payloads are validated and bounded', function (array $query): void {

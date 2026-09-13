@@ -113,6 +113,35 @@ class AccountManagementService
         });
     }
 
+    /** @param array{name: string, email: string, password: string} $attributes */
+    public function createFirstSuperAdmin(array $attributes): User
+    {
+        return $this->locked(function () use ($attributes): User {
+            $role = Role::query()->where('name', Role::SUPER_ADMIN)->where('status', true)->first();
+            if (! $role) {
+                throw ValidationException::withMessages(['role' => 'The Super Admin role must be present and enabled.']);
+            }
+
+            $existing = User::withTrashed()->whereHas('role', function ($query): void {
+                $query->withTrashed()->where('name', Role::SUPER_ADMIN);
+            })->lockForUpdate()->exists();
+
+            if ($existing) {
+                throw ValidationException::withMessages(['user' => 'A Super Admin assignment already exists. This is not a recovery command.']);
+            }
+
+            return User::query()->create([
+                'role_id' => $role->id,
+                'name' => $attributes['name'],
+                'email' => $attributes['email'],
+                'password' => $attributes['password'],
+                'status' => 'active',
+                'google2fa_enabled' => false,
+                'must_change_password' => true,
+            ]);
+        });
+    }
+
     private function withTarget(User $actor, User $target, string $ability, Closure $callback): mixed
     {
         return $this->locked(function () use ($actor, $target, $ability, $callback): mixed {

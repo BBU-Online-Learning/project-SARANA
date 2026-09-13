@@ -4,8 +4,35 @@ use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
+
+test('a fresh installation creates its first super admin through hidden interactive credentials', function (): void {
+    $password = 'Temporary!Pass123';
+
+    $this->artisan('users:create-first-super-admin', [
+        '--name' => 'First Administrator',
+        '--email' => 'first@example.test',
+    ])->expectsQuestion('Temporary password (12+ characters, mixed case, number and symbol)', $password)
+        ->expectsQuestion('Confirm temporary password', $password)
+        ->assertSuccessful();
+
+    $user = User::query()->sole();
+    expect($user->role->name)->toBe(Role::SUPER_ADMIN)
+        ->and($user->google2fa_enabled)->toBeFalse()
+        ->and($user->must_change_password)->toBeTrue()
+        ->and(Hash::check($password, $user->password))->toBeTrue();
+
+    $this->artisan('users:create-first-super-admin', [
+        '--name' => 'Second Administrator',
+        '--email' => 'second@example.test',
+    ])->expectsQuestion('Temporary password (12+ characters, mixed case, number and symbol)', $password)
+        ->expectsQuestion('Confirm temporary password', $password)
+        ->assertFailed();
+
+    expect(User::query()->count())->toBe(1);
+});
 
 test('provisioning previews an explicit account then changes only its role on commit', function (): void {
     $studentRole = Role::where('name', Role::STUDENT)->firstOrFail();

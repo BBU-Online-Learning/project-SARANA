@@ -157,7 +157,7 @@
             if (!file) return;
 
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
+                window.AppNotifications?.warning('Please select a JPG, PNG or WebP image.');
                 event.target.value = '';
                 return;
             }

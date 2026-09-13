@@ -11,9 +11,11 @@ class Message extends Model
 
     protected $fillable = [
         'room_id',
+        'call_session_id',
         'sender_id',
         'message_type',
         'body',
+        'sticker_id',
         'reply_to_message_id',
         'client_uuid',
         'is_edited',
@@ -137,6 +139,22 @@ class Message extends Model
 
         if ($this->message_type === 'voice') {
             return '🎤 Voice message';
+        }
+
+        if ($this->message_type === 'image') {
+            return '📷 Photo';
+        }
+
+        if ($this->message_type === 'video') {
+            return '🎬 Video';
+        }
+
+        if ($this->message_type === 'call') {
+            return $this->body ?: 'Voice call';
+        }
+
+        if ($this->message_type === 'sticker') {
+            return 'Sticker';
         }
 
         if (filled($this->body)) {

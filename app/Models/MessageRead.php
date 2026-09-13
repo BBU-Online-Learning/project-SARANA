@@ -6,10 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class MessageRead extends Model
 {
+    protected function casts(): array
+    {
+        return ['read_at' => 'datetime'];
+    }
+
     protected $fillable = [
         'message_id',
         'user_id',
-        'read_at'
+        'read_at',
     ];
 
     /*

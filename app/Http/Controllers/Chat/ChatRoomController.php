@@ -4,8 +4,6 @@
 
 namespace App\Http\Controllers\Chat;
 
-use App\Events\Chat\ReadReceiptUpdated;
-use App\Events\Chat\UnreadCountUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Chat\CreateDirectRoomRequest;
 use App\Http\Requests\Chat\CreateGroupRoomRequest;
@@ -38,7 +36,8 @@ class ChatRoomController extends Controller
         $rooms = $this->chatRoomService
             ->getUserRooms(Auth::id());
 
-        $users = User::select('id', 'name')->where('id', '!=', Auth::id())
+        $users = User::query()->with('role:id,name')->select('id', 'name', 'profile', 'role_id', 'last_seen_at')
+            ->where('id', '!=', Auth::id())
             ->where('status', 'active')->where('google2fa_enabled', true)->where('must_change_password', false)
             ->whereHas('role', fn ($query) => $query->where('status', true)->whereIn('name', \App\Models\Role::NAMES))
             ->orderBy('name')->get();
@@ -58,31 +57,17 @@ class ChatRoomController extends Controller
     public function show(ChatRoom $room)
     {
         $this->authorize('access', $room);
-        $readAt = now();
-
-        $room->members()->updateExistingPivot(
-            Auth::id(),
-            [
-                'last_read_at' => $readAt,
-            ]
-        );
-
-        broadcast(
-            new ReadReceiptUpdated(
-                $room->id,
-                Auth::id(),
-                $readAt->toDateTimeString(),
-                Auth::user()->name
-            )
-        )->toOthers();
-
         $room->load([
             'members' => function ($query) {
                 $query->select(
                     'users.id',
                     'users.name',
                     'users.profile',
-                    'users.last_seen_at'
+                    'users.last_seen_at',
+                    'users.role_id',
+                    'users.status',
+                    'users.google2fa_enabled',
+                    'users.must_change_password'
                 );
             },
         ]);
@@ -133,30 +118,5 @@ class ChatRoomController extends Controller
         return response()->json([
             'room_id' => $room->id,
         ]);
-    }
-
-    public function markRead(ChatRoom $room)
-    {
-        $this->authorize('access', $room);
-
-        $readAt = now();
-
-        $room->members()->updateExistingPivot(
-            Auth::id(),
-            ['last_read_at' => $readAt]
-        );
-
-        broadcast(
-            new ReadReceiptUpdated(
-                $room->id,
-                Auth::id(),
-                $readAt->toDateTimeString(),
-                Auth::user()->name
-            )
-        )->toOthers();
-        // This clears YOUR own badge (needed for multi-tab sync too)
-        broadcast(new UnreadCountUpdated(Auth::id(), $room->id, 0));
-
-        return response()->json(['success' => true]);
     }
 }

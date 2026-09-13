@@ -5,13 +5,144 @@
 */
 // File: D:\education\Laravel_Project\Elearning\public\js\chat\messages.js
 
+const failedMessageRetries = new Map();
+const activeUploadControllers = new Map();
+const failedUploadSignatures = new Map();
+
+function createMessageUuid() {
+    if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function fileUploadSignature(file) {
+    return file ? `${file.name}:${file.size}:${file.lastModified}` : "";
+}
+
+function setOptimisticMessagePending(clientUuid) {
+    const message = document.querySelector(`[data-client-id="${clientUuid}"]`);
+    if (!message) return;
+
+    message.classList.add("message-pending");
+    message.classList.remove("message-failed");
+
+    const status = message.querySelector(".message-send-status");
+    if (status) {
+        status.textContent = "⏳";
+        status.setAttribute("aria-label", "Sending");
+    }
+
+    const retry = message.querySelector(".retry-message-btn");
+    if (retry) retry.hidden = true;
+
+    const cancel = message.querySelector(".cancel-upload-btn");
+    if (cancel) cancel.hidden = false;
+}
+
+function setOptimisticMessageFailed(clientUuid) {
+    const message = document.querySelector(`[data-client-id="${clientUuid}"]`);
+    if (!message) return;
+
+    message.classList.remove("message-pending");
+    message.classList.add("message-failed");
+
+    const status = message.querySelector(".message-send-status");
+    if (status) {
+        status.textContent = "!";
+        status.setAttribute("aria-label", "Failed to send");
+    }
+
+    const retry = message.querySelector(".retry-message-btn");
+    if (retry) retry.hidden = false;
+
+    const cancel = message.querySelector(".cancel-upload-btn");
+    if (cancel) cancel.hidden = true;
+}
+
+function updateUploadProgress(clientUuid, progressEvent) {
+    const message = document.querySelector(`[data-client-id="${clientUuid}"]`);
+    const progress = message?.querySelector(".attachment-upload-progress");
+    const label = message?.querySelector(".attachment-upload-percent");
+    if (!progress || !progressEvent.total) return;
+
+    const percent = Math.min(100, Math.round((progressEvent.loaded / progressEvent.total) * 100));
+    progress.value = percent;
+    if (label) label.textContent = `${percent}%`;
+}
+
+function uploadMessage(roomId, formData, clientUuid) {
+    const controller = new AbortController();
+    activeUploadControllers.set(clientUuid, controller);
+
+    return axios.post(`/chat/rooms/${roomId}/messages`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        signal: controller.signal,
+        onUploadProgress: (event) => updateUploadProgress(clientUuid, event),
+    }).finally(() => {
+        if (activeUploadControllers.get(clientUuid) === controller) {
+            activeUploadControllers.delete(clientUuid);
+        }
+    });
+}
+
+function isCanceledRequest(error) {
+    return error?.code === "ERR_CANCELED" || error?.name === "CanceledError" || axios.isCancel?.(error);
+}
+
+async function attemptMessageSend(clientUuid, send, { body = "", onSuccess = null, uploadSignature = null } = {}) {
+    setOptimisticMessagePending(clientUuid);
+
+    try {
+        const response = await send();
+        failedMessageRetries.delete(clientUuid);
+        failedUploadSignatures.delete(clientUuid);
+        await onSuccess?.(response);
+
+        const input = document.querySelector("#message-form input[name='body']");
+        if (body && input?.value === body) input.value = "";
+
+        return true;
+    } catch (error) {
+        if (isCanceledRequest(error)) {
+            failedMessageRetries.delete(clientUuid);
+            failedUploadSignatures.delete(clientUuid);
+            document.querySelector(`[data-client-id="${clientUuid}"]`)?.remove();
+            window.AppNotifications?.info?.("Attachment upload cancelled. Your files are still selected.");
+            return false;
+        }
+
+        const reconciledMessage = document.querySelector(`[data-client-id="${clientUuid}"][data-message-id]`);
+        if (reconciledMessage) {
+            failedMessageRetries.delete(clientUuid);
+            failedUploadSignatures.delete(clientUuid);
+            await onSuccess?.(null);
+            const input = document.querySelector("#message-form input[name='body']");
+            if (body && input?.value === body) input.value = "";
+            return true;
+        }
+
+        if (uploadSignature) failedUploadSignatures.set(clientUuid, uploadSignature);
+        failedMessageRetries.set(clientUuid, () => attemptMessageSend(clientUuid, send, { body, onSuccess, uploadSignature }));
+        setOptimisticMessageFailed(clientUuid);
+
+        const input = document.querySelector("#message-form input[name='body']");
+        if (body && input && !input.value.trim()) input.value = body;
+
+        console.error(error);
+        window.AppNotifications?.fromAxios(error, "Unable to send the message. Your draft was kept so you can retry.");
+        return false;
+    }
+}
+
 document.addEventListener("submit", async (e) => {
     if (!e.target.matches("#message-form")) return;
 
     e.preventDefault();
-    // Prevent double-send when the user double-clicks reply/send.
     if (window.chat.isSendingMessage) return;
-    window.chat.isSendingMessage = true;
 
     const form = e.target;
     const input = form.querySelector('input[name="body"]');
@@ -25,6 +156,9 @@ document.addEventListener("submit", async (e) => {
         return;
     }
 
+    // Prevent double-send when the user double-clicks reply/send.
+    window.chat.isSendingMessage = true;
+
     /*
     | EDIT MODE — PUT to update existing message
     | We reset the UI immediately, then fire the request.
@@ -35,6 +169,7 @@ document.addEventListener("submit", async (e) => {
     // Reply/edit flow stays the same; only the guard above prevents duplicate sends.
     if (window.chat.editingMessageId) {
         const messageId = window.chat.editingMessageId;
+        let editSnapshot = null;
 
         // 1. Optimistic flash for the sender before network round-trip
         const messageItem = document.querySelector(
@@ -42,6 +177,13 @@ document.addEventListener("submit", async (e) => {
         );
         if (messageItem) {
             const bubble = messageItem.querySelector(".teams-message-bubble");
+            const editBtn = messageItem.querySelector(".edit-message-btn");
+            const editedLabel = messageItem.querySelector(".teams-edited-label");
+            editSnapshot = {
+                body: bubble?.textContent ?? "",
+                messageBody: editBtn?.dataset.messageBody,
+                hadEditedLabel: Boolean(editedLabel),
+            };
             if (bubble) {
                 // Update text immediately so sender sees change at once
                 bubble.textContent = body;
@@ -62,7 +204,6 @@ document.addEventListener("submit", async (e) => {
                 );
             }
             // Keep data attribute in sync so re-clicking Edit reads correct body
-            const editBtn = messageItem.querySelector(".edit-message-btn");
             if (editBtn) editBtn.dataset.messageBody = body;
             const bubbleEl = messageItem.querySelector(".teams-message-bubble");
             if (bubbleEl) bubbleEl.dataset.messageBody = body;
@@ -75,7 +216,17 @@ document.addEventListener("submit", async (e) => {
         try {
             await axios.put(`/chat/messages/${messageId}`, { body });
         } catch (error) {
+            const currentItem = document.querySelector(`[data-message-id="${messageId}"]`);
+            const currentBubble = currentItem?.querySelector(".teams-message-bubble");
+            const currentEditButton = currentItem?.querySelector(".edit-message-btn");
+
+            if (editSnapshot && currentBubble) currentBubble.textContent = editSnapshot.body;
+            if (editSnapshot && currentEditButton) currentEditButton.dataset.messageBody = editSnapshot.messageBody ?? "";
+            if (editSnapshot && !editSnapshot.hadEditedLabel) currentItem?.querySelector(".teams-edited-label")?.remove();
+
+            enterEditMode(messageId, body);
             console.error("Edit failed:", error);
+            window.AppNotifications?.fromAxios(error, "Unable to edit the message. Your changes were restored for retry.");
         } finally {
             window.chat.isSendingMessage = false;
         }
@@ -88,73 +239,100 @@ document.addEventListener("submit", async (e) => {
 | NEW MESSAGE / REPLY
 |--------------------------------------------------------------------------
 */
-    const clientUuid = crypto.randomUUID();
+    const roomId = window.chat.activeRoomId;
+    const replyToMessageId = window.chat.replyingToMessageId;
+    const attachmentFilesSignature = hasFiles ? window.ChatAttachments.signature() : null;
+    const voiceFileSignature = hasVoice ? fileUploadSignature(window.chat.voiceDraftFile) : null;
+    const uploadSignature = hasVoice
+        ? `voice:${voiceFileSignature}:reply:${replyToMessageId || ""}`
+        : (hasFiles ? `files:${attachmentFilesSignature}:body:${body}:reply:${replyToMessageId || ""}` : null);
+    const matchingFailedUpload = uploadSignature
+        ? Array.from(failedUploadSignatures.entries()).find(([, signature]) => signature === uploadSignature)
+        : null;
+
+    if (matchingFailedUpload && failedMessageRetries.has(matchingFailedUpload[0])) {
+        try {
+            await failedMessageRetries.get(matchingFailedUpload[0])();
+        } finally {
+            window.chat.isSendingMessage = false;
+        }
+        return;
+    }
+
+    const clientUuid = createMessageUuid();
+    let send;
+    let onSuccess;
 
     if (hasVoice) {
         appendOptimisticVoicePlaceholder(clientUuid);
-    } else if (body) {
-        appendOptimisticMessage(body, clientUuid);
-    } else {
+        const formData = new FormData();
+        formData.append("body", "");
+        formData.append("client_uuid", clientUuid);
+        formData.append("attachment_context", "voice");
+        if (replyToMessageId) formData.append("reply_to_message_id", replyToMessageId);
+        formData.append("attachments[]", window.chat.voiceDraftFile);
+        send = () => uploadMessage(roomId, formData, clientUuid);
+        onSuccess = () => {
+            if (fileUploadSignature(window.chat.voiceDraftFile) === voiceFileSignature) window.ChatVoice?.reset?.();
+        };
+    } else if (hasFiles) {
         appendOptimisticAttachmentPlaceholder(
             clientUuid,
             window.ChatAttachments.count(),
         );
+        const formData = window.ChatAttachments.buildFormData(body, clientUuid, replyToMessageId);
+        send = () => uploadMessage(roomId, formData, clientUuid);
+        onSuccess = () => window.ChatAttachments.clearIfSignature(attachmentFilesSignature);
+    } else {
+        appendOptimisticMessage(body, clientUuid);
+        send = () => axios.post(`/chat/rooms/${roomId}/messages`, {
+            body,
+            client_uuid: clientUuid,
+            reply_to_message_id: replyToMessageId,
+        });
     }
 
     input.value = "";
-    const replyToMessageId = window.chat.replyingToMessageId;
-    try {
-        if (hasVoice) {
-            const formData = new FormData();
-            formData.append("body", "");
-            formData.append("client_uuid", clientUuid);
-
-            if (replyToMessageId) {
-                formData.append("reply_to_message_id", replyToMessageId);
+    const sent = await attemptMessageSend(clientUuid, send, {
+        body,
+        uploadSignature,
+        onSuccess: async (response) => {
+            onSuccess?.();
+            if (response?.data?.message_id) {
+                await appendIncomingMessage(response.data).catch(error => console.error("Message saved; display sync failed", error));
             }
+        },
+    });
 
-            formData.append("attachments[]", window.chat.voiceDraftFile);
-
-            await axios.post(
-                `/chat/rooms/${window.chat.activeRoomId}/messages`,
-                formData,
-                { headers: { "Content-Type": "multipart/form-data" } },
-            );
-
-            window.ChatVoice?.reset?.();
-        } else if (hasFiles) {
-            const formData = window.ChatAttachments.buildFormData(
-                body,
-                clientUuid,
-                replyToMessageId,
-            );
-
-            await axios.post(
-                `/chat/rooms/${window.chat.activeRoomId}/messages`,
-                formData,
-                { headers: { "Content-Type": "multipart/form-data" } },
-            );
-
-            window.ChatAttachments.clear();
-        } else {
-            await axios.post(
-                `/chat/rooms/${window.chat.activeRoomId}/messages`,
-                {
-                    body,
-                    client_uuid: clientUuid,
-                    reply_to_message_id: replyToMessageId,
-                },
-            );
-        }
-
+    if (sent) {
         window.chat.replyingToMessageId = null;
         window.chat.replyingToMessageText = null;
         document
             .getElementById("reply-preview")
             ?.style.setProperty("display", "none");
-    } catch (error) {
-        rollbackOptimisticMessage(clientUuid);
-        console.error(error);
+    }
+
+    window.chat.isSendingMessage = false;
+});
+
+document.addEventListener("click", async (event) => {
+    const cancelButton = event.target.closest(".cancel-upload-btn");
+    if (cancelButton) {
+        activeUploadControllers.get(cancelButton.dataset.clientId)?.abort();
+        return;
+    }
+
+    const button = event.target.closest(".retry-message-btn");
+    if (!button || window.chat.isSendingMessage) return;
+
+    const retry = failedMessageRetries.get(button.dataset.clientId);
+    if (!retry) return;
+
+    window.chat.isSendingMessage = true;
+    try {
+        await retry();
+    } finally {
+        window.chat.isSendingMessage = false;
     }
 });
 
@@ -320,14 +498,14 @@ function appendOptimisticMessage(body, clientUuid) {
             <div class="teams-message-stack">
                 <div class="teams-message-meta">
                     <strong>${window.chat.currentUserName}</strong>
-                    <span>${time}</span>
+                    <span>${time} <span class="read-status message-send-status" aria-label="Sending">⏳</span></span>
                 </div>
                 <div class="teams-message-bubble">
                     ${escapeHtml(body)}
                 </div>
-                <div class="teams-read-row">
-                    <span class="read-status">⏳</span>
-                </div>
+                <button type="button" class="retry-message-btn" data-client-id="${clientUuid}" hidden>
+                    <i class="ti ti-refresh" aria-hidden="true"></i> Retry
+                </button>
             </div>
         </div>
     `,
@@ -364,13 +542,19 @@ function appendOptimisticAttachmentPlaceholder(clientUuid, fileCount) {
 
                 <div class="teams-message-meta">
                     <strong>${window.chat.currentUserName}</strong>
-                    <span>${time}</span>
+                    <span>${time} <span class="message-send-status" aria-label="Sending">⏳</span></span>
                 </div>
 
                 <div class="teams-message-bubble attachment-uploading-bubble">
                     <i class="ti ti-loader-2"></i>
-                    ${escapeHtml(label)}
+                    <span>${escapeHtml(label)}</span>
+                    <span class="attachment-upload-percent">0%</span>
                 </div>
+                <progress class="attachment-upload-progress" max="100" value="0" aria-label="Attachment upload progress"></progress>
+                <button type="button" class="cancel-upload-btn" data-client-id="${clientUuid}">Cancel upload</button>
+                <button type="button" class="retry-message-btn" data-client-id="${clientUuid}" hidden>
+                    <i class="ti ti-refresh" aria-hidden="true"></i> Retry
+                </button>
 
             </div>
 
@@ -380,10 +564,6 @@ function appendOptimisticAttachmentPlaceholder(clientUuid, fileCount) {
 
     container.scrollTop = container.scrollHeight;
 }
-function rollbackOptimisticMessage(clientUuid) {
-    document.querySelector(`[data-client-id="${clientUuid}"]`)?.remove();
-}
-
 function escapeHtml(text) {
     const div = document.createElement("div");
     div.textContent = text;
@@ -401,13 +581,12 @@ document.addEventListener("click", async (e) => {
 
     const messageId = btn.dataset.messageId;
 
-    /*
-    | Inline confirm — keeps it simple without a modal library.
-    | Production upgrade: replace with a custom modal component.
-    */
-    const confirmed = confirm(
-        'Delete for everyone?\n\nThis cannot be undone. All members will see "This message was deleted".',
-    );
+    const confirmed = await window.AppConfirm.ask({
+        title: "Delete for everyone?",
+        message: 'This cannot be undone. All members will see "This message was deleted".',
+        confirmLabel: "Delete message",
+        tone: "danger",
+    });
     if (!confirmed) return;
 
     /*
@@ -418,8 +597,10 @@ document.addEventListener("click", async (e) => {
 
     try {
         await axios.delete(`/chat/messages/${messageId}`);
+        window.AppNotifications?.success("Message deleted.");
     } catch (error) {
         console.error("Delete for everyone failed:", error);
+        window.AppNotifications?.fromAxios(error, "Unable to delete the message. Please try again.");
         /*
         | On failure, reload the room to restore truth.
         | A more polished approach would restore the original bubble.
@@ -441,9 +622,12 @@ document.addEventListener("click", async (e) => {
 
     const messageId = btn.dataset.messageId;
 
-    const confirmed = confirm(
-        "Remove this message for you only? Others will still see it.",
-    );
+    const confirmed = await window.AppConfirm.ask({
+        title: "Remove for you?",
+        message: "Other members will still be able to see this message.",
+        confirmLabel: "Remove message",
+        tone: "danger",
+    });
     if (!confirmed) return;
 
     /*
@@ -455,8 +639,10 @@ document.addEventListener("click", async (e) => {
 
     try {
         await axios.post(`/chat/messages/${messageId}/hide`);
+        window.AppNotifications?.success("Message removed for you.");
     } catch (error) {
         console.error("Hide for me failed:", error);
+        window.AppNotifications?.fromAxios(error, "Unable to remove the message. Please try again.");
         if (window.chat.activeRoomId) {
             await loadRoom(window.chat.activeRoomId);
         }
@@ -484,6 +670,7 @@ function replaceWithDeletedUI(messageId) {
     // Replace either the normal text bubble or the attachment/voice area.
     const bubble = el.querySelector(".teams-message-bubble");
     const attachments = el.querySelector(".message-attachments");
+    const sticker = el.querySelector(".sticker-message");
 
     const deletedBubble = document.createElement("div");
     deletedBubble.className = "teams-message-bubble teams-message-deleted";
@@ -491,6 +678,8 @@ function replaceWithDeletedUI(messageId) {
 
     if (bubble) {
         bubble.replaceWith(deletedBubble);
+    } else if (sticker) {
+        sticker.replaceWith(deletedBubble);
     } else if (attachments) {
         attachments.replaceWith(deletedBubble);
     } else {
@@ -509,6 +698,7 @@ function replaceWithDeletedUI(messageId) {
     // Hide read row.
     const readRow = el.querySelector(".teams-read-row");
     if (readRow) readRow.remove();
+    el.querySelector('.read-status')?.remove();
 
     // Update any quoted reply snippets elsewhere in the thread.
     document
@@ -626,7 +816,7 @@ function appendOptimisticVoicePlaceholder(clientUuid) {
             <div class="teams-message-stack">
                 <div class="teams-message-meta">
                     <strong>${window.chat.currentUserName}</strong>
-                    <span>${time}</span>
+                    <span>${time} <span class="message-send-status" aria-label="Sending">⏳</span></span>
                 </div>
 
                 <div class="voice-message-card voice-message-pending">
@@ -636,9 +826,14 @@ function appendOptimisticVoicePlaceholder(clientUuid) {
 
                     <div class="voice-message-body">
                         <strong>Voice message</strong>
-                        <span>Sending...</span>
+                        <span>Sending… <span class="attachment-upload-percent">0%</span></span>
                     </div>
                 </div>
+                <progress class="attachment-upload-progress" max="100" value="0" aria-label="Voice message upload progress"></progress>
+                <button type="button" class="cancel-upload-btn" data-client-id="${clientUuid}">Cancel upload</button>
+                <button type="button" class="retry-message-btn" data-client-id="${clientUuid}" hidden>
+                    <i class="ti ti-refresh" aria-hidden="true"></i> Retry
+                </button>
             </div>
         </div>
         `,
@@ -647,7 +842,152 @@ function appendOptimisticVoicePlaceholder(clientUuid) {
     container.scrollTop = container.scrollHeight;
 }
 
+function appendOptimisticSticker(sticker, clientUuid) {
+    const container = document.querySelector(".messages-container");
+    if (!container) return;
+
+    const time = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    container.insertAdjacentHTML(
+        "beforeend",
+        `
+        <div class="message-item teams-message is-own message-pending sticker-message-item"
+             data-client-id="${escapeHtml(clientUuid)}" data-message-type="sticker">
+            <div class="teams-message-avatar">
+                ${escapeHtml(window.chat.currentUserInitial)}
+            </div>
+            <div class="teams-message-stack">
+                <div class="teams-message-meta">
+                    <strong>${escapeHtml(window.chat.currentUserName)}</strong>
+                    <span>${time} <span class="message-send-status" aria-label="Sending">⏳</span></span>
+                </div>
+                <div class="sticker-message" aria-label="${escapeHtml(sticker.name)} sticker">
+                    <img src="${escapeHtml(sticker.url)}" alt="${escapeHtml(sticker.name)} sticker">
+                </div>
+                <button type="button" class="retry-message-btn" data-client-id="${escapeHtml(clientUuid)}" hidden>
+                    <i class="ti ti-refresh" aria-hidden="true"></i> Retry
+                </button>
+            </div>
+        </div>
+        `,
+    );
+
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendSticker(stickerId) {
+    if (!window.chat.activeRoomId || window.chat.isSendingMessage) return false;
+
+    const sticker = window.chat.stickers?.find((item) => item.id === stickerId);
+    if (!sticker) {
+        window.AppNotifications?.error("That sticker is not available.");
+        return false;
+    }
+
+    if (window.chat.voiceDraftFile) {
+        window.AppNotifications?.warning("Send or cancel your voice message before choosing a sticker.");
+        return false;
+    }
+
+    if (window.ChatAttachments?.hasPending?.()) {
+        window.AppNotifications?.warning("Send or remove your attachments before choosing a sticker.");
+        return false;
+    }
+
+    window.chat.isSendingMessage = true;
+    const clientUuid = createMessageUuid();
+    const roomId = window.chat.activeRoomId;
+    const replyToMessageId = window.chat.replyingToMessageId;
+    appendOptimisticSticker(sticker, clientUuid);
+
+    const sent = await attemptMessageSend(
+        clientUuid,
+        () => axios.post(`/chat/rooms/${roomId}/messages`, {
+            sticker_id: sticker.id,
+            client_uuid: clientUuid,
+            reply_to_message_id: replyToMessageId,
+        }),
+        {
+            onSuccess: async (response) => {
+                if (response?.data?.message_id) {
+                    await appendIncomingMessage(response.data).catch((error) =>
+                        console.error("Sticker saved; display sync failed", error),
+                    );
+                }
+            },
+        },
+    );
+
+    if (sent) {
+        window.chat.replyingToMessageId = null;
+        window.chat.replyingToMessageText = null;
+        document.getElementById("reply-preview")?.style.setProperty("display", "none");
+    }
+
+    window.chat.isSendingMessage = false;
+    return sent;
+}
+
+async function sendVoiceDraft(file) {
+    if (!file || !window.chat.activeRoomId || window.chat.isSendingMessage) return false;
+
+    window.chat.isSendingMessage = true;
+    const roomId = window.chat.activeRoomId;
+    const replyToMessageId = window.chat.replyingToMessageId;
+    const voiceFileSignature = fileUploadSignature(file);
+    const uploadSignature = `voice:${voiceFileSignature}:reply:${replyToMessageId || ""}`;
+    const matchingFailedUpload = Array.from(failedUploadSignatures.entries())
+        .find(([, signature]) => signature === uploadSignature);
+
+    if (matchingFailedUpload && failedMessageRetries.has(matchingFailedUpload[0])) {
+        try {
+            return await failedMessageRetries.get(matchingFailedUpload[0])();
+        } finally {
+            window.chat.isSendingMessage = false;
+        }
+    }
+
+    const clientUuid = createMessageUuid();
+    const formData = new FormData();
+
+    formData.append("body", "");
+    formData.append("client_uuid", clientUuid);
+    formData.append("attachment_context", "voice");
+    if (replyToMessageId) formData.append("reply_to_message_id", replyToMessageId);
+    formData.append("attachments[]", file);
+    appendOptimisticVoicePlaceholder(clientUuid);
+
+    const sent = await attemptMessageSend(
+        clientUuid,
+        () => uploadMessage(roomId, formData, clientUuid),
+        {
+            uploadSignature,
+            onSuccess: async (response) => {
+                if (fileUploadSignature(window.chat.voiceDraftFile) === voiceFileSignature) window.ChatVoice?.reset?.();
+                if (response?.data?.message_id) {
+                    await appendIncomingMessage(response.data).catch(error => console.error("Voice message saved; display sync failed", error));
+                }
+            },
+        },
+    );
+
+    if (sent) {
+        window.chat.replyingToMessageId = null;
+        window.chat.replyingToMessageText = null;
+        document.getElementById("reply-preview")?.style.setProperty("display", "none");
+    }
+
+    window.chat.isSendingMessage = false;
+    return sent;
+}
+
 // Expose helper for voice.js
 window.ChatMessages = {
     appendOptimisticVoicePlaceholder,
+    appendOptimisticSticker,
+    sendSticker,
+    sendVoiceDraft,
 };

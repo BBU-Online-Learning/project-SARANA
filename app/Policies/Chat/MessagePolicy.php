@@ -15,7 +15,9 @@ class MessagePolicy
 
     public function update(User $user, Message $message): bool
     {
-        return $this->delete($user, $message) && $message->created_at->gt(now()->subMinutes(15));
+        return $message->message_type !== 'sticker'
+            && $this->delete($user, $message)
+            && $message->created_at->gt(now()->subMinutes(15));
     }
 
     public function react(User $user, Message $message): bool

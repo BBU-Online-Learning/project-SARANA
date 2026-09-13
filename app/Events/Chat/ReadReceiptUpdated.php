@@ -14,7 +14,8 @@ class ReadReceiptUpdated implements ShouldBroadcastNow
         public int $roomId,
         public int $readerId,
         public string $readAt,
-        public string $readerName
+        public string $readerName,
+        public ?int $upToMessageId = null
     ) {}
 
     public function broadcastOn(): array
@@ -31,9 +32,7 @@ class ReadReceiptUpdated implements ShouldBroadcastNow
     {
         return [
             'room_id' => $this->roomId,
-            'reader_id' => $this->readerId,
-            'read_at' => $this->readAt,
-            'reader_name' => $this->readerName,
+            'up_to_message_id' => $this->upToMessageId,
         ];
     }
 }

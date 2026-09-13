@@ -12,7 +12,7 @@ function element() {
         focus() { this.focused = true; },
     };
 }
-const body = element(), toggle = element(), backdrop = element(), close = element(), firstLink = element(), chatMenu = element(), chatList = element();
+const body = element(), toggle = element(), backdrop = element(), close = element(), firstLink = element(), chatList = element();
 const submit = element(), status = element(), form = element();
 submit.dataset.pendingLabel = 'Saving...';
 form.querySelector = selector => selector === '[data-pending-label]' ? submit : status;
@@ -20,7 +20,7 @@ const menu = { querySelector: () => firstLink, querySelectorAll: () => [firstLin
 const documentEvents = {};
 const document = { body, activeElement: firstLink,
     getElementById: () => menu,
-    querySelector: selector => ({ '[data-shell-toggle]': toggle, '.workspace-backdrop': backdrop, '[data-chat-menu]': chatMenu, '[data-chat-list]': chatList })[selector],
+    querySelector: selector => ({ '[data-shell-toggle]': toggle, '.workspace-backdrop': backdrop, '[data-chat-list]': chatList })[selector],
     querySelectorAll: selector => selector === '[data-shell-close]' ? [close] : [form],
     addEventListener(name, callback) { (documentEvents[name] ||= []).push(callback); },
 };
@@ -38,40 +38,51 @@ assert(prevented && close.focused);
 close.events.click();
 assert(!body.classList.contains('workspace-nav-open'));
 assert.equal(backdrop.hidden, true);
-chatMenu.events.click();
-assert(body.classList.contains('chat-mobile-navigation'));
 body.classList.add('chat-mobile-room');
 chatList.events.click();
-assert(!body.classList.contains('chat-mobile-navigation'));
 assert(!body.classList.contains('chat-mobile-room'));
+assert(!body.classList.contains('workspace-nav-open'));
+assert.equal(toggle.attributes['aria-expanded'], 'false');
+toggle.events.click();
+assert(body.classList.contains('workspace-nav-open'));
+documentEvents.keydown.forEach(handler => handler({ key: 'Escape' }));
+assert(!body.classList.contains('workspace-nav-open'));
+assert.equal(backdrop.hidden, true);
 form.events.submit();
 assert(submit.disabled);
 assert.equal(submit.textContent, 'Saving...');
 assert.equal(form.attributes['aria-busy'], 'true');
 assert(status.textContent.includes('Please wait'));
 
-(async () => {
-    let handler;
-    const direct = element(), group = element(), error = element();
-    direct.id = 'create-direct-btn'; direct.textContent = 'Create direct';
-    group.id = 'create-group-btn'; group.textContent = 'Create group';
-    const controls = { 'create-chat-error': error, 'direct-user-id': { value: '' }, 'group-name': { value: 'Study' }, 'group-members': { selectedOptions: [] } };
-    const axios = { post: async () => { throw { response: { data: { errors: { user_id: ['Choose a user.'] } } } }; } };
-    const createContext = vm.createContext({ document: {
-        addEventListener(_name, callback) { handler = callback; }, querySelectorAll: () => [direct, group], getElementById: id => controls[id],
-    }, axios, bootstrap: { Modal: { getInstance: () => ({ hide() {} }) } }, showChatLoadStatus() {}, loadRoom: async () => {} });
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/chat/create-chat.js'), 'utf8'), createContext);
-    await handler({ target: { closest: () => direct } });
-    assert.equal(error.textContent, 'Choose a user.');
-    assert(!error.hidden && !direct.disabled && !group.disabled);
-    axios.post = async () => { throw new Error('Network offline'); };
-    await handler({ target: { closest: () => group } });
-    assert(error.textContent.includes('Check your connection'));
-    assert(!group.disabled);
-    axios.post = async () => ({ data: { room_id: 9 } });
-    axios.get = async () => { throw new Error('Refresh failed'); };
-    await handler({ target: { closest: () => group } });
-    assert(error.textContent.includes('Conversation created'));
-    assert(group.disabled && direct.disabled);
-    console.log('Workspace menu, focus trap, mobile chat, pending forms and creation failure checks passed.');
-})().catch(error => { console.error(error); process.exitCode = 1; });
+// Deep links open the requested classroom disclosure without changing permissions.
+{
+    const learningBody = element();
+    learningBody.classList.add('learning-workspace');
+    const disclosure = { open: false, parentElement: { closest: () => null } };
+    const section = { closest: () => disclosure, scrollIntoView() { this.scrolled = true; } };
+    const events = {};
+    const learningWindow = { location: { hash: '#class-actions' }, addEventListener(name, callback) { events[name] = callback; } };
+    let ready;
+    const learningDocument = {
+        body: learningBody,
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        getElementById: id => id === 'class-actions' ? section : null,
+        addEventListener(name, callback) { if (name === 'DOMContentLoaded') ready = callback; },
+    };
+    const learningContext = vm.createContext({ document: learningDocument, window: learningWindow });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/workspace.js'), 'utf8'), learningContext);
+    ready();
+    assert(disclosure.open && section.scrolled);
+    disclosure.open = false;
+    learningWindow.location.hash = '#missing';
+    events.hashchange();
+    assert(!disclosure.open);
+    learningWindow.location.hash = '#%broken';
+    assert.doesNotThrow(() => events.hashchange());
+    learningWindow.location.hash = '#class-actions';
+    events.hashchange();
+    assert(disclosure.open);
+}
+
+console.log('Workspace menu, focus trap, mobile chat and pending form checks passed.');

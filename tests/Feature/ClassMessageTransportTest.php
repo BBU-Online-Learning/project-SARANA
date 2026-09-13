@@ -31,6 +31,7 @@ test('real Reverb sockets receive committed sends edits deletes and reconnect wi
         'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'MAIL_MAILER' => 'array',
         'REVERB_APP_ID' => 'class-wire-test', 'REVERB_APP_KEY' => $key, 'REVERB_APP_SECRET' => $secret,
         'REVERB_HOST' => '127.0.0.1', 'REVERB_PORT' => (string) $port, 'REVERB_SCHEME' => 'http',
+        'REVERB_ALLOWED_ORIGINS' => '127.0.0.1',
         'REVERB_SCALING_ENABLED' => 'false', 'REVERB_SERVER_PATH' => '',
     ];
     $server = new Process([PHP_BINARY, base_path('tests/class-reverb-server.php')], base_path(), $env);
@@ -41,11 +42,12 @@ test('real Reverb sockets receive committed sends edits deletes and reconnect wi
         'CLASS_TEST_TOPICS' => json_encode($topics),
     ], $input);
     $clients->setTimeout(30);
-    $waitFor = function (Closure $condition, string $description): void {
+    $waitFor = function (Closure $condition, string $description) use ($server, $clients, $secret): void {
         $deadline = microtime(true) + 10;
         while (! $condition()) {
             if (microtime(true) > $deadline) {
-                throw new RuntimeException('Timed out waiting for '.$description);
+                $details = $server->getErrorOutput().$server->getOutput().$clients->getErrorOutput().$clients->getOutput();
+                throw new RuntimeException('Timed out waiting for '.$description."\n".str_replace($secret, '[redacted]', $details));
             }
             usleep(20000);
         }

@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('bodyClass', 'class-page')
+@section('title', $schoolClass->name.' · '.$channel->name)
 
 @section('content')
 <div id="school-class-channel-page"
@@ -22,7 +23,7 @@
                         <span class="badge bg-dark">{{ $schoolClass->name }}</span>
                     </div>
 
-                    <h4 class="class-title mb-2">{{ $channel->name }}</h4>
+                    <h1 class="class-title h3 mb-2">{{ $channel->name }}</h1>
                     @if ($schoolClass->isArchived())
                         <div class="alert alert-warning">Archived class: messages are read-only until restored.</div>
                     @elseif ($channel->isAnnouncement())
@@ -101,7 +102,11 @@
                             </div>
                         @empty
                             <div class="alert alert-light mb-0">
-                                No messages yet. Be the first to start the discussion.
+                                @can('sendMessage', [$schoolClass, $channel])
+                                    No messages yet. Be the first to start the discussion.
+                                @else
+                                    No messages yet. Updates will appear here when your teaching team posts.
+                                @endcan
                             </div>
                         @endforelse
                     </div>

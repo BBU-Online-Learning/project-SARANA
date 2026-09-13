@@ -18,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
 
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
+
+        $middleware->trimStrings(except: [
+            fn (Request $request): bool => $request->is('chat/calls/*/signal'),
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\EnsureAccountIsActive::class,
             \App\Http\Middleware\EnforceAccountOnboarding::class,
@@ -36,6 +42,12 @@ return Application::configure(basePath: dirname(__DIR__))
         RateLimiter::for('messages', function (Request $request) {
             // Example: Allow 60 requests per minute per authenticated user
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+        RateLimiter::for('call-start', function (Request $request) {
+            return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+        });
+        RateLimiter::for('call-signals', function (Request $request) {
+            return Limit::perMinute(600)->by($request->user()?->id ?: $request->ip());
         });
     })
     ->create();

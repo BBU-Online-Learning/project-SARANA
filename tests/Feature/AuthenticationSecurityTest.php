@@ -100,7 +100,8 @@ test('changing a password requires the current password and a fresh OTP', functi
     $this->postJson(route('password.change.submit'), $payload + ['current_password' => 'password'])
         ->assertUnprocessable()->assertJsonValidationErrors('code');
     $this->post(route('password.change.submit'), $payload + ['current_password' => 'password', 'code' => securityTestOtp($user)])
-        ->assertRedirect(route('chat.index'));
+        ->assertRedirect(route('chat.index'))
+        ->assertSessionHas('success', 'Password changed successfully.');
     expect(Hash::check($payload['password'], $user->fresh()->password))->toBeTrue();
     expect($user->fresh()->must_change_password)->toBeFalse();
     expect($user->fresh()->auth_version)->toBe(1);

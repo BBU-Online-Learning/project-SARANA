@@ -1,6 +1,24 @@
 <?php
 
+$defaultAllowedOrigin = parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST) ?: 'localhost';
+$allowedOrigins = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env('REVERB_ALLOWED_ORIGINS', $defaultAllowedOrigin)),
+)));
+
+if ($allowedOrigins === []) {
+    $allowedOrigins = [$defaultAllowedOrigin];
+}
+
 return [
+
+    'browser' => [
+        'local_host' => env('REVERB_BROWSER_LOCAL_HOST', '127.0.0.1'),
+        'local_port' => (int) env('REVERB_BROWSER_LOCAL_PORT', 8080),
+        'public_host' => env('REVERB_BROWSER_PUBLIC_HOST'),
+        'public_port' => (int) env('REVERB_BROWSER_PUBLIC_PORT', 443),
+        'public_scheme' => env('REVERB_BROWSER_PUBLIC_SCHEME', 'https'),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -36,7 +54,7 @@ return [
             'options' => [
                 'tls' => [],
             ],
-            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
+            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 65_536),
             'scaling' => [
                 'enabled' => env('REVERB_SCALING_ENABLED', false),
                 'channel' => env('REVERB_SCALING_CHANNEL', 'reverb'),
@@ -82,11 +100,11 @@ return [
                     'scheme' => env('REVERB_SCHEME', 'https'),
                     'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
                 ],
-                'allowed_origins' => ['*'],
+                'allowed_origins' => $allowedOrigins,
                 'ping_interval' => env('REVERB_APP_PING_INTERVAL', 60),
                 'activity_timeout' => env('REVERB_APP_ACTIVITY_TIMEOUT', 30),
                 'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
-                'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 10_000),
+                'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 65_536),
                 'accept_client_events_from' => env('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'members'),
                 'rate_limiting' => [
                     'enabled' => env('REVERB_APP_RATE_LIMITING_ENABLED', false),

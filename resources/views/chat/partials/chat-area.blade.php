@@ -4,37 +4,37 @@
     $otherUser = $isDirect ? $room->members->where('id', '!=', auth()->id())->first() : null;
     $displayName = $isDirect ? $otherUser?->name ?? 'Direct chat' : $room->name ?? 'Group chat'; //$otherUser?->name Uses PHP 8 null-safe operator: so it won't crash if $otherUser is null.
     $initial = strtoupper(substr($displayName, 0, 1));
-    $profile = $otherUser?->profile;
-    $avatar = $room->avatar;
+    $avatar = $room->avatarUrl();
     $memberCount = $room->members->count();
 @endphp
 
 <div class="teams-chat-area">
+    <div class="attachment-drop-overlay" data-attachment-drop-overlay hidden aria-hidden="true">
+        <div><i class="ti ti-cloud-upload" aria-hidden="true"></i><strong>Drop files to attach</strong></div>
+    </div>
     <header class="teams-chat-header">
         <div class="teams-chat-title-group">
-            <div class="teams-room-avatar teams-room-avatar-lg">
-
-                @if ($isDirect)
-                    @if ($profile)
-                        <img src="{{ $profile }}" width="40" class="rounded-circle me-lg-2 d-flex"
-                            alt="user-image">
-                    @else
-                        {{ $initial }}
-                    @endif
+            @if ($isDirect && $otherUser)
+                <a href="{{ route('users.profile', $otherUser) }}" class="chat-profile-avatar-link" data-user-profile
+                    aria-label="View {{ $otherUser->name }}'s profile">
+                    <x-user-avatar :user="$otherUser" :size="44" class="teams-room-avatar teams-room-avatar-lg">
                     <span class="presence-dot" data-user-id="{{ $otherUser?->id }}"></span>
-                @else
+                    </x-user-avatar>
+                </a>
+            @else
+                <div class="teams-room-avatar teams-room-avatar-lg">
                     @if ($avatar)
-                        <img src="{{ $avatar }}" width="40" class="rounded-circle me-lg-2 d-flex"
-                            alt="group-image">
+                        <img src="{{ $avatar }}" alt="" loading="lazy">
                     @else
                         {{ $initial }}
                     @endif
 
-                @endif
-            </div>
+                </div>
+            @endif
 
             <div>
-                <h1>{{ $displayName }}</h1>
+                <h1>@if ($isDirect && $otherUser)<a href="{{ route('users.profile', $otherUser) }}"
+                    data-user-profile>{{ $displayName }}</a>@else{{ $displayName }}@endif</h1>
                 <p>
                     @if ($isDirect)
                         <span class="user-status" data-user-id="{{ $otherUser?->id }}"
@@ -54,18 +54,37 @@
         </div>
 
         <div class="teams-chat-actions">
+            @if($isDirect && $otherUser)
+                <button type="button" class="teams-icon-button" data-start-voice-call
+                    data-call-type="audio" title="Start an audio call"
+                    data-start-url="{{ route('chat.calls.store', $room) }}"
+                    data-peer-name="{{ $otherUser->name }}"
+                    data-peer-avatar="{{ $otherUser->profileUrl() }}"
+                    aria-label="Start a voice call with {{ $otherUser->name }}">
+                    <i class="ti ti-phone" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="teams-icon-button" data-start-voice-call data-call-type="video"
+                    data-start-url="{{ route('chat.calls.store', $room) }}"
+                    data-peer-name="{{ $otherUser->name }}"
+                    data-peer-avatar="{{ $otherUser->profileUrl() }}"
+                    title="Start a video call" aria-label="Start a video call with {{ $otherUser->name }}">
+                    <i class="ti ti-video" aria-hidden="true"></i>
+                </button>
+            @endif
             @unless($isDirect)
                 <a href="{{ route('chat.groups.show', $room) }}" class="btn btn-sm btn-outline-secondary">Members</a>
             @endunless
-            <button type="button" id="open-room-search-btn" class="teams-icon-button" aria-label="Search in chat">
+            <button type="button" id="open-room-search-btn" class="teams-icon-button" aria-label="Search in chat"
+                aria-controls="room-search-bar" aria-expanded="false">
                 <i class="ti ti-search"></i>
             </button>
 
         </div>
         {{-- IN-CHAT MESSAGE SEARCH BAR (Telegram-style) --}}
-        <div id="room-search-bar" class="teams-room-search-bar" style="display:none;">
+        <div id="room-search-bar" class="teams-room-search-bar" role="search" aria-label="Search messages" hidden>
             <i class="ti ti-search" aria-hidden="true"></i>
-            <input type="text" id="room-search-input" placeholder="Search in this chat" autocomplete="off">
+            <input type="search" id="room-search-input" placeholder="Search in this chat" aria-label="Search messages"
+                autocomplete="off">
             <span id="room-search-count" class="room-search-count"></span>
             <button type="button" id="room-search-prev" class="teams-icon-button" aria-label="Previous match">
                 <i class="ti ti-chevron-up"></i>
@@ -80,8 +99,36 @@
     </header>
     @include('chat.partials.message-list')
 
+    <button type="button" id="jump-to-latest-btn" class="jump-to-latest-btn" aria-label="Jump to latest messages" hidden>
+        <i class="ti ti-arrow-down" aria-hidden="true"></i>
+        <span data-new-message-label>New messages</span>
+    </button>
+
 
     <div class="teams-composer-wrap">
+
+        <div id="sticker-picker" class="sticker-picker" role="dialog" aria-modal="false"
+            aria-labelledby="sticker-picker-title" hidden>
+            <div class="sticker-picker-header">
+                <div>
+                    <strong id="sticker-picker-title">Stickers</strong>
+                    <span>Study Buddies</span>
+                </div>
+                <button type="button" id="sticker-picker-close" class="teams-icon-button"
+                    aria-label="Close sticker picker">
+                    <i class="ti ti-x" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div class="sticker-picker-grid" role="group" aria-label="Study Buddies stickers">
+                @foreach (\App\Services\Chat\StickerCatalog::all() as $stickerId => $sticker)
+                    <button type="button" class="sticker-option" data-sticker-id="{{ $stickerId }}"
+                        aria-label="Send {{ $sticker['name'] }} sticker">
+                        <img src="{{ asset($sticker['asset']) }}" alt="" loading="lazy">
+                        <span>{{ $sticker['name'] }}</span>
+                    </button>
+                @endforeach
+            </div>
+        </div>
 
         {{-- TYPING INDICATOR --}}
         <div id="typing-indicator" class="teams-typing-indicator"></div>
@@ -126,6 +173,8 @@
                     Attachments
                 </span>
 
+                <span id="attachment-limit-summary" class="attachment-limit-summary" aria-live="polite"></span>
+
                 <div id="attachment-preview-list" class="attachment-preview-list">
                 </div>
 
@@ -149,12 +198,18 @@
                     </button>
 
                     <input type="file" id="attachment-input" hidden multiple
-                        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip,.ogg,.oga,.webm,.mp3,.wav,.m4a,.aac,.mpeg,.mpga,.mp4,audio/*">
+                        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.zip,.ogg,.oga,.webm,.mp3,.wav,.m4a,.aac,.mpeg,.mpga,.mp4,audio/*,video/mp4,video/webm">
 
                     {{-- Voice record --}}
                     <button type="button" id="voice-record-btn" class="teams-icon-button"
                         aria-label="Record voice message">
                         <i class="ti ti-microphone"></i>
+                    </button>
+
+                    {{-- Stickers --}}
+                    <button type="button" id="sticker-picker-btn" class="teams-icon-button"
+                        aria-label="Choose a sticker" aria-controls="sticker-picker" aria-expanded="false">
+                        <i class="ti ti-sticker" aria-hidden="true"></i>
                     </button>
 
                 </div>

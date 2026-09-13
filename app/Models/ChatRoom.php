@@ -1,9 +1,12 @@
 <?php
-//app\Models\ChatRoom.php
+
+// app\Models\ChatRoom.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class ChatRoom extends Model
 {
@@ -18,6 +21,37 @@ class ChatRoom extends Model
         'is_private',
         'last_message_at',
     ];
+
+    public function avatarUrl(): ?string
+    {
+        $avatar = $this->avatar;
+        if (! is_string($avatar) || $avatar === '') {
+            return null;
+        }
+        if (filter_var($avatar, FILTER_VALIDATE_URL) && in_array(parse_url($avatar, PHP_URL_SCHEME), ['http', 'https'], true)) {
+            return $avatar;
+        }
+        if (preg_match('~^/?storage/(images/groups/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $avatar, $matches)) {
+            return Storage::disk('public')->url($matches[1]);
+        }
+        if (preg_match('~^(images/groups/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $avatar)) {
+            return Storage::disk('public')->url($avatar);
+        }
+
+        return null;
+    }
+
+    public function managedAvatarPath(): ?string
+    {
+        $avatar = $this->avatar;
+        if (! is_string($avatar)) {
+            return null;
+        }
+        $path = parse_url($avatar, PHP_URL_PATH) ?: $avatar;
+
+        return preg_match('~^/?(?:storage/)?(images/groups/[A-Za-z0-9_-]+\.(?:jpe?g|png|webp))$~iD', $path, $matches)
+            ? $matches[1] : null;
+    }
 
     /*
     |--------------------------------------------------------------------------

@@ -1,23 +1,22 @@
-@if(session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
+@php
+    $notifications = collect([
+        'success' => session('success'),
+        'error' => session('error'),
+        'warning' => session('warning'),
+        'info' => session('info'),
+    ])->filter(fn ($message) => is_string($message) && trim($message) !== '');
 
-@if(session('error'))
-    <div class="alert alert-danger">
-        {{ session('error') }}
-    </div>
-@endif
+    if ($errors->any() && ! $notifications->has('error')) {
+        $notifications->put('error', 'Please check the highlighted fields.');
+    }
+@endphp
 
-@if(session('warning'))
-    <div class="alert alert-warning">
-        {{ session('warning') }}
-    </div>
-@endif
+<div id="app-notifications" class="app-notifications" aria-label="Notifications"></div>
 
-@if(session('info'))
-    <div class="alert alert-info">
-        {{ session('info') }}
+@if ($notifications->isNotEmpty())
+    <div data-notification-seeds hidden>
+        @foreach ($notifications as $type => $message)
+            <span data-notification-seed data-type="{{ $type }}">{{ $message }}</span>
+        @endforeach
     </div>
 @endif

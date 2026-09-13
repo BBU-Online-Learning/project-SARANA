@@ -5,6 +5,7 @@
 namespace App\Http\Requests\Chat;
 
 use App\Rules\SafeChatAttachment;
+use App\Services\Chat\StickerCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -64,6 +65,17 @@ class StoreMessageRequest extends FormRequest
                 'uuid',
             ],
 
+            'sticker_id' => [
+                'nullable',
+                'string',
+                Rule::in(StickerCatalog::ids()),
+            ],
+
+            'attachment_context' => [
+                'nullable',
+                Rule::in(['voice']),
+            ],
+
             ...SafeChatAttachment::rules(),
         ];
     }
@@ -93,13 +105,32 @@ class StoreMessageRequest extends FormRequest
             $hasText = filled($this->input('body'));
 
             $hasAttachments = $this->hasFile('attachments');
+            $hasSticker = filled($this->input('sticker_id'));
 
-            if (! $hasText && ! $hasAttachments) {
+            if (! $hasText && ! $hasAttachments && ! $hasSticker) {
 
                 $validator->errors()->add(
                     'body',
-                    'A message must contain text or at least one attachment.'
+                    'A message must contain text, an attachment, or a sticker.'
                 );
+            }
+
+            if ($hasSticker && ($hasText || $hasAttachments)) {
+                $validator->errors()->add('sticker_id', 'A sticker must be sent as its own message.');
+            }
+
+            if ($this->input('attachment_context') === 'voice') {
+                $attachments = $this->file('attachments', []);
+                $voiceFile = is_array($attachments) ? ($attachments[0] ?? null) : null;
+                $extension = $voiceFile instanceof \Illuminate\Http\UploadedFile
+                    ? strtolower($voiceFile->getClientOriginalExtension())
+                    : '';
+
+                if (count((array) $attachments) !== 1 || ! in_array($extension, [
+                    'ogg', 'oga', 'webm', 'mp3', 'wav', 'm4a', 'aac', 'mpeg', 'mpga',
+                ], true)) {
+                    $validator->errors()->add('attachment_context', 'A voice message must contain one supported audio recording.');
+                }
             }
         });
     }
@@ -111,6 +142,7 @@ class StoreMessageRequest extends FormRequest
             'attachments.max' => 'You may attach at most :max files to a message.',
             'attachments.*.file' => 'Each attachment must be a valid uploaded file.',
             'attachments.*.max' => 'Each attachment must not exceed :max KB.',
+            'attachment_context.in' => 'The attachment context is invalid.',
         ];
     }
 }

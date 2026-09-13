@@ -15,7 +15,27 @@ class SafeChatAttachment implements ValidationRule
     public static function rules(): array
     {
         return [
-            'attachments' => ['nullable', 'array', 'max:'.config('chat.max_attachments_per_message')],
+            'attachments' => [
+                'nullable',
+                'array',
+                'max:'.config('chat.max_attachments_per_message'),
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    if (! is_array($value)) {
+                        return;
+                    }
+
+                    $totalBytes = array_sum(array_map(
+                        fn (mixed $file): int => $file instanceof UploadedFile ? (int) $file->getSize() : 0,
+                        $value,
+                    ));
+                    $maximumBytes = (int) config('chat.max_attachment_total_size_kb') * 1024;
+
+                    if ($totalBytes > $maximumBytes) {
+                        $maximumMegabytes = round($maximumBytes / 1048576);
+                        $fail("The combined attachment size must not exceed {$maximumMegabytes} MB.");
+                    }
+                },
+            ],
             'attachments.*' => ['bail', 'required', 'file', 'max:'.config('chat.max_attachment_size_kb'), new self],
         ];
     }

@@ -72,6 +72,9 @@ class MessageController extends Controller
 
         return response()->json([
             'success' => true,
+            'message_id' => $message->id,
+            'room_id' => $message->room_id,
+            'client_uuid' => $message->client_uuid,
         ]);
     }
 
@@ -153,12 +156,14 @@ class MessageController extends Controller
     public function renderHtml(Message $message)
     {
         $this->authorize('access', $message->room);
+        abort_if($message->isHiddenFor(Auth::id()), 404);
 
         $message->load([
             'sender',
             'replyTo.sender',
             'room.members',
             'reactions',
+            'reads',
             'attachments.media',
         ]);
 

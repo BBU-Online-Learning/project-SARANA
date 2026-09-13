@@ -4,27 +4,13 @@
     $isOwn = $message->sender_id === $viewerId;
     $isDeleted = $message->isDeletedForEveryone();
     $isGroup = $room->type !== 'direct';
+    $sticker = $message->message_type === 'sticker'
+        ? \App\Services\Chat\StickerCatalog::find($message->sticker_id)
+        : null;
 
-    $otherMembers = $isOwn && !$isDeleted ? $room->members->where('id', '!=', $viewerId) : collect();
+    $isRead = $isOwn && !$isDeleted
+        && app(\App\Services\Chat\ReadReceiptService::class)->details($message, $room)['read_count'] > 0;
 
-    // Members (other than the sender) who have read this specific message,
-    // derived from the existing per-room last_read_at pivot — no new table needed.
-    $seenByMembers = $otherMembers
-        ->filter(function ($member) use ($message) {
-            return $member->pivot->last_read_at && $member->pivot->last_read_at >= $message->created_at;
-        })
-        ->values();
-
-    $isRead =
-        $isOwn && !$isDeleted && $otherMembers->isNotEmpty()
-            ? $otherMembers->count() === $seenByMembers->count()
-            : false;
-
-    $senderInitial = strtoupper(substr($message->sender->name, 0, 1));
-    // How many avatars to show before collapsing into "+N"
-    $maxAvatars = 3;
-    $visibleSeen = $seenByMembers->take($maxAvatars);
-    $overflowSeenCount = max($seenByMembers->count() - $maxAvatars, 0);
 
     // Reaction Data
     $reactionCounts = $message->relationLoaded('reactions') ? $message->reactionCounts() : [];
@@ -38,9 +24,10 @@
     data-created-at="{{ $message->created_at->timestamp }}" data-client-id="{{ $message->client_uuid }}"
     data-message-type="{{ $message->message_type }}">
 
-    <div class="teams-message-avatar">
-        {{ $senderInitial }}
-    </div>
+    <a href="{{ $isOwn ? route('profile.edit') : route('users.profile', $message->sender) }}"
+        class="message-profile-link" data-user-profile aria-label="View {{ $message->sender->name }}'s profile">
+        <x-user-avatar :user="$message->sender" :size="32" class="teams-message-avatar" />
+    </a>
 
     <div class="teams-message-stack">
 
@@ -49,7 +36,7 @@
             <div class="teams-message-toolbar">
                 {{-- Reply Button --}}
                 <button class="reply-btn" data-message-id="{{ $message->id }}"
-                    data-message-body="{{ e($message->body) }}">
+                    data-message-body="{{ e($message->previewText()) }}">
                     <i class="ti ti-arrow-back-up"></i>
                 </button>
 
@@ -68,7 +55,7 @@
                     </button>
                 @endif
                 {{-- Edit Message --}}
-                @if ($isOwn && $message->created_at->gt(now()->subMinutes(15)) && !$isDeleted)
+                @if ($isOwn && !in_array($message->message_type, ['sticker', 'call'], true) && $message->created_at->gt(now()->subMinutes(15)) && !$isDeleted)
                     <button class="edit-message-btn" data-message-id="{{ $message->id }}"
                         data-message-body="{{ e($message->body) }}">
                         <i class="ti ti-edit"></i>
@@ -85,9 +72,16 @@
         @endif
 
         <div class="teams-message-meta">
-            <strong>{{ $message->sender->name }}</strong>
+            <strong><a href="{{ $isOwn ? route('profile.edit') : route('users.profile', $message->sender) }}"
+                data-user-profile>{{ $message->sender->name }}</a></strong>
             <span>
                 {{ $message->created_at->format('h:i A') }}
+                @if ($isOwn && !$isDeleted)
+                    <button type="button" class="read-status" data-message-id="{{ $message->id }}"
+                        data-is-group="{{ $isGroup ? '1' : '0' }}" data-read="{{ $isRead ? '1' : '0' }}"
+                        aria-label="{{ $isRead ? ($isGroup ? 'Read by members. Show details' : 'Read') : 'Sent' }}"
+                        @disabled(!$isGroup || !$isRead)>{{ $isRead ? '✓✓' : '✓' }}</button>
+                @endif
                 @if ($message->edited_at && !$isDeleted)
                     <span class="teams-edited-label">edited</span>
                 @endif
@@ -106,6 +100,8 @@
                         {{-- Deleted parent --}}
                         @if ($message->replyTo->isDeletedForEveryone())
                             <em>Deleted message</em>
+                        @elseif ($message->replyTo->message_type === 'sticker')
+                            <em>Sticker</em>
                             {{-- Voice parent --}}
                         @elseif ($message->replyTo->message_type === 'voice')
                             <em>Voice message</em>
@@ -127,6 +123,21 @@
                 <i class="ti ti-ban" aria-hidden="true"></i>
                 This message was deleted
             </div>
+        @elseif ($message->message_type === 'call')
+            <div class="voice-call-history-card">
+                <i class="ti {{ str_contains(strtolower($message->body ?? ''), 'video call') ? 'ti-video' : 'ti-phone' }}" aria-hidden="true"></i>
+                <span>{{ $message->body ?: 'Voice call' }}</span>
+            </div>
+        @elseif ($message->message_type === 'sticker')
+            @if ($sticker)
+                <div class="sticker-message" aria-label="{{ $sticker['name'] }} sticker">
+                    <img src="{{ asset($sticker['asset']) }}" alt="{{ $sticker['name'] }} sticker" loading="lazy">
+                </div>
+            @else
+                <div class="teams-message-bubble sticker-unavailable">
+                    Sticker unavailable
+                </div>
+            @endif
         @elseif (filled($message->body))
             <div class="teams-message-bubble" data-message-body="{{ e($message->body) }}">
                 {{ $message->body }}
@@ -137,7 +148,7 @@
             <div class="message-attachments">
                 @foreach ($message->attachments as $attachment)
                     {{-- Voice note --}}
-                    @if ($attachment->isAudio())
+                    @if ($message->message_type === 'voice')
                         <div class="voice-message-card">
                             <div class="voice-message-icon">
                                 <i class="ti ti-microphone"></i>
@@ -149,16 +160,40 @@
                             </div>
                         </div>
 
+                    @elseif ($attachment->isAudio())
+                        <div class="voice-message-card audio-attachment-card">
+                            <div class="voice-message-icon"><i class="ti ti-music"></i></div>
+                            <div class="voice-message-body">
+                                <strong>{{ $attachment->original_name }}</strong>
+                                <span class="attachment-file-size">{{ $attachment->humanSize() }}</span>
+                                <audio controls preload="metadata" src="{{ $attachment->url() }}"></audio>
+                            </div>
+                            <a href="{{ route('chat.attachments.download', $attachment) }}" class="attachment-download-button"
+                                aria-label="Download {{ $attachment->original_name }}"><i class="ti ti-download"></i></a>
+                        </div>
+
+                    @elseif ($attachment->isVideo())
+                        <div class="video-attachment-card">
+                            <video controls preload="metadata" playsinline src="{{ $attachment->url() }}"
+                                aria-label="{{ $attachment->original_name }}"></video>
+                            <div class="video-attachment-meta">
+                                <span><strong>{{ $attachment->original_name }}</strong><small>{{ $attachment->humanSize() }}</small></span>
+                                <a href="{{ route('chat.attachments.download', $attachment) }}" class="attachment-download-button"
+                                    aria-label="Download {{ $attachment->original_name }}"><i class="ti ti-download"></i></a>
+                            </div>
+                        </div>
+
                         {{-- Image --}}
                     @elseif ($attachment->isImage())
                         <img src="{{ $attachment->thumbUrl() }}" class="message-attachment-thumb"
                             data-attachment-id="{{ $attachment->id }}" data-full-src="{{ $attachment->url() }}"
+                            data-download-src="{{ route('chat.attachments.download', $attachment) }}"
                             data-filename="{{ $attachment->original_name }}" alt="{{ $attachment->original_name }}"
-                            loading="lazy">
+                            loading="lazy" role="button" tabindex="0">
 
                         {{-- Other files --}}
                     @else
-                        <a href="{{ $attachment->url() }}" target="_blank" rel="noopener" class="attachment-file-card">
+                        <a href="{{ route('chat.attachments.download', $attachment) }}" class="attachment-file-card">
                             <span class="attachment-file-icon">
                                 {{ strtoupper($attachment->extension ?? 'FILE') }}
                             </span>
@@ -197,35 +232,6 @@
             </div>
         @endif
 
-        @if ($isOwn && !$isDeleted)
-            <div class="teams-read-row" data-message-id="{{ $message->id }}"
-                data-is-group="{{ $isGroup ? '1' : '0' }}">
-
-                @if ($isGroup)
-                    {{-- GROUP: avatar stack of who has seen it --}}
-                    <div class="seen-by-stack {{ $seenByMembers->isEmpty() ? 'is-empty' : '' }}">
-                        @foreach ($visibleSeen as $seenUser)
-                            <span class="seen-by-avatar" data-user-id="{{ $seenUser->id }}"
-                                title="Seen by {{ $seenUser->name }}">
-                                {{ strtoupper(substr($seenUser->name, 0, 1)) }}
-                            </span>
-                        @endforeach
-
-                        @if ($overflowSeenCount > 0)
-                            <span class="seen-by-overflow" title="and {{ $overflowSeenCount }} more">
-                                +{{ $overflowSeenCount }}
-                            </span>
-                        @endif
-                    </div>
-                @else
-                    {{-- DIRECT: keep the simple checkmark --}}
-                    <span class="read-status" data-message-id="{{ $message->id }}">
-                        {!! $isRead ? '&check;&check;' : '&check;' !!}
-                    </span>
-                @endif
-
-            </div>
-        @endif
 
     </div>
 </div>

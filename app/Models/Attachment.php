@@ -136,13 +136,19 @@ class Attachment extends Model implements HasMedia
 
     public function isAudio(): bool
     {
-        // Voice notes are usually saved as browser-produced audio/webm or audio/ogg blobs.
         return Str::startsWith($this->mime_type ?? '', 'audio/')
+            || $this->mime_type === 'application/ogg'
             || in_array(
                 strtolower($this->extension),
-                ['ogg', 'oga', 'webm', 'mp3', 'wav', 'm4a', 'aac', 'mpeg', 'mpga', 'mp4'],
+                ['ogg', 'oga', 'mp3', 'wav', 'm4a', 'aac', 'mpeg', 'mpga'],
                 true
             );
+    }
+
+    public function isVideo(): bool
+    {
+        return Str::startsWith($this->mime_type ?? '', 'video/')
+            && in_array(strtolower($this->extension), ['mp4', 'webm'], true);
     }
 
     public function fileIcon(): string

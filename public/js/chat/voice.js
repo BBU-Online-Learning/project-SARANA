@@ -135,56 +135,18 @@
         if (!file || !window.chat.activeRoomId) {
             return;
         }
-        // IMPORTANT:
-        // This makes the voice message become a real reply instead of a normal message.
-        const replyToMessageId = window.chat.replyingToMessageId;
 
-        // Optional optimistic placeholder.
-        const clientUuid = crypto.randomUUID();
-        window.ChatMessages?.appendOptimisticVoicePlaceholder?.(clientUuid);
-
-        const formData = new FormData();
-        formData.append("body", "");
-        formData.append("client_uuid", clientUuid);
-        // Send reply reference to backend.
-        if (replyToMessageId) {
-            formData.append("reply_to_message_id", replyToMessageId);
-        }
-        formData.append("attachments[]", file);
-
-        try {
-            await axios.post(
-                `/chat/rooms/${window.chat.activeRoomId}/messages`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                },
-            );
-            // Clear reply state after successful send.
-            window.chat.replyingToMessageId = null;
-            window.chat.replyingToMessageText = null;
-            document
-                .getElementById("reply-preview")
-                ?.style.setProperty("display", "none");
-
-            resetVoiceUi();
-        } catch (error) {
-            console.error("Voice send failed:", error);
-            document
-                .querySelector(`[data-client-id="${clientUuid}"]`)
-                ?.remove();
-            resetVoiceUi();
-        }
+        await window.ChatMessages?.sendVoiceDraft?.(file);
     }
 
     async function startRecording() {
+        window.StickerPicker?.close?.();
+
         if (
             !navigator.mediaDevices?.getUserMedia ||
             typeof MediaRecorder === "undefined"
         ) {
-            alert("This browser does not support voice messages.");
+            window.AppNotifications?.warning("This browser does not support voice messages.");
             return;
         }
 
@@ -325,7 +287,7 @@
         } catch (error) {
             console.error("Voice recording failed:", error);
             resetVoiceUi();
-            alert("Microphone permission is required to send voice messages.");
+            window.AppNotifications?.error("Microphone permission is required to send voice messages.");
         }
     });
 

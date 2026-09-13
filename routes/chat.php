@@ -7,6 +7,8 @@ use App\Http\Controllers\Chat\MessageController;
 use App\Http\Controllers\Chat\MessageReactionController;
 use App\Http\Controllers\Chat\MessageSearchController;
 use App\Http\Controllers\Chat\PresenceController;
+use App\Http\Controllers\Chat\ReadReceiptController;
+use App\Http\Controllers\Chat\VoiceCallController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'twofactor.setup'])->prefix('chat')->group(function (): void {
@@ -23,6 +25,22 @@ Route::middleware(['auth', 'twofactor.setup'])->prefix('chat/attachments')->name
     Route::get('/{attachment}', [AttachmentController::class, 'show'])->name('show');
     Route::get('/{attachment}/thumbnail', [AttachmentController::class, 'thumbnail'])->name('thumbnail');
     Route::get('/{attachment}/download', [AttachmentController::class, 'download'])->name('download');
+});
+
+Route::middleware(['auth', 'twofactor.setup'])->prefix('chat')->name('chat.')->group(function (): void {
+    Route::get('/calls/current', [VoiceCallController::class, 'current'])->name('calls.current');
+    Route::get('/calls/ice', [VoiceCallController::class, 'ice'])->middleware('throttle:60,1')->name('calls.ice');
+    Route::post('/calls/{call}/heartbeat', [VoiceCallController::class, 'heartbeat'])->middleware('throttle:30,1')->name('calls.heartbeat');
+    Route::post('/rooms/{room}/calls', [VoiceCallController::class, 'store'])
+        ->middleware('throttle:call-start')->name('calls.store');
+    Route::post('/calls/{call}/accept', [VoiceCallController::class, 'accept'])->name('calls.accept');
+    Route::post('/calls/{call}/decline', [VoiceCallController::class, 'decline'])->name('calls.decline');
+    Route::post('/calls/{call}/cancel', [VoiceCallController::class, 'cancel'])->name('calls.cancel');
+    Route::post('/calls/{call}/end', [VoiceCallController::class, 'end'])->name('calls.end');
+    Route::post('/calls/{call}/timeout', [VoiceCallController::class, 'timeout'])->name('calls.timeout');
+    Route::post('/calls/{call}/fail', [VoiceCallController::class, 'fail'])->name('calls.fail');
+    Route::post('/calls/{call}/signal', [VoiceCallController::class, 'signal'])
+        ->middleware('throttle:call-signals')->name('calls.signal');
 });
 
 Route::prefix('chat')  // Adds /chat to the beginning of every route inside the group. ex:/chat/rooms
@@ -49,7 +67,10 @@ Route::prefix('chat')  // Adds /chat to the beginning of every route inside the 
             ->name('group.create');
 
         Route::get('/rooms/{room}', [ChatRoomController::class, 'show'])->name('rooms.show');
-        Route::post('/rooms/{room}/mark-read', [ChatRoomController::class, 'markRead']);
+        Route::post('/rooms/{room}/read', [ReadReceiptController::class, 'store'])->name('rooms.read');
+        Route::post('/rooms/{room}/mark-read', [ReadReceiptController::class, 'store']);
+        Route::get('/rooms/{room}/reads', [ReadReceiptController::class, 'index'])->name('rooms.reads');
+        Route::get('/messages/{message}/reads', [ReadReceiptController::class, 'show'])->name('messages.reads');
         /*
         |--------------------------------------------------------------------------
         | MESSAGES

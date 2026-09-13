@@ -27,11 +27,18 @@ class GroupMembershipService
         });
     }
 
-    public function rename(User $actor, ChatRoom $room, string $name): void
+    public function rename(User $actor, ChatRoom $room, string $name, ?string $description = null, ?string $avatarPath = null): ?string
     {
-        $this->access->withRoom($actor, $room, function (User $actor, ChatRoom $room) use ($name): void {
+        return $this->access->withRoom($actor, $room, function (User $actor, ChatRoom $room) use ($name, $description, $avatarPath): ?string {
             Gate::forUser($actor)->authorize('manageGroup', $room);
-            $room->update(['name' => $name]);
+            $oldAvatarPath = $room->managedAvatarPath();
+            $attributes = ['name' => $name, 'description' => $description];
+            if ($avatarPath !== null) {
+                $attributes['avatar'] = $avatarPath;
+            }
+            $room->update($attributes);
+
+            return $oldAvatarPath;
         });
     }
 

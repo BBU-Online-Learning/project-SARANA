@@ -15,6 +15,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 class GroupMembershipController extends Controller
 {
@@ -22,9 +24,10 @@ class GroupMembershipController extends Controller
     {
         abort_unless($room->type === 'group', 404);
         Gate::authorize('access', $room);
-        $room->load('members');
+        $room->load('members.role');
         $owner = app(ChatAccessService::class)->owner($room);
-        $users = Gate::allows('manageGroup', $room) ? User::query()->select('id', 'name')
+        $users = Gate::allows('manageGroup', $room) ? User::query()->with('role:id,name')
+            ->select('id', 'name', 'profile', 'role_id', 'last_seen_at')
             ->where('status', 'active')->where('google2fa_enabled', true)->where('must_change_password', false)
             ->whereHas('role', fn ($query) => $query->where('status', true)->whereIn('name', Role::NAMES))
             ->whereNotIn('id', $room->members->modelKeys())->orderBy('name')->get() : collect();
@@ -34,9 +37,35 @@ class GroupMembershipController extends Controller
 
     public function update(UpdateGroupRequest $request, ChatRoom $room): RedirectResponse
     {
-        app(GroupMembershipService::class)->rename($request->user(), $room, $request->validated('name'));
+        $newAvatarPath = null;
+        try {
+            if ($request->hasFile('avatar')) {
+                $newAvatarPath = $request->file('avatar')->store('images/groups', 'public');
+                abort_unless($newAvatarPath, 503, 'Group image storage is unavailable. Please try again.');
+            }
+            $oldAvatarPath = app(GroupMembershipService::class)->rename(
+                $request->user(),
+                $room,
+                $request->validated('name'),
+                $request->validated('description', $room->description),
+                $newAvatarPath,
+            );
+        } catch (Throwable $exception) {
+            if ($newAvatarPath) {
+                Storage::disk('public')->delete($newAvatarPath);
+            }
 
-        return redirect()->route('chat.groups.show', $room)->with('success', 'Group renamed.');
+            throw $exception;
+        }
+        if ($newAvatarPath && $oldAvatarPath && $oldAvatarPath !== $newAvatarPath) {
+            Storage::disk('public')->delete($oldAvatarPath);
+        }
+
+        $message = $newAvatarPath
+            ? 'Group photo and details updated successfully.'
+            : 'Group details updated.';
+
+        return redirect()->route('chat.groups.show', $room)->with('success', $message);
     }
 
     public function add(AddGroupMembersRequest $request, ChatRoom $room): RedirectResponse

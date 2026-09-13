@@ -129,7 +129,10 @@ test('deleted hidden and cross-room attachment records are denied', function (st
 })->with(['attachment', 'message', 'everyone', 'room', 'hidden', 'cross-room']);
 
 test('voice notes remain playable with authenticated byte ranges', function (): void {
-    $this->postJson(route('chat.messages.store', $this->room), ['attachments' => [chatTestWav()]])->assertOk();
+    $this->postJson(route('chat.messages.store', $this->room), [
+        'attachment_context' => 'voice',
+        'attachments' => [chatTestWav()],
+    ])->assertOk();
     $attachment = Attachment::sole();
     expect($attachment->message->message_type)->toBe('voice')
         ->and($attachment->getFirstMedia('attachment')->hasGeneratedConversion('thumb'))->toBeFalse();
@@ -215,6 +218,7 @@ test('outsiders and removed members cannot upload files', function (bool $remove
 
 test('browser voice container MIME types are accepted without public copies', function (string $extension, string $mime): void {
     $this->postJson(route('chat.messages.store', $this->room), [
+        'attachment_context' => 'voice',
         'attachments' => [UploadedFile::fake()->create('recording.'.$extension, 1, $mime)],
     ])->assertOk();
     $attachment = Attachment::sole();
@@ -262,6 +266,50 @@ test('audio URLs deny guests outsiders and removed members including range reque
     $this->actingAs($this->member)->get($attachment->url())->assertOk();
     $this->room->members()->detach($this->member);
     $this->withHeader('Range', 'bytes=10-20')->get($attachment->url())->assertForbidden();
+});
+
+test('selected video and audio files are not misclassified as recorded voice messages', function (): void {
+    $cases = [
+        ['lesson.mp4', 'video/mp4', 'video'],
+        ['lesson.webm', 'video/webm', 'video'],
+        ['podcast.mp3', 'audio/mpeg', 'file'],
+    ];
+
+    foreach ($cases as [$filename, $mime, $type]) {
+        $this->postJson(route('chat.messages.store', $this->room), [
+            'attachments' => [UploadedFile::fake()->create($filename, 1, $mime)],
+        ])->assertOk();
+
+        $attachment = Attachment::query()->latest('id')->firstOrFail();
+        expect($attachment->message->message_type)->toBe($type);
+
+        $html = $this->get('/chat/messages/'.$attachment->message_id.'/html')->assertOk()->json('html');
+        if ($type === 'video') {
+            expect($html)->toContain('<video', 'playsinline')->not->toContain('<strong>Voice message</strong>');
+        } else {
+            expect($html)->toContain('<audio', $filename)->not->toContain('<strong>Voice message</strong>');
+        }
+    }
+});
+
+test('invalid attachment batches and voice contexts are rejected before storage', function (): void {
+    config()->set('chat.max_attachment_total_size_kb', 2);
+    $files = array_map(
+        fn (int $index) => UploadedFile::fake()->create("part-{$index}.pdf", 2, 'application/pdf'),
+        range(1, 2),
+    );
+
+    $this->postJson(route('chat.messages.store', $this->room), ['attachments' => $files])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('attachments');
+
+    expect(Attachment::count())->toBe(0)
+        ->and(Storage::disk('chat_private')->allFiles())->toBe([]);
+
+    $this->postJson(route('chat.messages.store', $this->room), [
+        'attachment_context' => 'voice',
+        'attachments' => [UploadedFile::fake()->create('lesson.mp4', 1, 'video/mp4')],
+    ])->assertUnprocessable()->assertJsonValidationErrors('attachment_context');
 });
 
 test('attachment paths cannot escape their disk root', function (): void {

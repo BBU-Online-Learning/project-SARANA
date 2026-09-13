@@ -29,16 +29,25 @@ document.addEventListener('DOMContentLoaded', () => {
         button.textContent = button.dataset.pendingLabel;
         form.querySelector('[data-form-status]').textContent = 'Saving your changes. Please wait.';
     }));
-    const chatMenu = document.querySelector('[data-chat-menu]');
-    const closeChatMenu = () => { document.body.classList.remove('chat-mobile-navigation'); chatMenu?.setAttribute('aria-expanded', 'false'); };
-    chatMenu?.addEventListener('click', () => {
-        const open = document.body.classList.toggle('chat-mobile-navigation');
-        chatMenu.setAttribute('aria-expanded', String(open));
-    });
+    const revealLearningSection = () => {
+        if (!document.body.classList.contains('learning-workspace')) return;
+        let sectionId;
+        try { sectionId = decodeURIComponent(window.location.hash.slice(1)); }
+        catch { return; }
+        if (!sectionId) return;
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        let disclosure = section.closest('details');
+        while (disclosure) {
+            disclosure.open = true;
+            disclosure = disclosure.parentElement?.closest('details');
+        }
+        section.scrollIntoView({ block: 'start' });
+    };
+    revealLearningSection();
+    window.addEventListener('hashchange', revealLearningSection);
     document.querySelector('[data-chat-list]')?.addEventListener('click', () => {
         document.body.classList.remove('chat-mobile-room');
-        closeChatMenu();
     });
-    document.addEventListener('keydown', event => { if (event.key === 'Escape') closeChatMenu(); });
 });
 window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });

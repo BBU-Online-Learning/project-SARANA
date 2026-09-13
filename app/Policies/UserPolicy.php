@@ -33,4 +33,19 @@ class UserPolicy
     {
         return $this->view($user, $target);
     }
+
+    public function viewProfile(User $user, User $target): bool
+    {
+        $access = app(\App\Services\ClassAccessService::class);
+        if (! $access->ready($user) || ! $access->ready($target)) {
+            return false;
+        }
+        if ($user->is($target) || $this->view($user, $target)) {
+            return true;
+        }
+        $sharesChat = $user->chatRooms()->whereHas('members', fn ($query) => $query->where('users.id', $target->id))->exists();
+        $sharesClass = $user->schoolClasses()->whereHas('members', fn ($query) => $query->where('users.id', $target->id))->exists();
+
+        return $sharesChat || $sharesClass;
+    }
 }

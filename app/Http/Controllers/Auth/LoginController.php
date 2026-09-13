@@ -76,7 +76,8 @@ class LoginController extends Controller
         $request->session()->regenerate();
         $request->session()->put('auth_version', $user->auth_version);
 
-        return $this->redirectAfterLogin($user);
+        return $this->redirectAfterLogin($user)
+            ->with('success', 'Password changed successfully.');
     }
 
     private function redirectAfterLogin(User $user): RedirectResponse

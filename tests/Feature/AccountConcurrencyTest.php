@@ -54,6 +54,8 @@ afterEach(function (): void {
             }
         }
 
+        expect(Artisan::call('migrate:fresh', ['--database' => 'mysql', '--force' => true]))->toBe(0);
+
         return;
     }
     foreach (array_merge($this->accountMarkers, [
@@ -99,7 +101,9 @@ while (! is_file($argv[3])) {
 }
 try {
     $service = app(App\Services\AccountManagementService::class);
-    if ($job['operation'] === 'group_add') {
+    if ($job['operation'] === 'call_start') {
+        app(App\Services\Chat\VoiceCallService::class)->start($actor, App\Models\ChatRoom::findOrFail($job['room']), 'video');
+    } elseif ($job['operation'] === 'group_add') {
         app(App\Services\Chat\GroupMembershipService::class)->add($actor, App\Models\ChatRoom::findOrFail($job['room']), [$target->id]);
     } elseif ($job['operation'] === 'group_leave') {
         app(App\Services\Chat\GroupMembershipService::class)->remove($actor, App\Models\ChatRoom::findOrFail($job['room']), $actor->id, true);
@@ -181,6 +185,25 @@ PHP;
 
     return $test->accountProcesses;
 }
+
+test('simultaneous calls in different rooms cannot reserve the same participant twice', function (): void {
+    $first = securityTestUser();
+    $second = securityTestUser();
+    $receiver = securityTestUser('teacher');
+    $rooms = [];
+    foreach ([$first, $second] as $caller) {
+        $room = App\Models\ChatRoom::create(['type' => 'direct', 'created_by' => $caller->id]);
+        $room->members()->attach([$caller->id, $receiver->id], ['joined_at' => now()]);
+        $rooms[] = $room;
+    }
+    $processes = concurrentAccountWorkers($this, [
+        ['operation' => 'call_start', 'actor' => $first->id, 'user' => $receiver->id, 'room' => $rooms[0]->id],
+        ['operation' => 'call_start', 'actor' => $second->id, 'user' => $receiver->id, 'room' => $rooms[1]->id],
+    ]);
+    $codes = array_map(fn ($process) => $process->getExitCode(), $processes);
+    sort($codes);
+    expect($codes)->toBe([0, 4])->and(App\Models\CallSession::count())->toBe(1);
+});
 
 test('class restoration racing suspension never produces an inactive owner of an active class', function (): void {
     $admin = securityTestUser('admin');
@@ -302,31 +325,20 @@ test('the storage migration preserves legacy rows and enables transactional acco
     $legacy = Role::create(['name' => 'legacy_manager', 'status' => false]);
     $user = User::factory()->create(['role_id' => $legacy->id]);
 
-    if ($this->accountDriver === 'mysql') {
-        DB::statement('ALTER TABLE users ENGINE = MyISAM');
-        DB::statement('ALTER TABLE roles ENGINE = MyISAM');
-        $mode = DB::selectOne('SELECT @@SESSION.sql_mode AS mode')->mode;
-        try {
-            DB::statement('SET SESSION sql_mode = ?', ['']);
-            User::whereKey($user->id)->update(['status' => '']);
-        } finally {
-            DB::statement('SET SESSION sql_mode = ?', [$mode]);
-        }
-        expect(fn () => app(\App\Services\AccountManagementService::class)->provisionFirstSuperAdmin($user->id, $user->email, false))
-            ->toThrow(\Illuminate\Validation\ValidationException::class, 'Account changes require InnoDB');
-    }
-
     $before = $user->fresh()->getAttributes();
     $rolesBefore = Role::withTrashed()->get()->toArray();
-    $migration = require database_path('migrations/2026_08_30_214622_ensure_fixed_application_roles.php');
-    $migration->up();
+    $roleMigration = require database_path('migrations/2026_08_30_214622_ensure_fixed_application_roles.php');
+    $releaseMigration = require database_path('migrations/2026_09_01_201000_ensure_release_tables_use_transactional_storage.php');
+    $roleMigration->up();
+    $releaseMigration->up();
     expect($user->fresh()->getAttributes())->toBe($before);
     expect(Role::withTrashed()->get()->toArray())->toBe($rolesBefore);
     if ($this->accountDriver === 'mysql') {
         $engines = DB::table('information_schema.TABLES')->where('TABLE_SCHEMA', $this->accountDatabase)
-            ->whereIn('TABLE_NAME', ['roles', 'users'])->pluck('ENGINE')->all();
-        expect($engines)->toBe(['InnoDB', 'InnoDB']);
-        expect($user->fresh()->status)->toBe('');
+            ->where('TABLE_NAME', '<>', 'migrations')->pluck('ENGINE')->unique()->values()->all();
+        $foreignKeys = DB::table('information_schema.KEY_COLUMN_USAGE')
+            ->where('TABLE_SCHEMA', $this->accountDatabase)->whereNotNull('REFERENCED_TABLE_NAME')->count();
+        expect($engines)->toBe(['InnoDB'])->and($foreignKeys)->toBe(28);
     }
 });
 

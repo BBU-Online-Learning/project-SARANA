@@ -31,17 +31,18 @@ class MessageRepository
             ->with([
                 'sender:id,name,profile',
                 'replyTo.sender:id,name',
-                'attachments.media',  //Load both the Attachment model and its MediaLibrary relation to avoid N+1 queries when rendering images/files.
+                'attachments.media',  // Load both the Attachment model and its MediaLibrary relation to avoid N+1 queries when rendering images/files.
                 'reactions',
-                'hiddenByUsers' => fn ($q) => $q->where('user_id', $userId), //containing only the current user's deletion record.
+                'reads',
+                'hiddenByUsers' => fn ($q) => $q->where('user_id', $userId), // containing only the current user's deletion record.
             ])
             /*
             | Exclude messages the current user deleted for themselves.
             | We use whereDoesntHave so the query stays set-based and uses
             | the composite index (message_id, user_id) on the junction table.
             */
-            ->whereDoesntHave('hiddenByUsers', fn ($q) => $q->where('user_id', $userId)) //Do not return messages that the current user deleted.
-            ->latest()
+            ->whereDoesntHave('hiddenByUsers', fn ($q) => $q->where('user_id', $userId)) // Do not return messages that the current user deleted.
+            ->latest()->orderByDesc('id')
             ->cursorPaginate($limit, ['*'], 'cursor', $cursor);
     }
 }
