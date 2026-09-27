@@ -1,10 +1,10 @@
             @can('manage-classes')
-                <div class="card mb-3 workspace-anchor" id="create-class">
+                <details class="card mb-3 workspace-anchor enrollment-disclosure" id="create-class" @if($errors->hasAny(['owner_id', 'name', 'description', 'avatar'])) open @endif>
+                    <summary><span class="enrollment-summary-icon"><i class="ti ti-school" aria-hidden="true"></i></span><span><strong>Create Class</strong><small>Set up a new teaching space</small></span><i class="ti ti-chevron-down enrollment-chevron" aria-hidden="true"></i></summary>
                     <div class="card-body">
-                        <h2 class="h5 mb-3">Create Class</h2>
-                        <p class="text-muted small">{{ $classAdministration ? 'Choose a teacher owner for the new class.' : 'Start a class space for your students.' }}</p>
+                        <div class="enrollment-form-heading"><span><i class="ti ti-sparkles" aria-hidden="true"></i></span><div><h2>Create your class</h2><p>{{ $classAdministration ? 'Choose a teacher owner for the new class.' : 'Add the details students will see in their learning space.' }}</p></div></div>
 
-                        <form method="POST" action="{{ route('classes.store') }}" enctype="multipart/form-data">
+                        <form method="POST" action="{{ route('classes.store') }}" enctype="multipart/form-data" data-pending-form>
                             @csrf
 
                             @if (app(\App\Services\ClassAccessService::class)->administrator(auth()->user()))
@@ -13,7 +13,7 @@
                                     <select id="enrollment-owner" name="owner_id" class="form-select" required>
                                         <option value="">Select an eligible Teacher</option>
                                         @foreach ($eligibleTeachers as $teacher)
-                                            <option value="{{ $teacher->id }}">{{ $teacher->name }}</option>
+                                            <option value="{{ $teacher->id }}" @selected((string) old('owner_id') === (string) $teacher->id)>{{ $teacher->name }}</option>
                                         @endforeach
                                     </select>
                                     <small class="text-muted">Creating a class does not enroll you for message access.</small>
@@ -39,24 +39,26 @@
 
                             <div class="mb-3">
                                 <label class="form-label" for="enrollment-avatar">Class Image</label>
-                                <input type="file" id="enrollment-avatar" name="avatar" class="form-control">
+                                <input type="file" id="enrollment-avatar" name="avatar" class="form-control" accept=".jpg,.jpeg,.png,.webp" aria-describedby="class-image-help">
+                                <small id="class-image-help" class="text-muted">Optional. Choose a JPG, PNG, or WebP image up to 2 MB.</small>
                                 @error('avatar')
                                     <div class="text-danger small mt-1">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">Create Class</button>
+                            <button type="submit" class="btn btn-primary w-100" data-pending-label="Creating…">Create Class</button>
+                            <p class="small mb-0 mt-2" role="status" data-form-status></p>
                         </form>
                     </div>
-                </div>
+                </details>
             @endcan
 
-            <div class="card">
+            <details class="card workspace-anchor enrollment-disclosure" id="join-class" @if($errors->has('join_code')) open @endif>
+                <summary><span class="enrollment-summary-icon"><i class="ti ti-login" aria-hidden="true"></i></span><span><strong>Join Class</strong><small>Use a code from your teacher</small></span><i class="ti ti-chevron-down enrollment-chevron" aria-hidden="true"></i></summary>
                 <div class="card-body">
-                    <h2 class="h5 mb-3 workspace-anchor" id="join-class">Join Class</h2>
-                    <p class="text-muted small">Enter a class code to join as a student member.</p>
+                    <div class="enrollment-form-heading"><span><i class="ti ti-key" aria-hidden="true"></i></span><div><h2>Enter a class code</h2><p>Join an existing space as a student member.</p></div></div>
 
-                    <form method="POST" action="{{ route('classes.join') }}">
+                    <form method="POST" action="{{ route('classes.join') }}" data-pending-form>
                         @csrf
 
                         <div class="mb-3">
@@ -67,7 +69,8 @@
                             @enderror
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100">Join Class</button>
+                        <button type="submit" class="btn btn-primary w-100" data-pending-label="Joining…">Join Class</button>
+                        <p class="small mb-0 mt-2" role="status" data-form-status></p>
                     </form>
                 </div>
-            </div>
+            </details>

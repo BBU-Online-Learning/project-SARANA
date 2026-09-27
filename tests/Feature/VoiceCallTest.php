@@ -140,7 +140,9 @@ test('busy users cannot create another call and unanswered calls expire as misse
     $this->artisan('calls:expire')->assertSuccessful();
 
     expect($call->fresh()->status)->toBe('missed')
-        ->and(Message::where('call_session_id', $call->id)->value('body'))->toBe('Missed voice call');
+        ->and(Message::where('call_session_id', $call->id)->value('body'))->toBe('Missed voice call')
+        ->and($this->receiver->notifications()->firstOrFail()->data['category'])->toBe('call')
+        ->and($this->receiver->notifications()->firstOrFail()->data['room_id'])->toBe($this->room->id);
 });
 
 test('the direct chat UI exposes the call control and app-wide call manager', function (): void {
@@ -155,6 +157,7 @@ test('the direct chat UI exposes the call control and app-wide call manager', fu
         ->toContain('Start a voice call with')
         ->and(file_get_contents(resource_path('views/layouts/app.blade.php')))
         ->toContain('chat.partials.voice-call-overlay')
+        ->toContain('js/chat/call-sounds.js')
         ->toContain('js/chat/voice-call.js')
         ->and(file_get_contents(public_path('js/chat/voice-call.js')))
         ->toContain('RTCPeerConnection')

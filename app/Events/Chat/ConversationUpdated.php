@@ -30,6 +30,7 @@ class ConversationUpdated implements ShouldBroadcastNow
     {
         return [
             'room_id' => $this->message->room_id,
+            'message_id' => $this->message->id,
             'body' => $this->message->previewText(),
             'sender' => $this->message->sender->name,
             'created_at' => $this->message->created_at->diffForHumans(),

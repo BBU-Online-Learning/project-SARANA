@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ClassMembershipAudit;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use Closure;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -44,7 +45,7 @@ class ClassManagementService
 
     public function add(User $actor, SchoolClass $schoolClass, int $targetId, string $role): bool
     {
-        return $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($targetId, $role): bool {
+        $added = $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($targetId, $role): bool {
             $target = User::query()->lockForUpdate()->findOrFail($targetId);
             Gate::forUser($actor)->authorize('addMember', [$schoolClass, $target, $role]);
 
@@ -57,6 +58,17 @@ class ClassManagementService
 
             return true;
         });
+
+        if ($added) {
+            User::query()->find($targetId)?->notify(new ActivityNotification(
+                'class',
+                'Added to '.$schoolClass->name,
+                'You can now open this class and its channels.',
+                route('classes.show', $schoolClass, false),
+            ));
+        }
+
+        return $added;
     }
 
     public function enroll(User $actor, SchoolClass $schoolClass): void
@@ -84,6 +96,16 @@ class ClassManagementService
                 $schoolClass->members()->attach($actor, ['role' => 'student', 'joined_at' => now()]);
                 $this->audit($actor, $schoolClass, $actor,
                     $this->access->administrator($actor) ? 'administrative_enrollment' : 'joined', null, 'student');
+
+                $ownerId = $schoolClass->memberRecords()->where('role', 'owner')->value('user_id');
+                if ($ownerId && (int) $ownerId !== $actor->id) {
+                    User::query()->find($ownerId)?->notify(new ActivityNotification(
+                        'class',
+                        'New class member',
+                        $actor->name.' joined '.$schoolClass->name.'.',
+                        route('classes.show', $schoolClass, false),
+                    ));
+                }
             }
 
             return $schoolClass;
@@ -92,7 +114,7 @@ class ClassManagementService
 
     public function remove(User $actor, SchoolClass $schoolClass, User $target): ?string
     {
-        return $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($target): ?string {
+        $error = $this->withClass($actor, $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($target): ?string {
             Gate::forUser($actor)->authorize('manageMembers', $schoolClass);
             $target = User::query()->lockForUpdate()->findOrFail($target->id);
             $membership = $this->access->membership($target, $schoolClass);
@@ -107,6 +129,17 @@ class ClassManagementService
 
             return null;
         });
+
+        if ($error === null) {
+            $target->notify(new ActivityNotification(
+                'class',
+                'Removed from '.$schoolClass->name,
+                'Your access to this class has ended.',
+                route('classes.index', absolute: false),
+            ));
+        }
+
+        return $error;
     }
 
     public function leave(User $actor, SchoolClass $schoolClass): ?string
@@ -153,6 +186,18 @@ class ClassManagementService
                 $schoolClass->members()->attach($target, ['role' => 'owner', 'joined_at' => now()]);
             }
             $this->audit($actor, $schoolClass, $target, 'ownership_transferred_in', $oldRole, 'owner');
+            $target->notify(new ActivityNotification(
+                'class',
+                'You now own '.$schoolClass->name,
+                'You can manage members, channels, and quizzes.',
+                route('classes.show', $schoolClass, false),
+            ));
+            $oldUser->notify(new ActivityNotification(
+                'class',
+                'Class ownership changed',
+                $target->name.' now owns '.$schoolClass->name.'.',
+                route('classes.show', $schoolClass, false),
+            ));
         });
     }
 
@@ -185,6 +230,12 @@ class ClassManagementService
                 }
             }
             $schoolClass->forceFill(['archived_at' => $archived ? now() : null])->save();
+            $schoolClass->members()->get()->each(fn (User $member) => $member->notify(new ActivityNotification(
+                'class',
+                $archived ? 'Class archived' : 'Class restored',
+                $schoolClass->name.($archived ? ' is now read-only.' : ' is available again.'),
+                route('classes.show', $schoolClass, false),
+            )));
         });
     }
 

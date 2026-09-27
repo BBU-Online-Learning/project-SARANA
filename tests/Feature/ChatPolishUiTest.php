@@ -64,6 +64,15 @@ test('attachment composer validates configured limits and exposes modern upload 
         ->and($chatArea)->toContain('data-attachment-drop-overlay', 'attachment-limit-summary');
 });
 
+test('photo preview supports previous and next navigation', function (): void {
+    $process = new Process(['node', base_path('tests/chat-image-preview-client.cjs')], base_path());
+    $process->mustRun();
+
+    expect($process->getOutput())->toContain('Photo preview navigation checks passed.');
+    expect(file_get_contents(resource_path('views/chat/partials/image-preview-modal.blade.php')))
+        ->toContain('aria-label="Previous photo"', 'aria-label="Next photo"');
+});
+
 test('chat polish styles stay responsive and expose visible failed states', function (): void {
     $teamStyles = file_get_contents(public_path('css/teamstyle.css'));
     $workspaceStyles = file_get_contents(public_path('css/workspace.css'));

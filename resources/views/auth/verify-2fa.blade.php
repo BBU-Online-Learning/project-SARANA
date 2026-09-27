@@ -348,6 +348,7 @@
             }
         }
     </style>
+    <link href="{{ asset('css/touch-zoom.css') }}" rel="stylesheet">
 </head>
 
 <body>
@@ -425,6 +426,11 @@
                     >
 
                 </div>
+
+                <label style="display:flex;align-items:flex-start;gap:9px;margin-top:14px;cursor:pointer;font-weight:500;">
+                    <input type="checkbox" name="trust_device" value="1" style="width:16px;height:16px;margin-top:1px;accent-color:#2563eb;">
+                    <span>Trust this browser for 30 days<br><small style="color:#64748b;font-weight:400;">Do not use this option on a shared computer.</small></span>
+                </label>
 
 
                 <button type="submit">

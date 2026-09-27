@@ -3,7 +3,7 @@
     <div class="teams-panel-header">
         <div>
             <h1>Chat</h1>
-            <p>Recent conversations</p>
+            <p>Your learning community</p>
         </div>
 
         <button type="button" class="teams-icon-button teams-new-chat-button" data-bs-toggle="modal"
@@ -14,9 +14,16 @@
     {{-- inpute search  --}}
     <div class="teams-search-box" role="search">
         <i class="ti ti-search" aria-hidden="true"></i>
-        <input type="search" id="chat-search-input" placeholder="Search chats" aria-label="Search chats"
+        <input type="search" id="chat-search-input" placeholder="Search conversations…" aria-label="Search chats"
             autocomplete="off">
     </div>
+    <div class="chat-conversation-filters" role="group" aria-label="Filter conversations">
+        <button type="button" data-conversation-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-conversation-filter="direct" aria-pressed="false">Direct</button>
+        <button type="button" data-conversation-filter="group" aria-pressed="false">Groups</button>
+        <button type="button" data-conversation-filter="unread" aria-pressed="false" title="Show unread conversations">Unread</button>
+    </div>
+    <div class="chat-list-caption">Recent conversations</div>
     {{-- result search --}}
     <div id="conversation-search-empty" class="teams-empty-panel" style="display:none;">
         <i class="ti ti-search-off"></i>

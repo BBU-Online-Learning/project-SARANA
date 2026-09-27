@@ -7,17 +7,19 @@
     let remoteMedia = { camera: false, microphone: true };
 
     function status(message) { element("status").textContent = message; }
-    function show(call, userId) {
+    function show(call, userId, videoMode = call.call_type === "video") {
         clearTimeout(closeTimer);
         const layer = element("layer");
         const wasHidden = layer.hidden;
         if (wasHidden) previousFocus = document.activeElement;
         layer.hidden = false;
-        const video = call.call_type === "video";
+        const video = videoMode;
+        const startedAsVideo = call.call_type === "video";
         const incoming = call.status === "ringing" && Number(call.initiated_by) !== Number(userId);
         layer.classList.toggle("is-video", video);
         layer.classList.toggle("is-active", call.status === "active");
-        element("title").textContent = `${incoming ? "Incoming " : ""}${video ? "Video" : "Voice"} call`;
+        const callKind = startedAsVideo ? "Video" : (video ? "Voice & video" : "Voice");
+        element("title").textContent = `${incoming ? "Incoming " : ""}${callKind} call`;
         const peer = call.participants?.find((person) => Number(person.id) !== Number(userId));
         element("peer-name").textContent = peer?.name || "Call";
         const image = element("avatar-image");
@@ -37,6 +39,8 @@
         element("duration").hidden = call.status !== "active";
         element("open-chat").hidden = true;
         document.querySelectorAll("[data-video-control]").forEach((control) => { control.hidden = !video; });
+        const camera = document.querySelector('[data-voice-call-action="camera"]');
+        camera.hidden = incoming || (!video && call.status !== "active");
         element("accept-audio").hidden = !video;
         clearInterval(timer);
         if (call.answered_at && call.status === "active") {
@@ -59,7 +63,7 @@
         video.play()?.catch(() => {});
         for (const [action, active, off, on] of [
             ["mute", !media.state().microphone, "Unmute", "Mute"],
-            ["camera", !media.state().camera, "Camera on", "Camera off"],
+            ["camera", !media.state().camera, element("layer").classList.contains("is-video") ? "Camera on" : "Turn on video", "Camera off"],
         ]) {
             const button = document.querySelector(`[data-voice-call-action="${action}"]`);
             button.setAttribute("aria-pressed", String(active));

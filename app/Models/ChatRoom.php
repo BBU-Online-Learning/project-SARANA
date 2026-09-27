@@ -5,6 +5,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
 
@@ -90,6 +91,11 @@ class ChatRoom extends Model
     public function roomMembers()
     {
         return $this->hasMany(ChatRoomMember::class, 'room_id');
+    }
+
+    public function groupInvites(): HasMany
+    {
+        return $this->hasMany(ChatGroupInvite::class, 'room_id');
     }
 
     /*

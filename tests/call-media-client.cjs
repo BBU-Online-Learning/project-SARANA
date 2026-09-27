@@ -75,6 +75,17 @@ function connection() {
     assert.equal(fallbackPc.getTransceivers().length, 2, "audio-only join still reserves video for later");
     fallback.stop(); denyCamera = false;
 
+    const upgrade = new Media();
+    await upgrade.prepare(false);
+    const upgradePc = connection(); upgrade.attach(upgradePc, false);
+    assert.equal(upgradePc.getTransceivers().length, 1);
+    upgrade.ensureVideo(upgradePc);
+    upgrade.ensureVideo(upgradePc);
+    assert.equal(upgradePc.getTransceivers().length, 2, "voice calls add exactly one video transceiver when upgraded");
+    await upgrade.toggleCamera(upgradePc);
+    assert.equal(upgrade.state().camera, true, "voice call can enable its camera after upgrading");
+    upgrade.stop();
+
     const pending = new Media(); deferred = true;
     const preparing = pending.prepare(false);
     pending.stop(); resolveMedia();
@@ -93,5 +104,5 @@ function connection() {
     const switchPending = switching.switchCamera(switchingPc);
     switching.stop(); releaseSender(); await switchPending;
     assert.equal(acquired.length, before, "ending during camera switch must not acquire another camera");
-    console.log("Call media checks passed: fallback, camera, switching, mute, cleanup, cancellation, HTTPS.");
+    console.log("Call media checks passed: fallback, voice-to-video upgrade, camera, switching, mute, cleanup, cancellation, HTTPS.");
 })().catch(error => { console.error(error); process.exitCode = 1; });

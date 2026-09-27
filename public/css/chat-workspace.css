@@ -1,0 +1,232 @@
+/* Chat-specific surfaces sit on the shared application shell. */
+body.application-shell.workspace-chat {
+    --teams-text: #252537;
+    --teams-muted: #686879;
+    --teams-panel: #fff;
+    --teams-panel-soft: #f6f6fa;
+    --teams-bg: #f7f8fb;
+    --chat-message-own-bg: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+    --chat-message-own-border: #1d4ed8;
+    --chat-message-own-text: #fff;
+    --chat-message-other-bg: linear-gradient(145deg, #fff 0%, #f8fafc 100%);
+    --chat-message-other-border: #dce4ef;
+    --chat-message-other-text: #252537;
+}
+.application-shell.workspace-chat .app-topbar { color: #f8fafc; border-bottom: 1px solid #2c3d68; background: linear-gradient(105deg, #111a3a 0%, #18244d 52%, #243b73 100%); box-shadow: 0 8px 24px rgb(17 26 58 / 18%); }
+.workspace-chat .workspace-header-context { font-size: 14px; }
+.workspace-chat .workspace-header-icon { border-color: rgb(255 255 255 / 18%); color: #dbeafe; background: rgb(255 255 255 / 10%); }
+.workspace-chat .workspace-account-link { color: #e7edff !important; }
+.workspace-chat .app-topbar .workspace-role-badge { color: #eef4ff; background: rgb(37 99 235 / 28%); border-color: rgb(147 197 253 / 25%); }
+.application-shell.workspace-chat .page-content { padding: 88px 18px 18px; height: var(--chat-viewport-height, 100dvh); min-height: 0; max-height: var(--chat-viewport-height, 100dvh); background-color: #f4f7fc; background-image: radial-gradient(circle at 8% 5%, rgb(37 99 235 / 8%), transparent 24%), radial-gradient(circle at 92% 8%, rgb(124 58 237 / 7%), transparent 22%); }
+html[data-sidenav-size] body.application-shell.workspace-chat .page-content { min-height: 0; }
+.application-shell.workspace-chat .teams-chat-page { border: 1px solid #dbe4f0; border-radius: 18px; box-shadow: 0 18px 50px rgb(15 23 42 / 12%); overflow: hidden; }
+.application-shell.workspace-chat .teams-chat-shell { grid-template-columns: 310px minmax(0, 1fr); }
+.application-shell.workspace-chat .chat-load-status { position: static; transform: none; margin: 0; max-width: none; border: 0; border-radius: 0; box-shadow: none; flex: 0 0 auto; font-size: 12px; padding: 8px 18px; }
+.workspace-chat .conversation-list { background: linear-gradient(180deg, #fbfdff 0%, #f7f9fd 100%); border-right: 1px solid #dce5f1; min-width: 0; }
+.workspace-chat .teams-conversation-panel { height: 100%; display: flex; flex-direction: column; padding: 0; }
+.workspace-chat .teams-panel-header { position: relative; padding: 24px 20px 17px; }
+.workspace-chat .teams-panel-header::after { content: ''; position: absolute; right: 18px; bottom: 0; left: 18px; height: 1px; background: linear-gradient(90deg, #bfdbfe, transparent); }
+.workspace-chat .teams-panel-header h1 { font-size: 23px; font-weight: 750; letter-spacing: -.65px; color: #172554; }
+.workspace-chat .teams-panel-header p { color: var(--teams-muted); font-size: 12px; margin: 4px 0 0; }
+.workspace-chat .teams-new-chat-button { border: 1px solid #bfdbfe; background: linear-gradient(135deg, #eff6ff, #eef2ff); color: #1d4ed8; box-shadow: 0 4px 12px rgb(37 99 235 / 9%); }
+.workspace-chat .teams-search-box { margin: 0 18px 14px; border: 1px solid #d7e1ee; background: #fff; border-radius: 12px; min-height: 44px; box-shadow: 0 4px 14px rgb(15 23 42 / 4%); }
+.workspace-chat .teams-search-box:focus-within { border-color: var(--workspace-accent); box-shadow: 0 0 0 2px var(--workspace-tint); }
+.application-shell.workspace-chat :is(.teams-search-box, .create-chat-search, .teams-room-search-bar, .group-settings-member-search) > input[type="search"] { appearance: none; border: 0; outline: 0; box-shadow: none; background: transparent; }
+.application-shell.workspace-chat :is(.teams-search-box, .create-chat-search, .teams-room-search-bar, .group-settings-member-search) > input[type="search"]:focus,
+.application-shell.workspace-chat :is(.teams-search-box, .create-chat-search, .teams-room-search-bar, .group-settings-member-search) > input[type="search"]:focus-visible { border: 0; outline: 0; box-shadow: none; }
+.application-shell.workspace-chat input[type="search"]::-webkit-search-cancel-button { appearance: none; }
+.chat-conversation-filters { display: flex; gap: 5px; padding: 0 18px 18px; border-bottom: 1px solid var(--workspace-border); }
+.chat-conversation-filters button { flex: 1; padding: 7px 5px; border: 0; border-radius: 6px; color: var(--teams-muted); background: transparent; font-size: 12px; font-weight: 600; }
+.chat-conversation-filters button[aria-pressed="true"] { background: #e8f1ff; color: #1d4ed8; box-shadow: inset 0 0 0 1px #bfdbfe; }
+.chat-list-caption { padding: 19px 22px 9px; font-size: 11px; font-weight: 600; color: var(--teams-muted); text-transform: uppercase; letter-spacing: .08em; }
+.workspace-chat .teams-room-scroll { flex: 1; min-height: 0; padding: 0 10px 16px; overflow-y: auto; }
+.workspace-chat .teams-room-card { border: 1px solid transparent; border-radius: 12px; padding: 13px 11px; margin: 4px 0; gap: 12px; transition: background .12s ease, border-color .12s ease, box-shadow .12s ease, transform .12s ease; }
+.workspace-chat .teams-room-card:hover { border-color: #e0e8f3; background: #fff; box-shadow: 0 7px 18px rgb(15 23 42 / 6%); transform: translateY(-1px); }
+.workspace-chat .teams-room-card.active { background: linear-gradient(105deg, #eaf3ff, #f3efff); border-color: #c7d8f4; box-shadow: inset 3px 0 #2563eb, 0 7px 18px rgb(37 99 235 / 8%); }
+.workspace-chat .teams-room-card:has(.unread-badge) .room-name { font-weight: 750; }
+.workspace-chat .teams-room-card:has(.unread-badge) .room-last-message { color: var(--teams-text); font-weight: 600; }
+.workspace-chat .room-name { font-size: 14px; letter-spacing: -.15px; }
+.workspace-chat .room-last-time { font-size: 10px; max-width: 82px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--teams-muted); }
+.workspace-chat .room-last-message { margin-top: 5px; font-size: 12px; line-height: 1.5; }
+.workspace-chat .unread-badge { background: var(--workspace-accent); min-width: 19px; height: 19px; padding: 0 5px; font-size: 10px; }
+.workspace-chat .teams-chat-header {
+    position: relative;
+    height: 78px;
+    padding: 12px 20px;
+    gap: 12px;
+    border-bottom-color: #dce5f1;
+    background: linear-gradient(110deg, #fff 58%, #f4f7ff);
+    box-shadow: 0 4px 16px rgb(15 23 42 / 5%);
+}
+.workspace-chat .teams-chat-header::after { content: ''; position: absolute; right: 0; bottom: -1px; left: 0; height: 1px; background: linear-gradient(90deg, #2563eb, #7c3aed 38%, transparent 72%); opacity: .5; }
+.workspace-chat .chat-mobile-back { display: none; }
+.workspace-chat .teams-chat-title-group { flex: 1; min-width: 0; gap: 12px; }
+.workspace-chat .teams-chat-title-group > div { min-width: 0; }
+.workspace-chat .teams-chat-title-group h1,
+.workspace-chat .teams-chat-title-group p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-chat .teams-chat-title-group h1 { margin: 0; font-size: 17px; line-height: 1.3; letter-spacing: -.3px; }
+.workspace-chat .teams-chat-title-group h1 a { color: var(--teams-text); text-decoration: none; }
+.workspace-chat .teams-chat-title-group p { margin: 3px 0 0; font-size: 12px; line-height: 1.25; }
+.workspace-chat .teams-chat-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; padding: 4px; border: 1px solid #e0e7f1; border-radius: 13px; background: rgb(255 255 255 / 84%); box-shadow: 0 5px 15px rgb(15 23 42 / 6%); }
+.workspace-chat .teams-icon-button {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: var(--teams-muted);
+    font-size: 19px;
+    transition: color .14s ease, background-color .14s ease, border-color .14s ease, transform .1s ease;
+}
+.workspace-chat .teams-icon-button:hover { border-color: #bfdbfe; background: #eff6ff; color: #1d4ed8; }
+.workspace-chat .teams-icon-button:active { transform: scale(.94); }
+.workspace-chat .teams-icon-button:focus-visible, .workspace-chat .chat-conversation-filters button:focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 2px; }
+.workspace-chat .teams-message-viewport { background-color: #f5f7fb; background-image: radial-gradient(circle at 10% 12%, rgb(37 99 235 / 4%), transparent 24%), radial-gradient(circle at 90% 18%, rgb(124 58 237 / 4%), transparent 22%); padding: 26px 32px; overscroll-behavior: contain; scrollbar-width: thin; }
+.workspace-chat .teams-message { margin-bottom: 18px; gap: 10px; }
+.workspace-chat .teams-message.is-other { justify-content: flex-start; }
+.workspace-chat .teams-message.is-own { justify-content: flex-start; flex-direction: row-reverse; }
+.workspace-chat .teams-message-stack { max-width: min(640px, 80%); }
+.application-shell.workspace-chat .teams-message-bubble { width: fit-content; max-width: 100%; min-width: 0; min-height: 0; padding: 7px 11px; border: 1px solid var(--chat-message-other-border); border-radius: 12px; color: var(--chat-message-other-text); background: var(--chat-message-other-bg); box-shadow: 0 3px 10px rgb(15 23 42 / 6%); font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; }
+.application-shell.workspace-chat .teams-message.is-other .teams-message-bubble { margin-right: auto; }
+.application-shell.workspace-chat .teams-message.is-own .teams-message-bubble { margin-left: auto; }
+.application-shell.workspace-chat .teams-message.is-own .teams-message-bubble:not(.teams-message-deleted, .sticker-unavailable) { color: var(--chat-message-own-text); background: var(--chat-message-own-bg); border-color: var(--chat-message-own-border); }
+.workspace-chat .teams-message-meta { gap: 7px; font-size: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+.workspace-chat .teams-message-meta strong { font-size: 12px; }
+.workspace-chat .chat-sender-role { color: var(--teams-muted); font-size: 10px; border: 1px solid var(--workspace-border); border-radius: 4px; padding: 0 4px; }
+.workspace-chat .teams-message-meta .chat-mobile-message-actions { display: inline-grid; width: 28px; height: 28px; place-items: center; margin-left: auto; border: 0; border-radius: 8px; color: var(--teams-muted); background: transparent; font-size: 17px; }
+.workspace-chat .teams-message.is-own .chat-mobile-message-actions { order: -1; margin: 0 auto 0 0; }
+.workspace-chat .chat-mobile-message-actions:hover, .workspace-chat .chat-mobile-message-actions[aria-expanded="true"] { color: var(--workspace-accent); background: var(--workspace-tint); }
+.workspace-chat .chat-mobile-message-actions:focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 2px; }
+.workspace-chat .teams-message-toolbar, .workspace-chat .teams-message:hover .teams-message-toolbar { position: static; display: none; width: max-content; max-width: 100%; flex-wrap: wrap; gap: 2px; margin: 2px 0 8px; padding: 4px; border-color: var(--workspace-border); border-radius: 10px; box-shadow: 0 4px 12px #25253712; background: var(--teams-panel); }
+.workspace-chat .teams-message.is-own .teams-message-toolbar { margin-left: auto; }
+.workspace-chat .teams-message.mobile-actions-open .teams-message-toolbar, .workspace-chat .teams-message.mobile-actions-open:hover .teams-message-toolbar { display: flex; }
+.workspace-chat .teams-message-toolbar button { min-width: 32px; min-height: 32px; color: var(--teams-muted); }
+@media (hover: hover) and (pointer: fine) {
+    .workspace-chat .teams-message:not(.mobile-actions-open) .chat-mobile-message-actions { opacity: 0; }
+    .workspace-chat .teams-message:hover .chat-mobile-message-actions, .workspace-chat .teams-message:focus-within .chat-mobile-message-actions { opacity: 1; }
+}
+.workspace-chat .teams-reply-preview { border-radius: 6px; border-left: 3px solid var(--workspace-accent); background: var(--teams-panel-soft); }
+.workspace-chat .teams-composer-wrap { position: relative; padding: 9px 18px 7px; background: #fff; border-top: 1px solid #dce5f1; }
+.workspace-chat .teams-composer { min-height: 46px; border: 1px solid #d4deeb; background: linear-gradient(180deg, #fff 0%, #f8fbff 100%); border-radius: 23px; padding: 4px 5px; gap: 2px; align-items: center; box-shadow: 0 4px 14px rgb(15 23 42 / 5%); }
+.workspace-chat .teams-composer:focus-within { border-color: var(--workspace-accent); box-shadow: 0 0 0 2px var(--workspace-tint); }
+.workspace-chat .teams-composer textarea { align-self: center; min-height: 34px; max-height: 112px; padding: 6px 8px; font: inherit; font-size: 14px; line-height: 1.45; }
+.workspace-chat .teams-composer-tools { flex: 0 0 auto; gap: 0; }
+.application-shell.workspace-chat .teams-composer-tools button { display: inline-grid; width: 32px; height: 32px; border-radius: 50%; font-size: 17px; }
+.workspace-chat .teams-composer-tools button:hover, .workspace-chat .teams-composer-tools button.is-active { background: #eaf2ff; color: #1d4ed8; }
+.workspace-chat .teams-room-search-bar { display: grid; grid-template-columns: auto minmax(60px, 1fr) auto auto auto auto; }
+.workspace-chat .teams-room-search-bar:focus-within { border-color: #93c5fd; box-shadow: 0 14px 38px rgb(15 23 42 / 16%), 0 0 0 3px rgb(37 99 235 / 12%); }
+.workspace-chat .teams-room-search-bar[hidden], .room-search-results[hidden] { display: none; }
+.room-search-results { grid-column: 1 / -1; max-height: 220px; overflow-y: auto; border-top: 1px solid var(--workspace-border); padding-top: 6px; }
+.room-search-results button { display: block; width: 100%; padding: 10px; border: 0; border-radius: 6px; text-align: left; background: transparent; color: var(--teams-text); font-size: 12px; overflow-wrap: anywhere; }
+.room-search-results button:hover, .room-search-results button[aria-current="true"] { background: var(--workspace-tint); }
+.workspace-chat .teams-send-button { width: 36px; height: 36px; flex-shrink: 0; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #4f46e5); box-shadow: 0 5px 13px rgb(37 99 235 / 22%); font-size: 16px; }
+.workspace-chat .teams-send-button:hover { background: linear-gradient(135deg, #1d4ed8, #4338ca); transform: translateY(-1px); }
+.workspace-chat .composer-help { margin: 5px 8px 0; font-size: 10px; }
+.workspace-chat .sticker-picker { left: 18px; width: min(330px, calc(100% - 36px)); max-height: min(460px, calc(100dvh - 170px)); padding: 10px; border-radius: 16px; }
+.workspace-chat .sticker-picker-header { padding-bottom: 7px; }
+.workspace-chat .sticker-pack-tabs { margin-bottom: 7px; }
+.workspace-chat .sticker-picker-grid { gap: 4px; }
+.workspace-chat .sticker-option { padding: 5px 4px; border-radius: 11px; }
+.chat-emoji-picker { position: absolute; bottom: calc(100% - 8px); left: 24px; z-index: 9; display: grid; grid-template-columns: repeat(6, 1fr); padding: 10px; gap: 4px; border: 1px solid var(--workspace-border); border-radius: 12px; background: var(--teams-panel); box-shadow: 0 8px 30px #25253720; }
+.chat-emoji-picker[hidden] { display: none; }
+.chat-emoji-picker button { width: 38px; height: 38px; border: 0; border-radius: 6px; background: transparent; font-size: 22px; }
+.chat-emoji-picker button:hover { background: var(--workspace-tint); }
+.workspace-chat .teams-empty-chat { padding: 32px; background: radial-gradient(circle at 50% 36%, #eef4ff, #f8f9fc 48%); justify-items: center; }
+.workspace-chat .teams-empty-chat-icon { width: 82px; height: 82px; font-size: 37px; border: 1px solid #c8d9f5; border-radius: 24px; background: linear-gradient(145deg, #e8f2ff, #f1edff); color: #2563eb; margin-bottom: 25px; box-shadow: 0 12px 28px rgb(37 99 235 / 14%); }
+.chat-empty-eyebrow { text-transform: uppercase; font-size: 10px; letter-spacing: .16em; color: var(--workspace-accent); font-weight: 700; margin-bottom: 10px; }
+.workspace-chat .teams-empty-chat h1 { font-size: 27px; letter-spacing: -.8px; color: var(--teams-text); margin-bottom: 12px; }
+.workspace-chat .teams-empty-chat p { max-width: 350px; line-height: 1.8; font-size: 14px; margin-bottom: 24px; }
+.workspace-chat .teams-empty-chat .btn { padding: 10px 18px; font-size: 13px; }
+.chat-conversation-start { text-align: center; padding: 64px 20px; color: var(--teams-muted); }
+.chat-conversation-start[hidden] { display: none; }
+.chat-conversation-start i { font-size: 32px; color: var(--workspace-accent); }
+.chat-conversation-start h2 { font-size: 18px; margin-top: 16px; }
+.chat-conversation-start p { font-size: 13px; }
+.workspace-chat .teams-empty-panel { height: auto; min-height: 150px; padding: 28px 20px; font-size: 13px; }
+.chat-connection-status { flex-shrink: 0; padding: 8px 18px; color: #75551d; background: #fff5dd; font-size: 12px; border-bottom: 1px solid #ebdcb8; }
+.chat-info-drawer { position: fixed; inset: 0 0 0 auto; margin: 0; padding: 0; border: 0; border-left: 1px solid var(--workspace-border); height: 100dvh; max-height: 100dvh; width: 380px; max-width: 100vw; background: var(--teams-panel); color: var(--teams-text); box-shadow: -10px 0 40px #25253718; }
+.chat-info-drawer::backdrop { background: #19152545; }
+.chat-drawer-heading { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--workspace-border); }
+.chat-drawer-heading h2 { font-size: 17px; margin: 0; }
+.chat-drawer-body { padding: 24px; }
+.chat-group-identity { text-align: center; padding-bottom: 18px; }
+.chat-group-identity .teams-room-avatar { margin: 0 auto 14px; width: 64px; height: 64px; font-size: 24px; }
+.chat-group-identity h3 { font-size: 21px; overflow-wrap: anywhere; }
+.chat-group-identity p { font-size: 13px; color: var(--teams-muted); overflow-wrap: anywhere; }
+.chat-drawer-label { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; margin: 15px 0; }
+.chat-drawer-member { display: flex; align-items: center; gap: 12px; padding: 12px 0; color: inherit; text-decoration: none; border-bottom: 1px solid var(--workspace-border); }
+.chat-drawer-member strong { display: block; font-size: 13px; overflow-wrap: anywhere; }
+.chat-drawer-member small { display: block; color: var(--teams-muted); font-size: 11px; margin-top: 3px; }
+.workspace-chat .create-chat-modal .modal-content { border-radius: 16px; border: 1px solid var(--workspace-border); box-shadow: 0 24px 80px #25253725; }
+.workspace-chat .create-chat-modal .modal-header { padding: 22px 24px; }
+.workspace-chat .create-chat-modal .create-chat-tab.active { background: var(--workspace-tint); color: var(--workspace-accent); }
+.workspace-chat .chat-room-area { position: relative; }
+.chat-loading-skeleton { position: absolute; inset: 0; z-index: 12; padding: 30px; background: var(--teams-bg); pointer-events: none; }
+.chat-loading-skeleton span { display: block; width: 55%; height: 52px; margin: 34px 0; background: var(--workspace-border); border-radius: 10px; opacity: .65; }
+.chat-loading-skeleton span:nth-child(even) { margin-left: auto; width: 42%; }
+@media(min-width: 761px) and (max-width: 991px) {
+    .application-shell.workspace-chat .teams-chat-shell { grid-template-columns: 270px minmax(0, 1fr); }
+}
+@media(max-width: 760px) {
+    .application-shell.workspace-chat .page-content { padding: 72px 0 0; }
+    .application-shell.workspace-chat .teams-chat-page { border: 0; border-radius: 0; box-shadow: none; }
+    .application-shell.workspace-chat .teams-chat-shell { grid-template-columns: minmax(0, 1fr); }
+    .application-shell.workspace-chat .conversation-list { display: block; }
+    .application-shell.workspace-chat .chat-room-area { display: none; }
+    .application-shell.workspace-chat.chat-mobile-room .conversation-list { display: none; }
+    .application-shell.workspace-chat.chat-mobile-room .chat-room-area { display: flex; }
+    .workspace-chat .teams-panel-header { padding: 20px; }
+    .workspace-chat .teams-chat-header { height: 64px; padding: 8px 10px; gap: 7px; box-shadow: 0 2px 8px #2525370d; }
+    .workspace-chat .workspace-header-context { flex-direction: row; align-items: center; gap: 8px; }
+    .workspace-chat .workspace-account-link > span:last-child { display: none; }
+    .application-shell.workspace-chat.chat-mobile-room .chat-mobile-back {
+        display: inline-grid;
+        width: 38px;
+        height: 38px;
+        border-color: #ded7f2;
+        border-radius: 50%;
+        background: var(--workspace-tint);
+        color: var(--workspace-accent);
+        font-size: 20px;
+        box-shadow: 0 1px 2px #2525370d;
+    }
+    .application-shell.workspace-chat.chat-mobile-room .chat-mobile-back:hover { border-color: #cec3e8; background: #eee9fa; }
+    .workspace-chat .teams-chat-title-group { gap: 9px; }
+    .workspace-chat .teams-chat-title-group .user-avatar,
+    .workspace-chat .teams-chat-title-group .teams-room-avatar { --user-avatar-size: 38px !important; width: 38px; height: 38px; flex-basis: 38px; }
+    .workspace-chat .teams-chat-title-group h1 { font-size: 14px; line-height: 1.25; }
+    .workspace-chat .teams-chat-title-group p { margin-top: 2px; font-size: 10px; }
+    .workspace-chat .teams-chat-actions { gap: 1px; padding: 2px; border-radius: 11px; }
+    .workspace-chat .teams-chat-actions .teams-icon-button { width: 34px; height: 36px; border-radius: 9px; font-size: 18px; }
+    .workspace-chat .teams-message-viewport { padding: 20px 12px; }
+    .workspace-chat .teams-message-stack { max-width: 83%; }
+    .workspace-chat .teams-message-bubble { font-size: 13px; }
+    .workspace-chat .teams-composer-wrap { padding: 7px 8px max(7px, env(safe-area-inset-bottom)); }
+    .workspace-chat .teams-composer { flex-wrap: nowrap; min-height: 44px; padding: 3px 4px; }
+    .workspace-chat .teams-composer textarea { order: initial; flex: 1 1 auto; width: auto; min-height: 32px; max-height: 96px; padding-inline: 5px; }
+    .workspace-chat .teams-composer-tools { flex: 0 0 auto; }
+    .application-shell.workspace-chat .teams-composer-tools button { width: 30px; height: 30px; font-size: 16px; }
+    .workspace-chat .teams-send-button { width: 34px; height: 34px; }
+    .workspace-chat .sticker-picker { left: 8px; width: calc(100% - 16px); max-height: min(420px, calc(100dvh - 150px)); }
+    .workspace-chat .composer-help { display: none; }
+    .workspace-chat .teams-room-search-bar { left: 8px; right: 8px; width: auto; }
+    .chat-info-drawer { width: 100vw; }
+    .workspace-chat .workspace-header-context .workspace-role-badge { display: none; }
+}
+@media(max-width: 380px) {
+    .workspace-chat .teams-chat-header { padding-inline: 8px; gap: 5px; }
+    .workspace-chat .teams-chat-title-group { gap: 7px; }
+    .workspace-chat .teams-chat-actions { gap: 0; }
+    .workspace-chat .teams-chat-actions .teams-icon-button { width: 31px; }
+    .application-shell.workspace-chat .teams-composer-tools button { width: 28px; height: 28px; }
+    .workspace-chat .teams-send-button { width: 32px; height: 32px; }
+}
+@media(pointer: coarse) { .workspace-chat .teams-message-toolbar button { min-width: 38px; min-height: 38px; } }
+@media(prefers-reduced-motion: reduce) { .workspace-chat *, .workspace-chat *::before { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+[data-bs-theme="dark"] body.workspace-chat { --teams-panel: #222432; --teams-panel-soft: #2b2d3d; --teams-bg: #1b1d29; --teams-text: #ececf4; --teams-muted: #b1b1c5; --workspace-border: #3b3d50; --workspace-tint: #353048; --workspace-accent: #c6b6ff; --chat-message-own-bg: linear-gradient(135deg, #3b82f6 0%, #4f46e5 100%); --chat-message-own-border: #60a5fa; --chat-message-own-text: #fff; --chat-message-other-bg: linear-gradient(145deg, #292c3b 0%, #252735 100%); --chat-message-other-border: #3b3f54; --chat-message-other-text: #ececf4; }
+[data-bs-theme="dark"] .application-shell.workspace-chat .page-content, [data-bs-theme="dark"] .workspace-chat .teams-message-viewport { background: #1b1d29; }
+[data-bs-theme="dark"] .workspace-chat :is(.conversation-list, .teams-chat-header, .teams-composer-wrap, .teams-composer) { background: var(--teams-panel); border-color: var(--workspace-border); }
+[data-bs-theme="dark"] .workspace-chat .teams-panel-header h1 { color: var(--teams-text); }
+[data-bs-theme="dark"] .workspace-chat .teams-chat-actions { background: var(--teams-panel-soft); border-color: var(--workspace-border); }
+[data-bs-theme="dark"] .workspace-chat .teams-send-button { color: #252537; }
+[data-bs-theme="dark"] .application-shell.workspace-chat.chat-mobile-room .chat-mobile-back:hover { border-color: var(--workspace-border); background: var(--teams-panel-soft); }

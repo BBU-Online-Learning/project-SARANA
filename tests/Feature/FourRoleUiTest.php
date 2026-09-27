@@ -20,6 +20,24 @@ beforeEach(function (): void {
     Storage::fake('public');
 });
 
+test('BBU branding appears on guest and authenticated application shells', function (): void {
+    expect(public_path('images/branding/bbu-online-learning.png'))->toBeFile()
+        ->and(public_path('images/branding/bbu-mark.png'))->toBeFile()
+        ->and(public_path('images/branding/favicon.png'))->toBeFile();
+
+    $this->get(route('login'))->assertOk()
+        ->assertSee(asset('images/branding/bbu-online-learning.png'), false)
+        ->assertSee(asset('images/branding/favicon.png'), false)
+        ->assertSee('alt="BBU Online Learning"', false)
+        ->assertDontSee('backend/assets/images/logo-dark.png', false);
+
+    $this->actingAs(securityTestUser())->get(route('home'))->assertOk()
+        ->assertSee(asset('images/branding/bbu-mark.png'), false)
+        ->assertSee(asset('images/branding/favicon.png'), false)
+        ->assertSee(asset('css/brand.css'), false)
+        ->assertSee('aria-label="'.config('app.name').' home"', false);
+});
+
 test('authentication navigation uses live routes without bypassing onboarding', function (): void {
     $this->get(route('login'))->assertOk()->assertDontSee('href="index.html"', false);
     $user = securityTestUser();
@@ -71,6 +89,8 @@ test('shared navigation has permitted real links and no excluded template contro
     foreach (['home', 'profile.edit', 'chat.index', 'classes.index'] as $route) {
         $response = $this->get(route($route))->assertOk()
             ->assertSee(route('home'))->assertSee(route('classes.index'))->assertSee(route('chat.index'))->assertSee(route('profile.edit'))->assertSee(route('logout'))
+            ->assertSee('class="workspace-header-icon"', false)
+            ->assertSee('class="workspace-mobile-only workspace-topbar-button"', false)
             ->assertDontSee('apps-calendar.html')->assertDontSee('Products &amp; Inventory', false)->assertDontSee('dashboard-sales.js')
             ->assertDontSee('href="#"', false)->assertDontSee('aria-label="Calls"', false)->assertDontSee('aria-label="Calendar"', false);
         if (in_array($role, ['admin', 'super_admin'], true)) {
@@ -90,7 +110,7 @@ test('shared navigation has permitted real links and no excluded template contro
         }
     }
     $chat = $this->get(route('chat.index'))->assertOk()
-        ->assertSee('data-shell-toggle', false)->assertSee('data-chat-list', false)->assertSee('chat-load-status')
+        ->assertSee('data-shell-toggle', false)->assertDontSee('data-chat-list', false)->assertSee('chat-load-status')
         ->assertSee('workspace-chat')->assertSee('workspace-role-badge')
         ->assertSee('id="chat-conversations"', false)
         ->assertDontSee('id="chat-navigation"', false)->assertDontSee('data-chat-menu', false);
@@ -99,11 +119,97 @@ test('shared navigation has permitted real links and no excluded template contro
         ->and(substr_count($chat->getContent(), asset('css/teamstyle.css')))->toBe(1);
 })->with(Role::NAMES);
 
+test('phone navigation exposes five permitted destinations and updates the active destination', function (string $role): void {
+    $this->actingAs(securityTestUser($role));
+    $dashboard = $this->get(route('home'))->assertOk()->assertSee(asset('css/mobile-workspace.css'), false);
+    preg_match('/<nav class="workspace-mobile-nav"[^>]*>(.*?)<\/nav>/s', $dashboard->getContent(), $matches);
+    $mobileNavigation = $matches[1] ?? '';
+
+    expect($mobileNavigation)->not->toBeEmpty()
+        ->and(substr_count($mobileNavigation, 'data-workspace-nav'))->toBe(5)
+        ->and(substr_count($mobileNavigation, 'aria-current="page"'))->toBe(1)
+        ->and($mobileNavigation)->toContain(route('home'), route('classes.index'), route('chat.index'), route('profile.edit'));
+
+    if (in_array($role, ['admin', 'super_admin'], true)) {
+        expect($mobileNavigation)->toContain(route('users.index'))->not->toContain(route('assessments.index'));
+    } else {
+        expect($mobileNavigation)->toContain(route('assessments.index'))->not->toContain(route('users.index'));
+    }
+
+    $chat = $this->get(route('chat.index'))->assertOk();
+    preg_match('/<nav class="workspace-mobile-nav"[^>]*>(.*?)<\/nav>/s', $chat->getContent(), $chatMatches);
+    expect($chatMatches[1] ?? '')->toContain('href="'.route('chat.index').'" class="workspace-mobile-nav-link active"')
+        ->and(substr_count($chatMatches[1] ?? '', 'aria-current="page"'))->toBe(1);
+
+    expect(file_get_contents(public_path('js/workspace.js')))
+        ->toContain('currentMobileNavigation.replaceWith(nextMobileNavigation)', 'mobileStyle.before(link)');
+})->with(Role::NAMES);
+
+test('chat uses the same application sidebar as the rest of the workspace', function (): void {
+    $workspaceStyles = file_get_contents(public_path('css/workspace.css'));
+    $chatStyles = file_get_contents(public_path('css/chat-workspace.css'));
+
+    expect($workspaceStyles)->toContain('.application-shell .sidenav-menu', 'width: 240px', '.workspace-sidebar-close')
+        ->toContain('.application-shell.workspace-sidebar-collapsed .sidenav-menu', 'width: 76px', '.workspace-sidebar-collapsed .page-content')
+        ->toContain('.workspace-sidebar-identity', '.workspace-role-indicator', '.workspace-role-copy')
+        ->toContain('--workspace-sidebar-bg: #111a3a', '--workspace-sidebar-active: #2563eb', '--workspace-sidebar-muted: #aebbdd')
+        ->toContain('.application-shell.workspace-navigating', '@keyframes workspace-navigation-progress')
+        ->and($chatStyles)->not->toContain('.application-shell.workspace-chat .sidenav-menu', '--osen-sidenav-width: 104px');
+
+    $this->actingAs(securityTestUser('admin'));
+    foreach (['home', 'chat.index'] as $route) {
+        $this->get(route($route))->assertOk()
+            ->assertSee('class="workspace-brand-logo"', false)
+            ->assertSee('class="workspace-sidebar-close"', false)
+            ->assertSee('data-shell-collapse', false)
+            ->assertSee('class="ti ti-layout-sidebar-left-collapse"', false)
+            ->assertSee('class="workspace-sidebar-identity"', false)
+            ->assertSee('class="workspace-role-indicator"', false)
+            ->assertSee('aria-label="Close navigation"', false)
+            ->assertSee('id="workspace-navigation-status"', false)
+            ->assertSee('class="workspace-nav-link active"', false);
+    }
+});
+
+test('workspace shell stays aligned when the theme condenses its sidebar', function (): void {
+    $workspaceStyles = file_get_contents(public_path('css/workspace.css'));
+    $learningStyles = file_get_contents(public_path('css/learning-workspace.css'));
+
+    expect($workspaceStyles)
+        ->toContain('body.application-shell { --workspace-shell-sidebar-width: 240px; }')
+        ->toContain('body.application-shell.workspace-sidebar-collapsed { --workspace-shell-sidebar-width: 76px; }')
+        ->toContain('html[data-sidenav-size] body.application-shell .sidenav-menu {')
+        ->toContain('html[data-sidenav-size] body.application-shell .page-content { margin-left: var(--workspace-shell-sidebar-width); }')
+        ->toContain('left: var(--workspace-shell-sidebar-width);')
+        ->toContain('html[data-sidenav-size] body.application-shell .app-topbar { left: 0 !important; margin-left: 0 !important; }')
+        ->and($learningStyles)
+        ->toContain('.learning-workspace .workspace-page .profile-hero {')
+        ->toContain('background: linear-gradient(115deg, #1d4ed8, #4f46e5 58%, #6d3bd3);');
+});
+
+test('workspace sidebar uses partial navigation for every primary page including chat', function (): void {
+    $response = $this->actingAs(securityTestUser('admin'))->get(route('home'))->assertOk();
+    $html = $response->getContent();
+
+    expect($html)->toMatch('/title="Dashboard"\s+data-workspace-nav/')
+        ->toMatch('/title="Class administration"\s+data-workspace-nav/')
+        ->toMatch('/title="My profile"\s+data-workspace-nav/')
+        ->toMatch('/title="Chats"\s+data-workspace-nav/');
+
+    expect($html)->toMatch('/title="My profile"[^>]*>\s*<span[^>]*class="user-avatar"/s')
+        ->toContain('class="user-avatar-initials"');
+    expect(file_get_contents(public_path('css/workspace.css')))
+        ->toContain('.workspace-sidebar-collapsed .workspace-nav-link > .workspace-nav-label')
+        ->not->toContain('.workspace-sidebar-collapsed .workspace-nav-link > span {');
+});
+
 test('empty dashboards are genuine zero states for teachers and students', function (string $role): void {
-    $this->actingAs(securityTestUser($role))->get(route('home'))->assertOk()
+    $response = $this->actingAs(securityTestUser($role))->get(route('home'))->assertOk()
         ->assertViewHas('classCounts', ['active' => 0, 'archived' => 0])
         ->assertViewHas('conversationCounts', ['direct' => 0, 'group' => 0])
-        ->assertSee('No classes yet')->assertSee('No conversations yet');
+        ->assertSee('No classes yet');
+
+    $response->assertSee('0 direct · 0 groups');
 })->with(['teacher', 'student']);
 
 test('all four roles may update only their own personal details', function (string $role): void {
@@ -222,15 +328,57 @@ test('role dashboards show their own workspace and permitted quick actions', fun
     ['student', 'Learning dashboard'],
 ]);
 
+test('core workspace pages use the shared semantic color system', function (): void {
+    $admin = securityTestUser('admin');
+
+    $this->actingAs($admin)->get(route('home'))->assertOk()
+        ->assertSee('management-dashboard-hero', false)
+        ->assertSee('management-metrics', false)
+        ->assertSee('management-account-grid', false)
+        ->assertSee('management-quick-actions', false);
+
+    $this->get(route('users.index'))->assertOk()
+        ->assertSee('account-page-heading', false)
+        ->assertSee('account-table-card', false);
+
+    $this->get(route('classes.index'))->assertOk()
+        ->assertSee('class-hero', false)
+        ->assertSee('class-total-badge', false);
+
+    $this->get(route('roles.index'))->assertOk()
+        ->assertSee('roles-page-heading', false)
+        ->assertSee('workspace-info-panel', false)
+        ->assertSee('role-admin', false)
+        ->assertSee('data-label="Definition"', false);
+
+    $this->get(route('profile.edit'))->assertOk()
+        ->assertSee('profile-details-card', false)
+        ->assertSee('profile-security-card', false)
+        ->assertSee('profile-security-status', false);
+
+    $styles = file_get_contents(public_path('css/workspace.css'));
+    expect($styles)->toContain('--workspace-purple: #7c3aed', '--workspace-teal: #0f766e', '--workspace-warning: #b45309')
+        ->toContain('.workspace-page-heading', '.workspace-badge', '.profile-security-status');
+});
+
 test('class forms and navigation match backend permissions for every role', function (string $role): void {
     $user = securityTestUser($role);
     $response = $this->actingAs($user)->get(route('classes.index'))->assertOk()
         ->assertSee('id="join-class"', false);
 
+    if (in_array($role, ['teacher', 'student'], true)) {
+        $response->assertSee('classes-page-hero', false)
+            ->assertSee('classes-summary', false)
+            ->assertSee('classes-directory', false);
+    }
+
     if ($user->can('manage-classes')) {
-        $response->assertSee('id="create-class"', false)->assertSee('action="'.route('classes.store').'"', false);
+        $response->assertSee('id="create-class"', false)
+            ->assertSee('action="'.route('classes.store').'"', false)
+            ->assertSee('class="ti ti-school"', false)
+            ->assertDontSee('ti-school-plus', false);
     } else {
-        $response->assertDontSee('id="create-class"', false)->assertDontSee('action="'.route('classes.store').'"', false);
+        $response->assertDontSee('id="create-class"', false)->assertDontSee('method="POST" action="'.route('classes.store').'"', false);
         $this->postJson(route('classes.store'), ['name' => 'Forbidden class'])->assertForbidden();
     }
 
@@ -245,20 +393,25 @@ test('class forms and navigation match backend permissions for every role', func
     }
 })->with(Role::NAMES);
 
-test('learning design is scoped to teachers and students with distinct dashboard layouts', function (string $role): void {
+test('all roles use the shared visual system with role specific dashboard layouts', function (string $role): void {
     $response = $this->actingAs(securityTestUser($role))->get(route('home'))->assertOk();
 
-    if (in_array($role, ['teacher', 'student'], true)) {
-        $response->assertSee(asset('css/learning-workspace.css'));
-        if ($role === 'teacher') {
-            $response->assertSee('Ready for your next class?')->assertSee('class="learning-stats"', false)
-                ->assertDontSee('Your next step starts here.');
-        } else {
-            $response->assertSee('Your next step starts here.')->assertSee('class="learning-class-grid"', false)
-                ->assertDontSee('class="learning-stats"', false);
-        }
+    $response->assertSee(asset('css/learning-workspace.css'))
+        ->assertSee('class="application-shell learning-workspace', false);
+
+    if ($role === 'teacher') {
+        $response->assertSee('Ready for your next class?')->assertSee('class="teacher-metrics"', false)
+            ->assertSee('Teaching Overview')->assertSee('Quick Actions')
+            ->assertDontSee('Your next step starts here.');
+    } elseif ($role === 'student') {
+        $response->assertSee('Your next step starts here.')->assertSee('student-dashboard-hero', false)
+            ->assertSee('student-metrics', false)->assertSee('student-dashboard-class-grid', false)
+            ->assertSee('Learning Overview')->assertSee('Quick Actions');
     } else {
-        $response->assertDontSee(asset('css/learning-workspace.css'));
+        $response->assertSee('management-dashboard-hero', false)
+            ->assertSee('management-metrics', false)
+            ->assertSee('management-account-grid', false)
+            ->assertSee('management-quick-actions', false);
     }
 })->with(Role::NAMES);
 

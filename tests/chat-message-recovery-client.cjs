@@ -57,7 +57,7 @@ const container = {
 
 const form = {
     matches: selector => selector === '#message-form',
-    querySelector: selector => selector === 'input[name="body"]' ? input : null,
+    querySelector: selector => selector === '[name="body"]' ? input : null,
 };
 
 const document = {
@@ -67,7 +67,7 @@ const document = {
     },
     querySelector(selector) {
         if (selector === '.messages-container') return container;
-        if (selector === '#message-form input[name="body"]' || selector === "#message-form input[name='body']") return input;
+        if (selector === '#message-form [name="body"]' || selector === "#message-form [name='body']") return input;
         if (selector === '[data-message-id="55"]') return editedMessage;
         const clientId = selector.match(/^\[data-client-id="([^"]+)"\]$/)?.[1];
         return clientId ? optimisticMessages.get(clientId) || null : null;
@@ -118,7 +118,7 @@ const expectedUuid = lanMode ? '00000000-0000-4000-8000-000000000000' : 'failed-
 const browserCrypto = lanMode
     ? { getRandomValues: bytes => bytes.fill(0) }
     : { randomUUID: () => expectedUuid };
-const context = vm.createContext({ window, document, axios, crypto: browserCrypto, console: { ...console, error() {} }, setTimeout, clearTimeout });
+const context = vm.createContext({ window, document, axios, crypto: browserCrypto, AbortController, console: { ...console, error() {} }, setTimeout, clearTimeout });
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/chat/messages.js'), 'utf8'), context);
 
 async function dispatch(name, event) {
@@ -160,6 +160,50 @@ async function dispatch(name, event) {
     assert.equal(postCount, 3);
     assert.equal(posts[2].url, '/chat/rooms/4/messages');
     assert.equal(posts[2].payload.sticker_id, 'star_thumbs_up');
+
+    let pendingFile = true;
+    const previewStates = [];
+    const clearedSignatures = [];
+    window.ChatAttachments = {
+        hasPending: () => pendingFile,
+        count: () => 1,
+        signature: () => 'lesson.pdf:4:1',
+        buildFormData: () => ({ attachment: 'lesson.pdf' }),
+        setSending(sending) { previewStates.push(sending); },
+        clearIfSignature(signature) {
+            clearedSignatures.push(signature);
+            pendingFile = false;
+        },
+    };
+    let finishUpload;
+    axios.post = () => new Promise((resolve, reject) => { finishUpload = { resolve, reject }; });
+
+    input.value = 'Lesson file';
+    const successfulUpload = dispatch('submit', { target: form, preventDefault() {} });
+    assert.deepEqual(previewStates, [true]);
+    finishUpload.resolve({ data: { success: true } });
+    await successfulUpload;
+    assert.deepEqual(previewStates, [true, false]);
+    assert.deepEqual(clearedSignatures, ['lesson.pdf:4:1']);
+    assert.equal(pendingFile, false);
+
+    pendingFile = true;
+    input.value = 'Retry this file';
+    const failedUpload = dispatch('submit', { target: form, preventDefault() {} });
+    assert.deepEqual(previewStates, [true, false, true]);
+    finishUpload.reject(new Error('Upload offline'));
+    await failedUpload;
+    assert.deepEqual(previewStates, [true, false, true, false]);
+    assert.equal(pendingFile, true);
+    assert.equal(clearedSignatures.length, 1);
+
+    const retriedUpload = dispatch('submit', { target: form, preventDefault() {} });
+    assert.deepEqual(previewStates, [true, false, true, false, true]);
+    finishUpload.resolve({ data: { success: true } });
+    await retriedUpload;
+    assert.deepEqual(previewStates, [true, false, true, false, true, false]);
+    assert.equal(pendingFile, false);
+    assert.equal(clearedSignatures.length, 2);
     console.log('Failed message draft recovery and retry checks passed.');
 })().catch(error => {
     console.error(error);

@@ -16,6 +16,8 @@ function initializeChatRealtime() {
         showChatLoadStatus('Live updates are unavailable. Reload to reconnect.', true);
     }
     startPresencePing();
+    const initialRoom = document.querySelector(`.room-item[data-room-id="${window.chat.initialRoomId || ''}"]`);
+    if (initialRoom) requestAnimationFrame(() => activateRoomItem(initialRoom));
     /*
     |--------------------------------------------------------------------------
     | EVENT DELEGATION
@@ -48,6 +50,7 @@ async function activateRoomItem(roomItem) {
     const roomId = roomItem.dataset.roomId;
 
     if (window.chat.activeRoomId == roomId && document.getElementById('chat-load-status')?.hidden !== false) {
+        document.body.classList.add('chat-mobile-room');
         return;
     }
 
@@ -68,6 +71,9 @@ if (document.readyState === "loading") {
 let roomRequestController = null;
 let currentLoadToken = 0;
 let checkingMembership = false;
+let observedMessageContainer = null;
+let followLatestMessage = false;
+let bottomAlignmentFrame = null;
 
 function showChatLoadStatus(message, failed = false) {
     const status = document.getElementById('chat-load-status');
@@ -127,6 +133,7 @@ window.addEventListener('online', refreshRoomMembership);
 window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
 async function loadRoom(roomId, roomItem = null) {
     const token = ++currentLoadToken;
+    window.ChatWorkspace?.setLoading(true);
     showChatLoadStatus('Loading conversation...');
     window.resetRoomSearchState?.();
     window.StickerPicker?.close?.();
@@ -158,6 +165,7 @@ async function loadRoom(roomId, roomItem = null) {
 
         // STORE ACTIVE ROOM
         const previousRoomId = window.chat.activeRoomId;
+        window.ChatWorkspace?.saveDraft();
         window.chat.activeRoomId = roomId;
         window.chat.roomType = response.data.room_type;
         window.chat.membershipId = response.data.membership_id;
@@ -171,6 +179,8 @@ async function loadRoom(roomId, roomItem = null) {
 
         document.getElementById("chat-room-container").innerHTML =
             response.data.html;
+        window.ChatForward?.resetSelection?.();
+        window.ChatWorkspace?.restoreDraft(roomId);
         document.body.classList.add('chat-mobile-room');
         showChatLoadStatus(window.Echo ? '' : 'Live updates are unavailable. Reload to reconnect.', !window.Echo);
 
@@ -198,6 +208,7 @@ async function loadRoom(roomId, roomItem = null) {
 
         scrollMessagesToBottom();
         window.ChatReads?.attach();
+        if (document.hasFocus()) window.NotificationCenter?.readRoom(roomId);
         // ← ADD THIS
         updatePresenceUI();
     } catch (error) {
@@ -207,6 +218,8 @@ async function loadRoom(roomId, roomItem = null) {
         }
         showChatLoadStatus('Could not open this conversation. Choose it again to retry, or reload to check your access.', true);
         console.error("Failed loading room:", error);
+    } finally {
+        if (token === currentLoadToken) window.ChatWorkspace?.setLoading(false);
     }
 }
 
@@ -249,9 +262,21 @@ function subscribeSidebarUpdates() {
         .listen(".sidebar.updated", updateConversationList)
         .listen(".unread.count.updated", handleUnreadCountUpdated);
 }
+
+function isRoomVisible(roomId) {
+    if (!roomId || String(roomId) !== String(window.chat?.activeRoomId)
+        || !document.body.classList.contains('workspace-chat')
+        || document.hidden || !document.hasFocus()) return false;
+
+    if (window.matchMedia?.('(max-width: 760px)')?.matches
+        && !document.body.classList.contains('chat-mobile-room')) return false;
+
+    return !!document.querySelector('#chat-room-container .messages-container');
+}
+
 function handleUnreadCountUpdated(event) {
     const roomItem = document.querySelector(
-        `[data-room-id="${event.room_id}"]`,
+        `.room-item[data-room-id="${event.room_id}"]`,
     );
 
     if (!roomItem) {
@@ -266,16 +291,17 @@ function handleUnreadCountUpdated(event) {
 
     // Look for an existing badge inside this room card
     let badge = previewRow.querySelector(".unread-badge");
+    const unreadCount = Math.max(0, Number(event.unread_count) || 0);
 
-    if (event.unread_count > 0) {
+    if (unreadCount > 0) {
         if (badge) {
             // Update existing badge in place
-            badge.textContent = event.unread_count;
+            badge.textContent = unreadCount;
         } else {
             // Create and append a new badge
             badge = document.createElement("span");
             badge.className = "unread-badge";
-            badge.textContent = event.unread_count;
+            badge.textContent = unreadCount;
             previewRow.appendChild(badge);
         }
     } else {
@@ -284,19 +310,23 @@ function handleUnreadCountUpdated(event) {
             badge.remove();
         }
     }
+
+    if (document.querySelector('[data-conversation-filter="unread"][aria-pressed="true"]')) {
+        window.filterConversationList?.(document.getElementById('chat-search-input')?.value.trim().toLowerCase() || '');
+    }
 }
 //Create Incoming Message Handler
 window.ChatRealtime = {
+    isRoomVisible,
+
     async handleIncomingMessage(event) {
         await appendIncomingMessage(event);
 
         // Only mark as read if this message actually belongs to the room
         // currently open in the UI — not just "whatever activeRoomId says"
-        if (
-            String(event.room_id) === String(window.chat.activeRoomId) &&
-            document.hasFocus()
-        ) {
+        if (isRoomVisible(event.room_id)) {
             await markRoomAsRead();
+            await window.NotificationCenter?.readRoom(event.room_id);
         }
     },
 
@@ -373,13 +403,42 @@ function initializeInfiniteScroll() {
         return;
     }
 
+    if (observedMessageContainer) {
+        observedMessageContainer.removeEventListener('load', alignAfterMediaLoad, true);
+        observedMessageContainer.removeEventListener('error', alignAfterMediaLoad, true);
+        observedMessageContainer.removeEventListener('loadedmetadata', alignAfterMediaLoad, true);
+    }
+    if (bottomAlignmentFrame !== null) cancelAnimationFrame(bottomAlignmentFrame);
+    observedMessageContainer = container;
+    followLatestMessage = true;
+    container.addEventListener('load', alignAfterMediaLoad, true);
+    container.addEventListener('error', alignAfterMediaLoad, true);
+    container.addEventListener('loadedmetadata', alignAfterMediaLoad, true);
+
     container.onscroll = async () => {
-        if (isNearMessagesBottom(container)) hideNewMessageIndicator();
+        followLatestMessage = isNearMessagesBottom(container);
+        if (followLatestMessage) hideNewMessageIndicator();
 
         if (container.scrollTop < 100) {
             await loadOlderMessages();
         }
     };
+}
+
+function alignAfterMediaLoad(event) {
+    if (!event.target?.matches?.('.message-attachment-thumb, .sticker-message img, .video-attachment-card video')) return;
+    scheduleBottomAlignment(observedMessageContainer);
+}
+
+function scheduleBottomAlignment(container) {
+    if (!container || container !== observedMessageContainer || !followLatestMessage) return;
+    if (bottomAlignmentFrame !== null) cancelAnimationFrame(bottomAlignmentFrame);
+    bottomAlignmentFrame = requestAnimationFrame(() => {
+        bottomAlignmentFrame = null;
+        if (container === observedMessageContainer && followLatestMessage) {
+            container.scrollTop = container.scrollHeight;
+        }
+    });
 }
 //load Older Messages
 async function loadOlderMessages() {
@@ -424,11 +483,18 @@ function prependMessages(html) {
 }
 
 function updateConversationList(event) {
-    const room = document.querySelector(`[data-room-id="${event.room_id}"]`);
+    const room = document.querySelector(`.room-item[data-room-id="${event.room_id}"]`);
 
     if (!room) {
         return;
     }
+
+    const incomingMessageId = Number(event.message_id) || 0;
+    const lastMessageId = Number(room.dataset.lastMessageId) || 0;
+    if (incomingMessageId && lastMessageId && incomingMessageId < lastMessageId) {
+        return;
+    }
+    if (incomingMessageId) room.dataset.lastMessageId = String(incomingMessageId);
 
     const message = room.querySelector(".room-last-message");
 
@@ -441,6 +507,8 @@ function updateConversationList(event) {
     if (time) {
         time.innerText = event.created_at;
     }
+
+    if (event.unread_count !== undefined) handleUnreadCountUpdated(event);
 
     // ← ADD THIS: move to top of the list
     room.parentElement.prepend(room);
@@ -561,11 +629,15 @@ function scrollMessagesToBottom({ smooth = false } = {}) {
         return;
     }
 
+    if (messageContainer === observedMessageContainer) followLatestMessage = true;
+
     if (smooth && typeof messageContainer.scrollTo === "function") {
         messageContainer.scrollTo({ top: messageContainer.scrollHeight, behavior: "smooth" });
     } else {
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
+
+    if (!smooth) scheduleBottomAlignment(messageContainer);
 
     hideNewMessageIndicator();
 }

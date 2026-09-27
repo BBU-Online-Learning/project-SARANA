@@ -29,7 +29,7 @@ const form = {
         return selector === '#message-form';
     },
     querySelector(selector) {
-        if (selector === 'input[name="body"]') {
+        if (selector === '[name="body"]') {
             return input;
         }
 
@@ -46,7 +46,7 @@ const document = {
             return container;
         }
 
-        if (selector === '#message-form input[name="body"]') {
+        if (selector === '#message-form [name="body"]') {
             return input;
         }
 

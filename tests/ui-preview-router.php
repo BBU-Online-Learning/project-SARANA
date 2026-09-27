@@ -9,10 +9,10 @@ if (getenv('APP_ENV') !== 'testing' || ! $directory
     exit;
 }
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if (preg_match('#^/(css|js|backend|build)/[a-zA-Z0-9_./-]+$#', $path) && ! str_contains($path, '..')) {
+if (preg_match('#^/(css|js|images|backend|build)/[a-zA-Z0-9_./-]+$#', $path) && ! str_contains($path, '..')) {
     return false;
 }
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^/(super_admin|admin|teacher|student)-(home|profile-edit|chat-index|classes-index)\.html$#', $path)) {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^/(super_admin|admin|teacher|student)-(home|profile-edit|chat-index|chat-direct|chat-group|classes-index)\.html$#', $path)) {
     $file = $directory.$path;
     if (is_file($file)) {
         header('Content-Type: text/html; charset=utf-8');

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Chat\AttachmentController;
 use App\Http\Controllers\Chat\ChatRoomController;
+use App\Http\Controllers\Chat\GroupInviteController;
 use App\Http\Controllers\Chat\GroupMembershipController;
 use App\Http\Controllers\Chat\MessageController;
 use App\Http\Controllers\Chat\MessageReactionController;
@@ -12,6 +13,14 @@ use App\Http\Controllers\Chat\VoiceCallController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'twofactor.setup'])->prefix('chat')->group(function (): void {
+    Route::get('/invites/{invite}', [GroupInviteController::class, 'show'])
+        ->middleware('signed.flexible')->name('chat.group-invites.show');
+    Route::post('/invites/{invite}/join', [GroupInviteController::class, 'join'])
+        ->middleware(['signed.flexible', 'throttle:10,1'])->name('chat.group-invites.join');
+    Route::post('/groups/{room}/invite', [GroupInviteController::class, 'store'])
+        ->middleware('throttle:10,1')->name('chat.groups.invites.store');
+    Route::delete('/groups/{room}/invite/{invite}', [GroupInviteController::class, 'destroy'])
+        ->middleware('throttle:10,1')->name('chat.groups.invites.destroy');
     Route::get('/rooms/{room}/access', [GroupMembershipController::class, 'access'])->name('chat.rooms.access');
     Route::get('/groups/{room}', [GroupMembershipController::class, 'show'])->name('chat.groups.show');
     Route::patch('/groups/{room}', [GroupMembershipController::class, 'update'])->name('chat.groups.update');
@@ -79,6 +88,7 @@ Route::prefix('chat')  // Adds /chat to the beginning of every route inside the 
         Route::get('/rooms/{room}/older-messages', [MessageController::class, 'olderMessages']);
 
         Route::post('/rooms/{room}/messages', [MessageController::class, 'store'])->name('messages.store');
+        Route::post('/messages/forward', [MessageController::class, 'forward'])->name('messages.forward');
         Route::put('/messages/{message}', [MessageController::class, 'update']);
         Route::delete('/messages/{message}', [MessageController::class, 'destroy']);
         Route::post('/messages/{message}/hide', [MessageController::class, 'hideForMe']);

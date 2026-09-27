@@ -30,7 +30,7 @@ class AttachmentController extends Controller
     private function deliver(Attachment $attachment, bool $thumbnail = false, bool $download = false): BinaryFileResponse
     {
         Gate::authorize('view', $attachment);
-        $media = $attachment->getFirstMedia('attachment');
+        $media = $attachment->mediaForDelivery();
         abort_unless($media, 404);
         abort_if(str_contains($media->file_name, '/') || str_contains($media->file_name, '\\'), 404);
         abort_if($thumbnail && ! $attachment->isImage(), 404);

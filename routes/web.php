@@ -2,10 +2,18 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordRecoveryController;
+use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Quiz\AssessmentController;
+use App\Http\Controllers\Quiz\QuizAssignmentController;
+use App\Http\Controllers\Quiz\QuizAttemptController;
+use App\Http\Controllers\Quiz\QuizController;
+use App\Http\Controllers\Quiz\QuizQuestionController;
+use App\Http\Controllers\Quiz\QuizResultController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassChannelMessageController;
 use App\Http\Controllers\SchoolClassController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +33,14 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
     ->name('home');
 
 Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
+    Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::patch('/settings/application', [SettingsController::class, 'updateApplication'])->name('settings.application.update');
+    Route::get('/notifications', [NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-room', [NotificationCenterController::class, 'readRoom'])->name('notifications.read-room');
+    Route::patch('/notifications/{notification}/read', [NotificationCenterController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationCenterController::class, 'readAll'])->name('notifications.read-all');
+    Route::delete('/notifications', [NotificationCenterController::class, 'clearAll'])->name('notifications.clear-all');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/users/{user}/profile', [ProfileController::class, 'show'])->name('users.profile');
@@ -67,6 +83,7 @@ Route::post('/change-password', [LoginController::class, 'changePassword'])
 
 // School class
 Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function () {
+    Route::get('/assessments', [AssessmentController::class, 'overview'])->name('assessments.index');
     Route::get('/classes', [SchoolClassController::class, 'index'])->name('classes.index');
     Route::post('/classes', [SchoolClassController::class, 'store'])->middleware('can:manage-classes')->name('classes.store');
     Route::post('/classes/join', [SchoolClassController::class, 'join'])->name('classes.join');
@@ -109,6 +126,31 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::delete('/classes/{schoolClass}/channels/{channel}', [SchoolClassController::class, 'removeChannel'])
         ->middleware('can:manageChannels,schoolClass')
         ->name('classes.channels.destroy');
+
+    Route::get('/classes/{schoolClass}/assessments', AssessmentController::class)->name('classes.assessments.index');
+    Route::get('/classes/{schoolClass}/quizzes/create', [QuizController::class, 'create'])->name('classes.quizzes.create');
+    Route::post('/classes/{schoolClass}/quizzes', [QuizController::class, 'store'])->name('classes.quizzes.store');
+    Route::get('/classes/{schoolClass}/quizzes/{quiz}/edit', [QuizController::class, 'edit'])->name('classes.quizzes.edit');
+    Route::patch('/classes/{schoolClass}/quizzes/{quiz}', [QuizController::class, 'update'])->name('classes.quizzes.update');
+    Route::delete('/classes/{schoolClass}/quizzes/{quiz}', [QuizController::class, 'destroy'])->name('classes.quizzes.destroy');
+    Route::get('/classes/{schoolClass}/quizzes/{quiz}/preview', [QuizController::class, 'preview'])->name('classes.quizzes.preview');
+    Route::post('/classes/{schoolClass}/quizzes/{quiz}/publish', [QuizController::class, 'publish'])->name('classes.quizzes.publish');
+    Route::post('/classes/{schoolClass}/quizzes/{quiz}/questions', [QuizQuestionController::class, 'store'])->name('classes.quizzes.questions.store');
+    Route::patch('/classes/{schoolClass}/quizzes/{quiz}/questions/{question}', [QuizQuestionController::class, 'update'])->name('classes.quizzes.questions.update');
+    Route::delete('/classes/{schoolClass}/quizzes/{quiz}/questions/{question}', [QuizQuestionController::class, 'destroy'])->name('classes.quizzes.questions.destroy');
+    Route::post('/classes/{schoolClass}/quizzes/{quiz}/questions/{question}/duplicate', [QuizQuestionController::class, 'duplicate'])->name('classes.quizzes.questions.duplicate');
+    Route::post('/classes/{schoolClass}/quizzes/{quiz}/questions/{question}/move/{direction}', [QuizQuestionController::class, 'move'])->name('classes.quizzes.questions.move');
+    Route::get('/classes/{schoolClass}/quizzes/{quiz}/assign', [QuizAssignmentController::class, 'create'])->name('classes.quizzes.assign.create');
+    Route::post('/classes/{schoolClass}/quizzes/{quiz}/assign', [QuizAssignmentController::class, 'store'])->name('classes.quizzes.assign.store');
+    Route::post('/classes/{schoolClass}/quiz-assignments/{assignment}/release', [QuizAssignmentController::class, 'release'])->name('classes.quiz-assignments.release');
+    Route::post('/classes/{schoolClass}/quiz-assignments/{assignment}/start', [QuizAttemptController::class, 'start'])->name('classes.quiz-assignments.start');
+    Route::get('/classes/{schoolClass}/quiz-attempts/{attempt}', [QuizAttemptController::class, 'show'])->name('classes.quiz-attempts.show');
+    Route::patch('/classes/{schoolClass}/quiz-attempts/{attempt}/answers', [QuizAttemptController::class, 'save'])->name('classes.quiz-attempts.save');
+    Route::post('/classes/{schoolClass}/quiz-attempts/{attempt}/submit', [QuizAttemptController::class, 'submit'])->name('classes.quiz-attempts.submit');
+    Route::get('/classes/{schoolClass}/quiz-attempts/{attempt}/result', [QuizAttemptController::class, 'result'])->name('classes.quiz-attempts.result');
+    Route::get('/classes/{schoolClass}/quiz-assignments/{assignment}/results', [QuizResultController::class, 'index'])->name('classes.quiz-assignments.results');
+    Route::get('/classes/{schoolClass}/quiz-assignments/{assignment}/results/{attempt}', [QuizResultController::class, 'show'])->name('classes.quiz-assignments.results.show');
+    Route::patch('/classes/{schoolClass}/quiz-assignments/{assignment}/results/{attempt}', [QuizResultController::class, 'update'])->name('classes.quiz-assignments.results.update');
 });
 
 // 2fa

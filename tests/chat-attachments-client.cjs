@@ -75,6 +75,16 @@ assert.equal(window.ChatAttachments.count(), 2);
 assert.equal(window.ChatAttachments.totalBytes(), 7);
 assert.match(summary.textContent, /2\/3 files/);
 assert.equal(list.children.length, 2);
+assert.equal(bar.style.display, 'flex');
+
+window.ChatAttachments.setSending(true);
+assert.equal(bar.style.display, 'none');
+assert.equal(window.ChatAttachments.count(), 2);
+assert.equal(window.ChatAttachments.addFiles([{ name: 'later.pdf', size: 1, lastModified: 9, type: 'application/pdf' }]), 0);
+assert.match(warnings.at(-1), /current upload/);
+window.ChatAttachments.setSending(false);
+assert.equal(bar.style.display, 'flex');
+assert.equal(list.children.length, 2);
 
 assert.equal(window.ChatAttachments.addFiles([{ name: 'large.pdf', size: 6, lastModified: 3, type: 'application/pdf' }]), 0);
 assert.match(warnings.at(-1), /file limit/);
@@ -101,5 +111,38 @@ assert.equal(window.ChatAttachments.count(), 1);
 window.ChatAttachments.clear();
 assert.equal(window.ChatAttachments.count(), 0);
 assert.equal(bar.style.display, 'none');
+
+const voiceOverlay = { hidden: false, dataset: { mode: 'preview' } };
+const voiceAudio = { hidden: false, src: 'blob:old', removeAttribute(name) { if (name === 'src') this.src = ''; } };
+const voiceStatus = { hidden: true };
+const voiceInput = { disabled: true };
+const voiceComposer = { classList: { toggle(_name, locked) { voiceComposer.locked = locked; } } };
+const voiceWindow = { chat: { voiceDraftFile: { name: 'recording.webm' } }, addEventListener() {} };
+const voiceElements = {
+    'voice-overlay': voiceOverlay,
+    'voice-preview-audio': voiceAudio,
+    'voice-record-status': voiceStatus,
+};
+const voiceDocument = {
+    getElementById: id => voiceElements[id] || null,
+    querySelector: selector => selector === '.teams-composer' ? voiceComposer
+        : selector === '#message-form [name="body"]' ? voiceInput : null,
+    addEventListener() {},
+};
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/chat/voice.js'), 'utf8'), vm.createContext({
+    window: voiceWindow,
+    document: voiceDocument,
+    URL: { createObjectURL: () => 'blob:recording', revokeObjectURL() {} },
+}));
+voiceWindow.ChatVoice.setSending(true);
+assert.equal(voiceOverlay.hidden, true);
+assert.equal(voiceInput.disabled, false);
+voiceWindow.ChatVoice.setSending(false);
+assert.equal(voiceOverlay.hidden, false);
+assert.equal(voiceOverlay.dataset.mode, 'preview');
+assert.equal(voiceAudio.src, 'blob:recording');
+voiceWindow.ChatVoice.reset();
+assert.equal(voiceOverlay.hidden, true);
+assert.equal(voiceWindow.chat.voiceDraftFile, null);
 
 console.log('Chat attachment checks passed: shared limits, previews, validation, form data, and cleanup.');

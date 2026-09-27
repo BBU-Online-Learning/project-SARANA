@@ -2,16 +2,25 @@
 
 namespace App\Providers;
 
+use App\Events\NotificationCenterChanged;
 use App\Listeners\UpdateLastSeenOnLogout;
 use App\Models\ChatRoom;
 use App\Models\Message;
+use App\Models\Quiz;
+use App\Models\QuizAssignment;
+use App\Models\QuizAttempt;
 use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use App\Policies\Chat\ChatRoomPolicy;
 use App\Policies\Chat\MessagePolicy;
+use App\Policies\QuizAssignmentPolicy;
+use App\Policies\QuizAttemptPolicy;
+use App\Policies\QuizPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Auth\Events\Logout;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -61,8 +70,21 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
         Event::listen(Logout::class, UpdateLastSeenOnLogout::class);
+        DatabaseNotification::created(function (DatabaseNotification $notification): void {
+            if ($notification->type !== ActivityNotification::class) {
+                return;
+            }
+
+            $notification->getConnection()->afterCommit(function () use ($notification): void {
+                $roomId = $notification->data['room_id'] ?? null;
+                rescue(fn () => NotificationCenterChanged::dispatch((int) $notification->notifiable_id, $roomId ? (int) $roomId : null), report: true);
+            });
+        });
         Gate::policy(ChatRoom::class, ChatRoomPolicy::class);
         Gate::policy(Message::class, MessagePolicy::class);
+        Gate::policy(Quiz::class, QuizPolicy::class);
+        Gate::policy(QuizAssignment::class, QuizAssignmentPolicy::class);
+        Gate::policy(QuizAttempt::class, QuizAttemptPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(SchoolClass::class, \App\Policies\SchoolClassPolicy::class);
 

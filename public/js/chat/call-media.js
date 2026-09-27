@@ -55,6 +55,12 @@
             }
         }
 
+        ensureVideo(connection) {
+            if (!connection || this.sender(connection, "video")) return;
+            const track = this.stream.getVideoTracks().find((item) => item.readyState === "live") || "video";
+            connection.addTransceiver(track, { direction: "sendrecv", streams: [this.stream] });
+        }
+
         sender(connection, kind) {
             return connection?.getTransceivers().find((item) => item.receiver.track.kind === kind)?.sender;
         }

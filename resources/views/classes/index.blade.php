@@ -53,13 +53,14 @@
                             <p class="text-muted mb-0 small">{{ $classAdministration ? 'Open a class to manage its information and membership.' : 'Choose a class to open its announcements, discussions and members.' }}</p>
                         </div>
 
-                        <span class="badge bg-info-subtle text-info">
+                        <span class="workspace-badge class-total-badge">
                             {{ $classes->count() }} total
                         </span>
                     </div>
 
+                    @include('classes.partials.filters')
                     @forelse ($classes as $schoolClass)
-                        <div class="class-list-card mb-3">
+                        <div class="class-list-card {{ $schoolClass->isArchived() ? 'is-archived' : 'is-active' }} mb-3">
                             <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-3">
                                 <div class="flex-grow-1">
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -67,7 +68,7 @@
                                         @if ($schoolClass->isArchived())
                                             <span class="badge bg-warning text-dark">Archived</span>
                                         @endif
-                                        <span class="badge bg-dark">{{ $schoolClass->channels->count() }} channels</span>
+                                        <span class="workspace-badge class-channel-badge"><i class="ti ti-hash" aria-hidden="true"></i>{{ $schoolClass->channels->count() }} channels</span>
                                     </div>
 
                                     <h6 class="mb-1">
@@ -82,7 +83,7 @@
                                 </div>
 
                                 <div class="d-flex flex-column align-items-stretch gap-2">
-                                    <div class="class-meta-pill class-meta-pill-sm">
+                                    <div class="class-meta-pill class-meta-pill-sm class-member-pill">
                                         <span>Members</span>
                                         <strong>{{ $schoolClass->members_count }}</strong>
                                     </div>
@@ -95,7 +96,7 @@
                         </div>
                     @empty
                         <div class="alert alert-light mb-0">
-                            {{ $classAdministration ? 'No institution classes yet. Create a class and assign a teacher owner to get started.' : 'You are not in any classes yet. Join with a code to get started.' }}
+                            {{ $search !== '' || $status !== 'all' ? 'No classes match these filters. Try another search or clear filters.' : 'No institution classes yet. Create a class and assign a teacher owner to get started.' }}
                         </div>
                     @endforelse
                 </div>

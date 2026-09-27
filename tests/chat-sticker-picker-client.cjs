@@ -17,9 +17,27 @@ function classList() {
 }
 
 const option = {
-    dataset: { stickerId: 'star_thumbs_up' },
+    dataset: {
+        stickerId: 'bbu_wave',
+        stickerName: 'Hello',
+        stickerPack: 'Dev Reactions',
+        stickerUrl: 'http://localhost/images/stickers/bbu-reactions/wave.png',
+    },
     focused: false,
     focus() { this.focused = true; },
+    closest: selector => selector === '#sticker-picker' ? picker : null,
+};
+const studyPanel = { dataset: { stickerPackPanel: 'study-buddies' }, hidden: false };
+const devPanel = { dataset: { stickerPackPanel: 'dev-reactions' }, hidden: true };
+const studyTab = {
+    dataset: { stickerPackTab: 'study-buddies' },
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+};
+const devTab = {
+    dataset: { stickerPackTab: 'dev-reactions' },
+    attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
 };
 const button = {
     classList: classList(),
@@ -30,9 +48,16 @@ const button = {
 };
 const picker = {
     hidden: true,
-    querySelector: selector => selector === '.sticker-option' ? option : null,
+    querySelector: selector => selector === '.sticker-picker-grid:not([hidden]) .sticker-option' ? option : null,
+    querySelectorAll(selector) {
+        if (selector === '[data-sticker-pack-tab]') return [studyTab, devTab];
+        if (selector === '[data-sticker-pack-panel]') return [studyPanel, devPanel];
+        if (selector === '.sticker-option[data-sticker-id]') return [option];
+        return [];
+    },
     contains: target => target === option,
 };
+studyTab.closest = devTab.closest = selector => selector === '#sticker-picker' ? picker : null;
 const voiceOverlay = { hidden: true };
 
 const document = {
@@ -51,7 +76,10 @@ const document = {
 };
 
 const window = {
-    chat: { voiceDraftFile: null },
+    chat: {
+        voiceDraftFile: null,
+        stickers: [{ id: 'star_thumbs_up', name: 'Great job', pack: 'Study Buddies', url: '/old.png' }],
+    },
     ChatAttachments: { hasPending: () => false },
     ChatMessages: { sendSticker: async stickerId => sent.push(stickerId) },
     AppNotifications: { warning() {} },
@@ -74,14 +102,26 @@ async function dispatch(name, event) {
     assert.equal(button.attributes['aria-expanded'], 'true');
     assert(button.classList.contains('is-active'));
     assert.equal(option.focused, true);
+    assert.equal(JSON.stringify(window.chat.stickers), JSON.stringify([{
+        id: 'bbu_wave',
+        name: 'Hello',
+        pack: 'Dev Reactions',
+        url: 'http://localhost/images/stickers/bbu-reactions/wave.png',
+    }]));
 
     await dispatch('keydown', { key: 'Escape', preventDefault() {} });
     assert.equal(picker.hidden, true);
     assert.equal(button.focused, true);
 
+    await dispatch('click', { target: targetFor('[data-sticker-pack-tab]', devTab) });
+    assert.equal(studyTab.attributes['aria-selected'], 'false');
+    assert.equal(devTab.attributes['aria-selected'], 'true');
+    assert.equal(studyPanel.hidden, true);
+    assert.equal(devPanel.hidden, false);
+
     await dispatch('click', { target: targetFor('#sticker-picker-btn', button) });
     await dispatch('click', { target: targetFor('.sticker-option', option) });
-    assert.deepEqual(sent, ['star_thumbs_up']);
+    assert.deepEqual(sent, ['bbu_wave']);
     assert.equal(picker.hidden, true);
 
     await dispatch('click', { target: targetFor('#sticker-picker-btn', button) });

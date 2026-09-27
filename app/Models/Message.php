@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Message extends Model
@@ -17,6 +18,9 @@ class Message extends Model
         'body',
         'sticker_id',
         'reply_to_message_id',
+        'forwarded_from_message_id',
+        'forwarded_from_sender_id',
+        'forwarded_from_sender_name',
         'client_uuid',
         'is_edited',
         'edited_at',
@@ -69,6 +73,21 @@ class Message extends Model
     public function replyTo()
     {
         return $this->belongsTo(Message::class, 'reply_to_message_id');
+    }
+
+    public function forwardedFromMessage(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'forwarded_from_message_id')->withTrashed();
+    }
+
+    public function forwardedFromSender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'forwarded_from_sender_id')->withTrashed();
+    }
+
+    public function isForwarded(): bool
+    {
+        return $this->forwarded_from_message_id !== null;
     }
 
     /*

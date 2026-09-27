@@ -9,7 +9,7 @@ class VoiceCallSignalRequest extends VoiceCallActionRequest
     public function rules(): array
     {
         return array_merge(parent::rules(), [
-            'type' => ['required', 'string', Rule::in(['offer', 'answer', 'ice', 'media', 'restart'])],
+            'type' => ['required', 'string', Rule::in(['offer', 'answer', 'ice', 'media', 'restart', 'video'])],
             'data' => ['present', 'array'],
             'data.description' => ['required_if:type,offer,answer', 'array'],
             'data.description.type' => ['required_if:type,offer,answer', 'string', Rule::in(['offer', 'answer'])],
@@ -21,6 +21,7 @@ class VoiceCallSignalRequest extends VoiceCallActionRequest
             'data.candidate.usernameFragment' => ['nullable', 'string', 'max:255'],
             'data.camera' => ['required_if:type,media', 'boolean'],
             'data.microphone' => ['required_if:type,media', 'boolean'],
+            'data.enabled' => ['exclude_unless:type,video', 'required', 'accepted'],
         ]);
     }
 

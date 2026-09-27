@@ -121,7 +121,7 @@ test('confirmed setup persists the secret and redirects to the next onboarding s
         ->post(route('2fa.setup.submit'), [
             'code' => $google2fa->getCurrentOtp($secret),
         ])
-        ->assertRedirect($mustChangePassword ? url('/change-password') : route('home'))
+        ->assertRedirect($mustChangePassword ? url('/change-password') : route('chat.index'))
         ->assertSessionHasNoErrors()
         ->assertSessionMissing('pending_2fa_secret');
 

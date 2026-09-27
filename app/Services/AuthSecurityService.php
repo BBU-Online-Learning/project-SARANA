@@ -66,14 +66,19 @@ class AuthSecurityService
         $user->setRememberToken(Str::random(60));
         $user->two_factor_recovery_token_hash = null;
         $user->recovery_requested_by = null;
+        $user->twoFactorTrustedDevices()->delete();
     }
 
     public function authenticate(Request $request, User $user, bool $remember = false): void
     {
+        $intendedUrl = $request->session()->get('url.intended');
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         Auth::login($user, $remember);
         $request->session()->put('auth_version', $user->auth_version);
+        if (is_string($intendedUrl) && $intendedUrl !== '') {
+            $request->session()->put('url.intended', $intendedUrl);
+        }
     }
 
     public function challengeUser(Request $request): ?User

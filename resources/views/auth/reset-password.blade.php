@@ -4,6 +4,7 @@
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="referrer" content="no-referrer"><title>Account Recovery</title>
     <link href="{{ asset('backend/assets/css/app.min.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/touch-zoom.css') }}" rel="stylesheet">
 </head>
 <body class="bg-light">
 <main class="container py-5"><div class="card mx-auto" style="max-width: 480px"><div class="card-body">

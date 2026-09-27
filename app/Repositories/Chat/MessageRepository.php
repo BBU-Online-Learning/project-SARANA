@@ -29,9 +29,12 @@ class MessageRepository
 
         return $room->messages()
             ->with([
-                'sender:id,name,profile',
+                'sender:id,name,profile,role_id',
+                'sender.role:id,name',
                 'replyTo.sender:id,name',
                 'attachments.media',  // Load both the Attachment model and its MediaLibrary relation to avoid N+1 queries when rendering images/files.
+                'attachments.sourceAttachment.media',
+                'forwardedFromSender:id,name',
                 'reactions',
                 'reads',
                 'hiddenByUsers' => fn ($q) => $q->where('user_id', $userId), // containing only the current user's deletion record.

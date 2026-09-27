@@ -63,6 +63,11 @@
     }
 
     function addFiles(files) {
+        if (state.isSending) {
+            window.AppNotifications?.warning("Wait for the current upload to finish before adding more files.");
+            return 0;
+        }
+
         let added = 0;
         const errors = [];
 
@@ -113,6 +118,7 @@
     function clearFiles() {
         clearObjectUrls();
         state.pendingFiles.length = 0;
+        state.isSending = false;
         render();
     }
 
@@ -163,7 +169,7 @@
         if (!bar || !list) return;
 
         list.replaceChildren();
-        if (state.pendingFiles.length === 0) {
+        if (state.pendingFiles.length === 0 || state.isSending) {
             bar.style.display = "none";
             return;
         }
@@ -251,6 +257,10 @@
         clear: clearFiles,
         remove: removeFile,
         render,
+        setSending(sending) {
+            state.isSending = sending;
+            render();
+        },
         buildFormData(body, clientUuid, replyToMessageId = null) {
             const formData = new FormData();
             formData.append("body", body || "");

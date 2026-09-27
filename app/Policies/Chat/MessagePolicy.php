@@ -16,6 +16,7 @@ class MessagePolicy
     public function update(User $user, Message $message): bool
     {
         return $message->message_type !== 'sticker'
+            && ! $message->isForwarded()
             && $this->delete($user, $message)
             && $message->created_at->gt(now()->subMinutes(15));
     }

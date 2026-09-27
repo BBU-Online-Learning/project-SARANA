@@ -540,6 +540,7 @@
         }
 
     </style>
+    <link href="{{ asset('css/touch-zoom.css') }}" rel="stylesheet">
 </head>
 
 <body>

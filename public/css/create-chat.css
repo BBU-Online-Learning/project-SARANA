@@ -7,11 +7,11 @@
 .create-chat-tab { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 42px; padding: 8px 12px; color: var(--osen-secondary-color, #626d7a); background: transparent; border: 0; border-radius: 9px; font-size: 14px; font-weight: 600; }
 .create-chat-tab:hover { color: var(--workspace-accent, #345bb5); background: var(--workspace-tint, #edf2ff); }
 .create-chat-tab.active { color: var(--workspace-accent, #345bb5); background: var(--osen-secondary-bg, #fff); box-shadow: 0 2px 8px #172b4d12; }
-.create-chat-tab:focus-visible, .create-chat-search input:focus-visible, .create-chat-user:focus-visible, .create-chat-role-filters button:focus-visible, .create-chat-chip:focus-visible, .create-chat-back:focus-visible { outline: 3px solid var(--workspace-accent, #345bb5); outline-offset: 2px; }
+.create-chat-tab:focus-visible, .create-chat-user:focus-visible, .create-chat-role-filters button:focus-visible, .create-chat-chip:focus-visible, .create-chat-back:focus-visible { outline: 3px solid var(--workspace-accent, #345bb5); outline-offset: 2px; }
 .create-chat-search { display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 0 11px; background: var(--osen-secondary-bg, #fff); border: 1px solid var(--workspace-border, #e2e7ef); border-radius: 11px; transition: border-color .18s ease, box-shadow .18s ease; }
 .create-chat-search:focus-within { border-color: var(--workspace-accent, #345bb5); box-shadow: 0 0 0 3px color-mix(in srgb, var(--workspace-accent, #345bb5) 15%, transparent); }
 .create-chat-search > i { color: var(--osen-secondary-color, #626d7a); font-size: 18px; }
-.create-chat-search input { flex: 1; min-width: 0; padding: 10px 0; color: var(--osen-body-color, #242424); background: transparent; border: 0; outline: 0; }
+.create-chat-search input { flex: 1; min-width: 0; padding: 10px 0; color: var(--osen-body-color, #242424); background: transparent; border: 0; outline: 0; box-shadow: none; }
 .create-chat-search button { width: 28px; height: 28px; padding: 0; color: var(--osen-secondary-color, #626d7a); background: transparent; border: 0; border-radius: 7px; font-size: 20px; line-height: 1; }
 .create-chat-search button:hover { background: var(--osen-tertiary-bg, #f4f6f9); }
 .create-chat-role-filters { display: flex; gap: 7px; margin: 11px 0 12px; overflow-x: auto; scrollbar-width: thin; }

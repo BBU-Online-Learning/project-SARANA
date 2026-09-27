@@ -63,6 +63,40 @@ test('video accept signals heartbeat and end create exactly one video history en
         ->and($call->historyMessage()->first()->body)->toBe('Video call · 1 min 5 sec');
 });
 
+test('either participant can request video during an active voice call', function (): void {
+    $callId = $this->actingAs($this->caller)->postJson(route('chat.calls.store', $this->room), [
+        'call_type' => 'audio', 'client_id' => $this->callerClient,
+    ])->assertCreated()->json('call.id');
+    $call = CallSession::findOrFail($callId);
+    $this->actingAs($this->receiver)->postJson(route('chat.calls.accept', $call), [
+        'client_id' => $this->receiverClient,
+    ])->assertOk();
+
+    foreach ([[$this->caller, $this->callerClient, $this->receiver], [$this->receiver, $this->receiverClient, $this->caller]] as [$actor, $clientId, $target]) {
+        $this->actingAs($actor)->postJson(route('chat.calls.signal', $call), [
+            'client_id' => $clientId,
+            'type' => 'video',
+            'data' => ['enabled' => true],
+        ])->assertOk();
+        Event::assertDispatched(VoiceCallSignal::class, fn (VoiceCallSignal $event): bool => $event->signalType === 'video'
+            && $event->fromUserId === $actor->id
+            && $event->targetUserId === $target->id);
+    }
+});
+
+test('video upgrade signals require an active owned call and enabled payload', function (): void {
+    $call = startTestVideoCall($this);
+    $this->actingAs($this->caller)->postJson(route('chat.calls.signal', $call), [
+        'client_id' => $this->callerClient, 'type' => 'video', 'data' => ['enabled' => true],
+    ])->assertUnprocessable();
+    $this->actingAs($this->receiver)->postJson(route('chat.calls.accept', $call), [
+        'client_id' => $this->receiverClient,
+    ])->assertOk();
+    $this->postJson(route('chat.calls.signal', $call), [
+        'client_id' => $this->receiverClient, 'type' => 'video', 'data' => ['enabled' => false],
+    ])->assertUnprocessable()->assertJsonValidationErrors('data.enabled');
+});
+
 test('call actions and signaling cannot be taken over from another browser', function (): void {
     $call = startTestVideoCall($this);
     $this->actingAs($this->caller)->postJson(route('chat.calls.cancel', $call))->assertUnprocessable();
@@ -157,5 +191,5 @@ test('call header and overlay expose video controls without embedding TURN secre
     $response = $this->actingAs($this->caller)->getJson(route('chat.rooms.show', $this->room))->assertOk();
     expect($response->json('html'))->toContain('data-call-type="audio"', 'data-call-type="video"');
     $this->get(route('chat.index'))->assertOk()->assertSee('voice-call-remote-video', false)
-        ->assertSee('voice-call-local-video', false)->assertSee('js/chat/call-media.js', false)->assertSee('js/chat/call-ui.js', false);
+        ->assertSee('voice-call-local-video', false)->assertSee('Turn on video')->assertSee('js/chat/call-media.js', false)->assertSee('js/chat/call-ui.js', false);
 });

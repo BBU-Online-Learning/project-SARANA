@@ -8,8 +8,11 @@ use App\Events\Chat\SidebarUpdated;
 use App\Events\Chat\UnreadCountUpdated;
 use App\Models\ChatRoom;
 use App\Models\Message;
+use App\Models\User;
+use App\Notifications\ActivityNotification;
 use App\Repositories\Chat\MessageRepository;    // inside the service, database logic is delegated to a repository. This creates another abstraction layer.
 use App\Rules\SafeChatAttachment;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -44,6 +47,9 @@ class MessageService
             | MESSAGE TYPE
             |--------------------------------------------------------------------------
             */
+            $forwardedMessage = ($data['forwarded_message'] ?? null) instanceof Message
+                ? $data['forwarded_message']
+                : null;
             $attachments = $data['attachments'] ?? [];
             $hasAttachments = ! empty($attachments);
             $isRecordedVoice = $hasAttachments && ($data['attachment_context'] ?? null) === 'voice';
@@ -55,7 +61,7 @@ class MessageService
                     && in_array(strtolower((string) $file->getClientOriginalExtension()), ['mp4', 'webm'], true)
             );
 
-            $messageType = filled($data['sticker_id'] ?? null)
+            $messageType = $forwardedMessage?->message_type ?? (filled($data['sticker_id'] ?? null)
                 ? 'sticker'
                 : match (true) {
                     ! $hasAttachments => 'text',
@@ -63,16 +69,22 @@ class MessageService
                     $allImages => 'image',
                     $allVideos => 'video',
                     default => 'file',
-                };
+                });
+
+            $forwardedSenderId = $forwardedMessage?->forwarded_from_sender_id ?? $forwardedMessage?->sender_id;
+            $forwardedSenderName = $forwardedMessage?->forwarded_from_sender_name ?? $forwardedMessage?->sender?->name;
 
             $clientUuid = $data['client_uuid'] ?? null;
             $messageAttributes = [
                 'room_id' => $room->id,
                 'sender_id' => Auth::id(),
                 'message_type' => $messageType,
-                'body' => $data['body'] ?? null,
-                'sticker_id' => $data['sticker_id'] ?? null,
+                'body' => $forwardedMessage?->body ?? ($data['body'] ?? null),
+                'sticker_id' => $forwardedMessage?->sticker_id ?? ($data['sticker_id'] ?? null),
                 'reply_to_message_id' => isset($data['reply_to_message_id']) ? (int) $data['reply_to_message_id'] : null,
+                'forwarded_from_message_id' => $forwardedMessage?->forwarded_from_message_id ?? $forwardedMessage?->id,
+                'forwarded_from_sender_id' => $forwardedSenderId,
+                'forwarded_from_sender_name' => $forwardedSenderName,
             ];
 
             if ($clientUuid) {
@@ -110,6 +122,10 @@ class MessageService
                     $attachments
                 );
             }
+
+            if ($forwardedMessage) {
+                $this->attachmentService->forward($message, $forwardedMessage->attachments);
+            }
             /*
             |--------------------------------------------------------------------------
             | ROOM SYNC
@@ -127,7 +143,9 @@ class MessageService
             $message->load([
                 'sender:id,name,profile',
                 'attachments.media',
+                'attachments.sourceAttachment.media',
                 'replyTo.sender',
+                'forwardedFromSender:id,name',
             ]);     // loads relations afterward.
 
             /*
@@ -179,9 +197,7 @@ class MessageService
             |--------------------------------------------------------------------------
             */
             foreach ($room->members as $member) {
-                if ($member->id === Auth::id()) {
-                    continue;
-                }
+                $unreadCount = $unreadCounts[$member->id] ?? 0;
 
                 // Sidebar preview must use the human-readable preview text,
                 // otherwise voice messages show up as blank or generic file names.
@@ -190,16 +206,28 @@ class MessageService
                         $member->id,
                         [
                             'room_id' => $room->id,
+                            'message_id' => $message->id,
+                            'sender_id' => $message->sender_id,
                             'body' => $message->previewText(),
                             'sender' => $message->sender->name,
                             'created_at' => now()->diffForHumans(),
                             'client_uuid' => $message->client_uuid,
+                            'unread_count' => $unreadCount,
                         ]
                     )
                 );
 
-                // Unread count broadcast — now reads from the pre-computed map, no extra query
-                $unreadCount = $unreadCounts[$member->id] ?? 0;
+                if ($member->id === Auth::id()) {
+                    continue;
+                }
+
+                $member->notify(new ActivityNotification(
+                    'message',
+                    'New message from '.$message->sender->name,
+                    $message->previewText(),
+                    route('chat.index', ['room' => $room->id], false),
+                    $room->id,
+                ));
 
                 broadcast(
                     new UnreadCountUpdated($member->id, $room->id, $unreadCount)
@@ -214,6 +242,71 @@ class MessageService
     {
         return $this->messageRepository
             ->paginateMessages($room, $limit, $cursor);
+    }
+
+    /**
+     * @param  array<int, int>  $messageIds
+     * @param  array<int, int>  $roomIds
+     * @return Collection<int, Message>
+     */
+    public function forwardMessages(User $actor, array $messageIds, array $roomIds, ?string $note = null): Collection
+    {
+        return DB::transaction(function () use ($actor, $messageIds, $roomIds, $note): Collection {
+            $sourceMessages = Message::query()
+                ->with(['sender:id,name', 'attachments.sourceAttachment.media', 'attachments.media', 'room'])
+                ->whereKey($messageIds)
+                ->whereNull('deleted_for_everyone_at')
+                ->whereNotIn('message_type', ['call', 'system_notification'])
+                ->whereDoesntHave('hiddenByUsers', fn ($query) => $query->where('user_id', $actor->id))
+                ->get()
+                ->sortBy(fn (Message $message): int => array_search($message->id, $messageIds, true))
+                ->values();
+
+            if ($sourceMessages->count() !== count($messageIds)
+                || $sourceMessages->pluck('room_id')->unique()->count() !== 1
+                || ! app(ChatAccessService::class)->access($actor, $sourceMessages->first()->room)) {
+                throw ValidationException::withMessages([
+                    'message_ids' => 'One or more messages are unavailable to forward.',
+                ]);
+            }
+
+            if ($sourceMessages->flatMap->attachments->contains(
+                fn ($attachment): bool => $attachment->mediaForDelivery() === null
+            )) {
+                throw ValidationException::withMessages([
+                    'message_ids' => 'One or more forwarded files are no longer available.',
+                ]);
+            }
+
+            $destinationRooms = ChatRoom::query()
+                ->with('members')
+                ->whereKey($roomIds)
+                ->whereHas('members', fn ($query) => $query->where('users.id', $actor->id))
+                ->get()
+                ->sortBy(fn (ChatRoom $room): int => array_search($room->id, $roomIds, true))
+                ->values();
+
+            if ($destinationRooms->count() !== count($roomIds)
+                || $destinationRooms->contains(fn (ChatRoom $room): bool => ! app(ChatAccessService::class)->access($actor, $room))) {
+                throw ValidationException::withMessages([
+                    'room_ids' => 'One or more destination conversations are unavailable.',
+                ]);
+            }
+
+            $forwarded = collect();
+
+            foreach ($destinationRooms as $room) {
+                if (filled($note)) {
+                    $forwarded->push($this->sendMessage($room, ['body' => $note]));
+                }
+
+                foreach ($sourceMessages as $sourceMessage) {
+                    $forwarded->push($this->sendMessage($room, ['forwarded_message' => $sourceMessage]));
+                }
+            }
+
+            return $forwarded;
+        });
     }
 
     /**

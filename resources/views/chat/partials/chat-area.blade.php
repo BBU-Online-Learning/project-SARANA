@@ -8,11 +8,15 @@
     $memberCount = $room->members->count();
 @endphp
 
-<div class="teams-chat-area">
+<div class="teams-chat-area" data-conversation-type="{{ $room->type }}">
     <div class="attachment-drop-overlay" data-attachment-drop-overlay hidden aria-hidden="true">
         <div><i class="ti ti-cloud-upload" aria-hidden="true"></i><strong>Drop files to attach</strong></div>
     </div>
     <header class="teams-chat-header">
+        <button type="button" class="teams-icon-button chat-mobile-back" data-chat-list
+            aria-label="Back to conversations" aria-controls="chat-conversations" title="Back to conversations">
+            <i class="ti ti-arrow-left" aria-hidden="true"></i>
+        </button>
         <div class="teams-chat-title-group">
             @if ($isDirect && $otherUser)
                 <a href="{{ route('users.profile', $otherUser) }}" class="chat-profile-avatar-link" data-user-profile
@@ -55,7 +59,7 @@
 
         <div class="teams-chat-actions">
             @if($isDirect && $otherUser)
-                <button type="button" class="teams-icon-button" data-start-voice-call
+                <button type="button" class="teams-icon-button chat-desktop-call-action" data-start-voice-call
                     data-call-type="audio" title="Start an audio call"
                     data-start-url="{{ route('chat.calls.store', $room) }}"
                     data-peer-name="{{ $otherUser->name }}"
@@ -63,16 +67,35 @@
                     aria-label="Start a voice call with {{ $otherUser->name }}">
                     <i class="ti ti-phone" aria-hidden="true"></i>
                 </button>
-                <button type="button" class="teams-icon-button" data-start-voice-call data-call-type="video"
+                <button type="button" class="teams-icon-button chat-desktop-call-action" data-start-voice-call data-call-type="video"
                     data-start-url="{{ route('chat.calls.store', $room) }}"
                     data-peer-name="{{ $otherUser->name }}"
                     data-peer-avatar="{{ $otherUser->profileUrl() }}"
                     title="Start a video call" aria-label="Start a video call with {{ $otherUser->name }}">
                     <i class="ti ti-video" aria-hidden="true"></i>
                 </button>
+                <details class="chat-mobile-call-menu">
+                    <summary class="teams-icon-button" aria-label="Call {{ $otherUser->name }}" title="Call {{ $otherUser->name }}">
+                        <i class="ti ti-phone" aria-hidden="true"></i>
+                    </summary>
+                    <div class="chat-mobile-call-options">
+                        <button type="button" data-start-voice-call data-call-type="audio"
+                            data-start-url="{{ route('chat.calls.store', $room) }}"
+                            data-peer-name="{{ $otherUser->name }}" data-peer-avatar="{{ $otherUser->profileUrl() }}">
+                            <i class="ti ti-phone" aria-hidden="true"></i> Voice call
+                        </button>
+                        <button type="button" data-start-voice-call data-call-type="video"
+                            data-start-url="{{ route('chat.calls.store', $room) }}"
+                            data-peer-name="{{ $otherUser->name }}" data-peer-avatar="{{ $otherUser->profileUrl() }}">
+                            <i class="ti ti-video" aria-hidden="true"></i> Video call
+                        </button>
+                    </div>
+                </details>
             @endif
             @unless($isDirect)
-                <a href="{{ route('chat.groups.show', $room) }}" class="btn btn-sm btn-outline-secondary">Members</a>
+                <button type="button" class="teams-icon-button" data-group-info aria-label="Group information" aria-haspopup="dialog" aria-controls="group-info-drawer" title="Group information">
+                    <i class="ti ti-info-circle" aria-hidden="true"></i>
+                </button>
             @endunless
             <button type="button" id="open-room-search-btn" class="teams-icon-button" aria-label="Search in chat"
                 aria-controls="room-search-bar" aria-expanded="false">
@@ -85,7 +108,7 @@
             <i class="ti ti-search" aria-hidden="true"></i>
             <input type="search" id="room-search-input" placeholder="Search in this chat" aria-label="Search messages"
                 autocomplete="off">
-            <span id="room-search-count" class="room-search-count"></span>
+            <span id="room-search-count" class="room-search-count" role="status" aria-live="polite"></span>
             <button type="button" id="room-search-prev" class="teams-icon-button" aria-label="Previous match">
                 <i class="ti ti-chevron-up"></i>
             </button>
@@ -95,6 +118,7 @@
             <button type="button" id="room-search-close" class="teams-icon-button" aria-label="Close search">
                 <i class="ti ti-x"></i>
             </button>
+            <div id="room-search-results" class="room-search-results" aria-label="Matching messages" hidden></div>
         </div>
     </header>
     @include('chat.partials.message-list')
@@ -105,29 +129,56 @@
     </button>
 
 
+    <div class="message-selection-bar" data-message-selection-bar hidden>
+        <button type="button" class="teams-icon-button" data-selection-cancel aria-label="Cancel message selection">
+            <i class="ti ti-x" aria-hidden="true"></i>
+        </button>
+        <strong data-selection-count>1 selected</strong>
+        <button type="button" class="message-selection-forward" data-selection-forward>
+            <i class="ti ti-arrow-forward-up" aria-hidden="true"></i> Forward
+        </button>
+    </div>
+
     <div class="teams-composer-wrap">
+
+        @php
+            $stickerPacks = collect(\App\Services\Chat\StickerCatalog::all())->groupBy('pack', preserveKeys: true);
+        @endphp
 
         <div id="sticker-picker" class="sticker-picker" role="dialog" aria-modal="false"
             aria-labelledby="sticker-picker-title" hidden>
             <div class="sticker-picker-header">
-                <div>
-                    <strong id="sticker-picker-title">Stickers</strong>
-                    <span>Study Buddies</span>
-                </div>
+                <strong id="sticker-picker-title">Stickers</strong>
                 <button type="button" id="sticker-picker-close" class="teams-icon-button"
                     aria-label="Close sticker picker">
                     <i class="ti ti-x" aria-hidden="true"></i>
                 </button>
             </div>
-            <div class="sticker-picker-grid" role="group" aria-label="Study Buddies stickers">
-                @foreach (\App\Services\Chat\StickerCatalog::all() as $stickerId => $sticker)
-                    <button type="button" class="sticker-option" data-sticker-id="{{ $stickerId }}"
-                        aria-label="Send {{ $sticker['name'] }} sticker">
-                        <img src="{{ asset($sticker['asset']) }}" alt="" loading="lazy">
-                        <span>{{ $sticker['name'] }}</span>
-                    </button>
+            <div class="sticker-pack-tabs" role="tablist" aria-label="Sticker packs">
+                @foreach ($stickerPacks as $packName => $stickers)
+                    @php $packId = \Illuminate\Support\Str::slug($packName); @endphp
+                    <button type="button" class="sticker-pack-tab" role="tab"
+                        id="sticker-pack-tab-{{ $packId }}" data-sticker-pack-tab="{{ $packId }}"
+                        aria-controls="sticker-pack-{{ $packId }}" aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                        tabindex="{{ $loop->first ? '0' : '-1' }}">{{ $packName }}</button>
                 @endforeach
             </div>
+            @foreach ($stickerPacks as $packName => $stickers)
+                @php $packId = \Illuminate\Support\Str::slug($packName); @endphp
+                <div id="sticker-pack-{{ $packId }}" class="sticker-picker-grid" role="tabpanel"
+                    aria-labelledby="sticker-pack-tab-{{ $packId }}" data-sticker-pack-panel="{{ $packId }}"
+                    @if (! $loop->first) hidden @endif>
+                    @foreach ($stickers as $stickerId => $sticker)
+                        <button type="button" class="sticker-option" data-sticker-id="{{ $stickerId }}"
+                            data-sticker-name="{{ $sticker['name'] }}" data-sticker-pack="{{ $sticker['pack'] }}"
+                            data-sticker-url="{{ asset($sticker['asset']) }}"
+                            aria-label="Send {{ $sticker['name'] }} sticker">
+                            <img src="{{ asset($sticker['asset']) }}" alt="" loading="lazy">
+                            <span>{{ $sticker['name'] }}</span>
+                        </button>
+                    @endforeach
+                </div>
+            @endforeach
         </div>
 
         {{-- TYPING INDICATOR --}}
@@ -192,6 +243,9 @@
         <form id="message-form" autocomplete="off" enctype="multipart/form-data">
             <div class="teams-composer">
                 <div class="teams-composer-tools">
+                    <button type="button" class="teams-icon-button" data-emoji-toggle aria-label="Choose emoji" aria-expanded="false" aria-controls="chat-emoji-picker" title="Emoji">
+                        <i class="ti ti-mood-smile" aria-hidden="true"></i>
+                    </button>
                     {{-- Attach files --}}
                     <button type="button" id="attach-file-btn" class="teams-icon-button" aria-label="Attach file">
                         <i class="ti ti-paperclip"></i>
@@ -215,14 +269,20 @@
                 </div>
 
                 {{-- Text composer --}}
-                <input type="text" name="body" placeholder="Type a message…" autocomplete="off"
-                    aria-label="Message input" />
+                <textarea name="body" rows="1" placeholder="Type a message…" autocomplete="off"
+                    aria-label="Message input" aria-describedby="message-composer-help"></textarea>
 
                 <button type="submit" class="teams-send-button" aria-label="Send">
                     <i class="ti ti-send" aria-hidden="true"></i>
                 </button>
             </div>
         </form>
+        <div id="chat-emoji-picker" class="chat-emoji-picker" role="group" aria-label="Choose emoji" hidden>
+            @foreach(['😀', '😊', '👏', '👍', '❤️', '🎉', '🙏', '🤔', '✅', '📚', '💡', '👋'] as $emoji)
+                <button type="button" data-chat-emoji="{{ $emoji }}" aria-label="Insert {{ $emoji }}">{{ $emoji }}</button>
+            @endforeach
+        </div>
+        <p id="message-composer-help" class="composer-help">Enter to send · Shift + Enter for a new line. On mobile, use the send button.</p>
         {{-- Telegram-style voice overlay --}}
         <div id="voice-overlay" class="voice-compose-overlay" hidden>
             <button type="button" id="voice-cancel-btn" class="voice-action-btn voice-cancel-btn">
@@ -240,4 +300,7 @@
             </button>
         </div>
     </div>
+    @unless($isDirect)
+        @include('chat.partials.group-info-drawer')
+    @endunless
 </div>

@@ -1,0 +1,44 @@
+.settings-page { display: grid; gap: 20px; }
+.settings-intro { padding: 25px 28px; border: 1px solid #c7d2fe; border-radius: 18px; background: linear-gradient(120deg, #eaf2ff, #f4efff 75%, #fff); }
+.settings-intro h1 { margin: 4px 0 8px; color: #1c315d; font-size: clamp(25px, 2.5vw, 34px); }
+.settings-intro p:last-child { max-width: 680px; margin: 0; color: #516079; }
+.settings-form { display: grid; gap: 20px; }
+.settings-card { border: 1px solid #dde5f0; border-radius: 16px; box-shadow: 0 10px 28px rgb(30 64 175 / 6%); }
+.settings-card .card-body { padding: 24px; }
+.settings-card h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 7px; color: #263760; font-size: 20px; }
+.settings-card h2 i { color: #315fbe; font-size: 23px; }
+.settings-card h2 + p { margin-bottom: 18px; color: #61708a; }
+.settings-option strong, .settings-option small { display: block; }
+.settings-option small { margin-top: 3px; color: #61708a; line-height: 1.45; }
+.settings-option { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 15px 0; border-top: 1px solid #e8edf4; cursor: pointer; }
+.settings-option > span:first-child { min-width: 0; }
+.settings-option strong { color: #2a3855; }
+.settings-option .form-check { flex: 0 0 auto; margin: 0 5px 0 0; }
+.settings-option .form-check-input { cursor: pointer; width: 2.5em; height: 1.3em; margin: 0; }
+.settings-option .form-check-input:focus-visible { outline: 3px solid #6792e8; outline-offset: 3px; }
+.settings-sounds { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 18px 0 4px; border-top: 1px solid #e8edf4; }
+.settings-sound-option { min-width: 0; }
+.settings-sound-option label strong, .settings-sound-option label small { display: block; }
+.settings-sound-option label strong { color: #2a3855; }
+.settings-sound-option label small { margin: 3px 0 10px; color: #61708a; line-height: 1.45; }
+.settings-sound-controls { display: flex; gap: 8px; }
+.settings-sound-controls .form-select { min-width: 0; max-width: 280px; }
+.settings-sound-controls .btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.settings-sound-controls :is(.form-select, .btn):focus-visible { outline: 3px solid #6792e8; outline-offset: 2px; }
+.settings-help { margin: 13px 0 0; color: #61708a; font-size: 13px; }
+.settings-browser-permission { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; color: #52627d; font-size: 13px; }
+.settings-browser-permission button[hidden] { display: none; }
+.settings-actions { display: flex; justify-content: flex-end; }
+.settings-actions .btn { display: inline-flex; align-items: center; gap: 8px; }
+.settings-application { scroll-margin-top: 92px; }
+html.settings-larger-text { font-size: 112.5%; }
+html.settings-larger-text .application-shell { font-size: 1.05rem; }
+html.settings-larger-text .workspace-nav-link, html.settings-larger-text .settings-option small { font-size: .9rem; }
+html.settings-reduce-motion *, html.settings-reduce-motion *::before, html.settings-reduce-motion *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+[data-bs-theme="dark"] .settings-intro { border-color: #405172; background: linear-gradient(120deg, #22344d, #302b50); }
+[data-bs-theme="dark"] .settings-intro h1, [data-bs-theme="dark"] .settings-card h2, [data-bs-theme="dark"] .settings-option strong, [data-bs-theme="dark"] .settings-sound-option label strong { color: #edf3ff; }
+[data-bs-theme="dark"] .settings-intro p:last-child, [data-bs-theme="dark"] .settings-card h2 + p, [data-bs-theme="dark"] .settings-option small, [data-bs-theme="dark"] .settings-sound-option label small, [data-bs-theme="dark"] .settings-help { color: #b8c6dc; }
+[data-bs-theme="dark"] .settings-card { border-color: #3c4d68; background: #1d2a3d; }
+[data-bs-theme="dark"] .settings-option, [data-bs-theme="dark"] .settings-sounds { border-color: #3c4d68; }
+@media (max-width: 750px) { .settings-sounds { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .settings-intro, .settings-card .card-body { padding: 20px; } .settings-option { gap: 12px; } }

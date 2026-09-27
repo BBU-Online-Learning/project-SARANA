@@ -51,7 +51,7 @@
     </div>
 
     <div class="row g-3">
-        <div class="col-lg-3">
+        <div class="col-lg-3 class-channel-navigation">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="d-flex gap-2 mb-3">
@@ -120,8 +120,8 @@
                         <input type="hidden" name="client_uuid" value="{{ is_string(old('client_uuid')) ? old('client_uuid') : (string) \Illuminate\Support\Str::uuid() }}">
 
                         <div class="mb-3">
-                            <label class="form-label">Send Message</label>
-                            <textarea name="body" rows="4" maxlength="5000" required class="form-control" placeholder="Write a message...">{{ is_string(old('body')) ? old('body') : '' }}</textarea>
+                            <label class="form-label" for="class-channel-body">Send Message</label>
+                            <textarea id="class-channel-body" name="body" rows="2" maxlength="5000" required class="form-control" placeholder="Write a message...">{{ is_string(old('body')) ? old('body') : '' }}</textarea>
                             <div id="class-channel-send-error" class="text-danger small mt-1" role="alert"></div>
 
                             @error('body')

@@ -12,6 +12,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 
 uses(RefreshDatabase::class);
 
@@ -45,6 +46,40 @@ test('retrying an uncertain send returns the original message without broadcasti
 
     expect(Message::query()->where('client_uuid', $uuid)->count())->toBe(1);
     Event::assertNothingDispatched();
+});
+
+test('new message sound metadata is sent only to the recipient', function (): void {
+    $messageId = $this->postJson(route('chat.messages.store', $this->room), [
+        'body' => 'A new lesson is ready.',
+        'client_uuid' => (string) Str::uuid(),
+    ])->assertOk()->json('message_id');
+
+    Event::assertDispatched(SidebarUpdated::class, function (SidebarUpdated $event) use ($messageId): bool {
+        return $event->userId === $this->recipient->id
+            && $event->payload['message_id'] === $messageId
+            && $event->payload['sender_id'] === $this->sender->id
+            && $event->payload['unread_count'] === 1;
+    });
+    Event::assertDispatched(SidebarUpdated::class, function (SidebarUpdated $event) use ($messageId): bool {
+        return $event->userId === $this->sender->id
+            && $event->payload['message_id'] === $messageId
+            && $event->payload['sender_id'] === $this->sender->id
+            && $event->payload['unread_count'] === 0;
+    });
+    Event::assertDispatchedTimes(SidebarUpdated::class, 2);
+
+    expect($this->recipient->notifications()->count())->toBe(1)
+        ->and($this->recipient->notifications()->firstOrFail()->data['category'])->toBe('message')
+        ->and($this->sender->notifications()->count())->toBe(0);
+
+    expect(file_get_contents(resource_path('views/layouts/app.blade.php')))
+        ->toContain('js/chat/message-sound.js');
+});
+
+test('message alerts stay silent for the visible conversation', function (): void {
+    $process = new Process(['node', base_path('tests/chat-message-sound-client.cjs')], base_path());
+    $process->mustRun();
+    expect($process->getOutput())->toContain('checks passed');
 });
 
 test('a send identifier cannot be reused for different content room or sender', function (string $variation): void {

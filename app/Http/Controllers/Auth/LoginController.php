@@ -9,6 +9,7 @@ use App\Http\Requests\Auth\OtpRequest;
 use App\Http\Requests\Auth\VerifyAccountRequest;
 use App\Models\User;
 use App\Services\AuthSecurityService;
+use App\Services\TwoFactorTrustedDeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,10 @@ use PragmaRX\Google2FAQRCode\Google2FA;
 
 class LoginController extends Controller
 {
-    public function __construct(private AuthSecurityService $security) {}
+    public function __construct(
+        private AuthSecurityService $security,
+        private TwoFactorTrustedDeviceService $trustedDevices,
+    ) {}
 
     public function logout(Request $request): RedirectResponse
     {
@@ -39,9 +43,14 @@ class LoginController extends Controller
             throw ValidationException::withMessages(['email' => 'Invalid email or password.']);
         }
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->session()->regenerate();
         if ($user->google2fa_enabled) {
+            if ($this->trustedDevices->isTrusted($request, $user)) {
+                $this->security->authenticate($request, $user, $request->boolean('remember'));
+
+                return $this->redirectAfterLogin($user);
+            }
+
             $request->session()->put([
                 'pending_2fa_user_id' => $user->id,
                 'pending_2fa_version' => $user->auth_version,
@@ -89,7 +98,7 @@ class LoginController extends Controller
             return redirect()->route('password.change');
         }
 
-        return redirect()->route($user->can('access-admin') ? 'home' : 'chat.index');
+        return redirect()->intended(route($user->can('access-admin') ? 'home' : 'chat.index'));
     }
 
     public function showTwoFactorChallenge(Request $request): View|RedirectResponse
@@ -105,6 +114,8 @@ class LoginController extends Controller
             return redirect()->route('login')->withErrors(['code' => 'Challenge expired. Sign in again.']);
         }
 
+        $remember = (bool) $request->session()->get('pending_2fa_remember');
+        $trustThisBrowser = $request->boolean('trust_device');
         $user = $this->security->withUser($candidate->id, function (User $user) use ($request): User {
             abort_unless($user->google2fa_enabled && $user->auth_version === $request->session()->get('pending_2fa_version')
                 && (int) $request->session()->get('pending_2fa_expires_at', 0) > now()->timestamp, 403);
@@ -112,9 +123,13 @@ class LoginController extends Controller
 
             return $user;
         });
-        $this->security->authenticate($request, $user, (bool) $request->session()->get('pending_2fa_remember'));
+        $this->security->authenticate($request, $user, $remember);
+        $response = $this->redirectAfterLogin($user);
+        if ($trustThisBrowser) {
+            $response->withCookie($this->trustedDevices->createCookie($request, $user));
+        }
 
-        return $this->redirectAfterLogin($user);
+        return $response;
     }
 
     public function showTwoFactorSetup(Request $request): View|RedirectResponse
@@ -156,7 +171,7 @@ class LoginController extends Controller
         $request->session()->regenerate();
         $request->session()->put('auth_version', $user->auth_version);
 
-        return redirect()->route($user->must_change_password ? 'password.change' : 'home');
+        return $this->redirectAfterLogin($user);
     }
 
     public function disableTwoFactor(VerifyAccountRequest $request): RedirectResponse

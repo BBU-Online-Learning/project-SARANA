@@ -6,13 +6,13 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Log In</title>
+    <title>Log In | {{ config('app.name') }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta content="A fully featured admin theme which can be used to build CRM, CMS, etc." name="description" />
-    <meta content="Coderthemes" name="author" />
+    <meta content="Sign in to BBU Online Learning." name="description" />
 
     <!-- App favicon -->
-    <link rel="shortcut icon" href="{{ asset('backend/assets/images/favicon.ico') }}">
+    <link rel="icon" type="image/png" href="{{ asset('images/branding/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/branding/bbu-mark.png') }}">
 
     <!-- Theme Config Js -->
     <script src="{{ asset('assets/js/config.js') }}"></script>
@@ -25,6 +25,8 @@
 
     <!-- Icons css -->
     <link href="{{ asset('backend/assets/css/icons.min.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ asset('css/brand.css') }}" rel="stylesheet" type="text/css" />
+    <link href="{{ asset('css/touch-zoom.css') }}" rel="stylesheet" type="text/css" />
 </head>
 
 <body>
@@ -34,17 +36,15 @@
             <div class="col-xl-4 col-lg-5 col-md-6">
                 <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
                     <a href="{{ route('login') }}" class="auth-brand mb-3">
-                        <img src="{{ asset('backend/assets/images/logo-dark.png') }}" alt="dark logo" height="24"
-                            class="logo-dark">
-                        <img src="{{ asset('backend/assets/images/logo.png') }}" alt="logo light" height="24"
-                            class="logo-light">
+                        <img src="{{ asset('images/branding/bbu-online-learning.png') }}"
+                            class="auth-brand-logo" alt="BBU Online Learning" width="180" height="180">
                     </a>
 
 
                     <form action="{{ route('login.submit') }}" class="text-start mb-3" method="POST">
                         @csrf
                         <div class="mb-3">
-                            <label class="form-label" for="example-email">Email</label>
+                            <label class="form-label" for="email">Email</label>
 
                             <input id="email" type="email" placeholder="Enter your email"
                                 class="form-control @error('email') is-invalid @enderror" name="email"
@@ -58,11 +58,12 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label" for="example-password">Password</label>
+                            <label class="form-label" for="password">Password</label>
 
                             <input id="password" type="password"
                                 class="form-control @error('password') is-invalid @enderror" name="password" required
                                 autocomplete="current-password">
+                            <button type="button" id="toggle-password" class="btn btn-sm btn-outline-secondary mt-2" aria-controls="password" aria-pressed="false">Show password</button>
 
                             @error('password')
                                 <span class="invalid-feedback" role="alert">
@@ -79,7 +80,7 @@
                                     {{ old('remember') ? 'checked' : '' }}>
 
                                 <label class="form-check-label" for="remember">
-                                    {{ __('Remember Me') }}
+                                    {{ __('Keep me signed in') }}
                                 </label>
                             </div>
 
@@ -106,8 +107,7 @@
                     <p class="mt-auto mb-0">
                         <script>
                             document.write(new Date().getFullYear())
-                        </script> Deverlop by <span
-                            class="fw-bold text-decoration-underline text-uppercase text-reset fs-12">Hello World</span>
+                        </script> <span class="fw-semibold">{{ config('app.name') }}</span>
                     </p>
                 </div>
             </div>
@@ -119,6 +119,7 @@
 
     <!-- App js -->
     <script src="{{ asset('backend/assets/js/app.js') }}"></script>
+    <script src="{{ asset('js/login.js') }}"></script>
 
 </body>
 

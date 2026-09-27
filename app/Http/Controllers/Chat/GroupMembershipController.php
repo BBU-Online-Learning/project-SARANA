@@ -9,6 +9,7 @@ use App\Models\ChatRoom;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Chat\ChatAccessService;
+use App\Services\Chat\GroupInviteService;
 use App\Services\Chat\GroupMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -31,8 +32,13 @@ class GroupMembershipController extends Controller
             ->where('status', 'active')->where('google2fa_enabled', true)->where('must_change_password', false)
             ->whereHas('role', fn ($query) => $query->where('status', true)->whereIn('name', Role::NAMES))
             ->whereNotIn('id', $room->members->modelKeys())->orderBy('name')->get() : collect();
+        $groupInviteData = null;
+        if (Gate::allows('manageGroup', $room)) {
+            $invite = $room->groupInvites()->usable()->latest()->first();
+            $groupInviteData = $invite ? app(GroupInviteService::class)->presentation($invite) : null;
+        }
 
-        return response()->view('chat.group', compact('room', 'owner', 'users'))->header('Cache-Control', 'private, no-store');
+        return response()->view('chat.group', compact('room', 'owner', 'users', 'groupInviteData'))->header('Cache-Control', 'private, no-store');
     }
 
     public function update(UpdateGroupRequest $request, ChatRoom $room): RedirectResponse

@@ -15,7 +15,7 @@
     }
 
     function bodyInput() {
-        return document.querySelector('#message-form input[name="body"]');
+        return document.querySelector('#message-form [name="body"]');
     }
 
     function overlay() {
@@ -129,6 +129,24 @@
         if (btn) {
             btn.innerHTML = '<i class="ti ti-microphone"></i>';
         }
+    }
+
+    function setSending(sending) {
+        if (sending) {
+            hideOverlay();
+            setComposerLocked(false);
+            return;
+        }
+
+        if (!window.chat.voiceDraftFile) return;
+
+        const audio = audioEl();
+        if (audio) {
+            if (!previewUrl) previewUrl = URL.createObjectURL(window.chat.voiceDraftFile);
+            audio.src = previewUrl;
+        }
+        setComposerLocked(true);
+        showOverlay("preview");
     }
 
     async function sendRecordedVoice(file) {
@@ -312,5 +330,6 @@
     window.ChatVoice = {
         reset: resetVoiceUi,
         send: handleSendClick,
+        setSending,
     };
 })();

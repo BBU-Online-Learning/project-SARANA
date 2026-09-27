@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Services\AuthSecurityService;
+use App\Services\TwoFactorTrustedDeviceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
@@ -17,6 +18,56 @@ test('password login requires an expiring OTP challenge before authentication', 
         ->assertRedirect(route('chat.index'))->assertSessionMissing('pending_2fa_user_id');
     $this->assertAuthenticatedAs($user);
     expect($user->fresh()->two_factor_last_used_step)->toBe(intdiv(now()->timestamp, 30));
+});
+
+test('a trusted browser can skip repeated OTP challenges for thirty days', function (): void {
+    $user = securityTestUser();
+    $credentials = ['email' => $user->email, 'password' => 'password', 'remember' => 1];
+
+    $this->post(route('login.submit'), $credentials)->assertRedirect(route('2fa.challenge'));
+    $verification = $this->post(route('2fa.challenge.submit'), [
+        'code' => securityTestOtp($user),
+        'trust_device' => 1,
+    ])->assertRedirect(route('chat.index'));
+
+    $trustedCookie = collect($verification->headers->getCookies())
+        ->first(fn (\Symfony\Component\HttpFoundation\Cookie $cookie): bool => $cookie->getName() === TwoFactorTrustedDeviceService::COOKIE_NAME);
+
+    expect($trustedCookie)->not->toBeNull()
+        ->and($user->twoFactorTrustedDevices()->count())->toBe(1);
+
+    $this->post(route('logout'))->assertRedirect('/');
+    $this->withUnencryptedCookie($trustedCookie->getName(), $trustedCookie->getValue())
+        ->post(route('login.submit'), $credentials)
+        ->assertRedirect(route('chat.index'));
+    $this->assertAuthenticatedAs($user);
+});
+
+test('expired and security-revoked trusted browsers still require OTP', function (string $condition): void {
+    $user = securityTestUser();
+    $token = str_repeat('a', 64);
+    $device = $user->twoFactorTrustedDevices()->create([
+        'token_hash' => hash('sha256', $token),
+        'auth_version' => $condition === 'revoked' ? $user->auth_version + 1 : $user->auth_version,
+        'user_agent_hash' => hash('sha256', 'Symfony'),
+        'expires_at' => $condition === 'expired' ? now()->subMinute() : now()->addDays(30),
+    ]);
+
+    $this->withCookie(TwoFactorTrustedDeviceService::COOKIE_NAME, $device->id.'|'.$token)
+        ->post(route('login.submit'), ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect(route('2fa.challenge'));
+    $this->assertGuest();
+})->with(['expired', 'revoked']);
+
+test('login and two factor verification preserve an intended invitation destination', function (): void {
+    $user = securityTestUser();
+    $destination = '/chat/invites/42?expires=2000000000&signature=example';
+
+    $this->withSession(['url.intended' => url($destination)])
+        ->post(route('login.submit'), ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect(route('2fa.challenge'));
+    $this->post(route('2fa.challenge.submit'), ['code' => securityTestOtp($user)])
+        ->assertRedirect(url($destination));
 });
 
 test('inactive and suspended accounts cannot authenticate or keep using existing sessions', function (string $status): void {

@@ -1,5 +1,5 @@
     @can('access-admin')
-        <section class="card mb-4" aria-labelledby="account-heading"><div class="card-body">
+        <section class="card dashboard-account-card mb-4" aria-labelledby="account-heading"><div class="card-body">
             <h2 class="h5" id="account-heading">{{ $user->role->name === 'super_admin' ? 'Privileged account administration' : 'Teacher and student administration' }}</h2>
             <p class="text-muted">Current accounts you may manage, including suspended accounts. Deleted accounts are excluded.</p>
             <dl class="row">

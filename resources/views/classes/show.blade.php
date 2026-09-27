@@ -49,17 +49,23 @@
                         </div>
 
                         @if ($currentRole && $currentRole !== 'owner' && ! $schoolClass->isArchived())
-                            <form method="POST" action="{{ route('classes.leave', $schoolClass) }}">
+                            <details class="class-options">
+                                <summary class="btn btn-outline-secondary">Class options</summary>
+                            <form method="POST" action="{{ route('classes.leave', $schoolClass) }}" class="mt-2"
+                                data-confirm-title="Leave this class?"
+                                data-confirm-message="You will lose access to this class and its discussions. You will need a valid join code or an invitation to join again."
+                                data-confirm-label="Leave Class">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-danger">
                                     Leave Class
                                 </button>
                             </form>
+                            </details>
                         @endif
                     </div>
                 </div>
 
-                <div class="row g-3 mt-4">
+                <div class="row g-2 mt-2 class-summary-stats">
                     <div class="col-md-4">
                         <div class="class-stat-card">
                             <span class="class-stat-label">Members</span>
@@ -86,6 +92,7 @@
 
         @if(in_array(auth()->user()->role->name, ['teacher', 'student'], true))
             <nav class="learning-class-nav" aria-label="Class sections">
+                <a href="{{ route('classes.assessments.index', $schoolClass) }}">Assessments</a>
                 <a href="#class-channels">Channels</a>
                 <a href="#class-members">Members</a>
                 @canany(['manageLifecycle', 'manageMembers', 'manageChannels'], $schoolClass)

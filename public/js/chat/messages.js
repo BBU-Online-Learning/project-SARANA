@@ -9,6 +9,26 @@ const failedMessageRetries = new Map();
 const activeUploadControllers = new Map();
 const failedUploadSignatures = new Map();
 
+function resizeMessageComposer(input) {
+    if (!input?.style) return;
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 160)}px`;
+}
+
+document.addEventListener('input', event => {
+    if (event.target.matches('#message-form textarea[name="body"]')) {
+        resizeMessageComposer(event.target);
+    }
+});
+
+document.addEventListener('keydown', event => {
+    if (!event.target.matches('#message-form textarea[name="body"]')) return;
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return;
+    if (window.matchMedia?.('(pointer: coarse)').matches && !event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    if (!event.repeat) event.target.form.requestSubmit();
+});
+
 function createMessageUuid() {
     if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
 
@@ -95,6 +115,10 @@ function isCanceledRequest(error) {
 
 async function attemptMessageSend(clientUuid, send, { body = "", onSuccess = null, uploadSignature = null } = {}) {
     setOptimisticMessagePending(clientUuid);
+    const sendingFiles = uploadSignature?.startsWith("files:");
+    const sendingVoice = uploadSignature?.startsWith("voice:");
+    if (sendingFiles) window.ChatAttachments?.setSending?.(true);
+    if (sendingVoice) window.ChatVoice?.setSending?.(true);
 
     try {
         const response = await send();
@@ -102,8 +126,9 @@ async function attemptMessageSend(clientUuid, send, { body = "", onSuccess = nul
         failedUploadSignatures.delete(clientUuid);
         await onSuccess?.(response);
 
-        const input = document.querySelector("#message-form input[name='body']");
+        const input = document.querySelector("#message-form [name='body']");
         if (body && input?.value === body) input.value = "";
+        resizeMessageComposer(input);
 
         return true;
     } catch (error) {
@@ -120,8 +145,9 @@ async function attemptMessageSend(clientUuid, send, { body = "", onSuccess = nul
             failedMessageRetries.delete(clientUuid);
             failedUploadSignatures.delete(clientUuid);
             await onSuccess?.(null);
-            const input = document.querySelector("#message-form input[name='body']");
+            const input = document.querySelector("#message-form [name='body']");
             if (body && input?.value === body) input.value = "";
+            resizeMessageComposer(input);
             return true;
         }
 
@@ -129,12 +155,16 @@ async function attemptMessageSend(clientUuid, send, { body = "", onSuccess = nul
         failedMessageRetries.set(clientUuid, () => attemptMessageSend(clientUuid, send, { body, onSuccess, uploadSignature }));
         setOptimisticMessageFailed(clientUuid);
 
-        const input = document.querySelector("#message-form input[name='body']");
+        const input = document.querySelector("#message-form [name='body']");
         if (body && input && !input.value.trim()) input.value = body;
+        resizeMessageComposer(input);
 
         console.error(error);
         window.AppNotifications?.fromAxios(error, "Unable to send the message. Your draft was kept so you can retry.");
         return false;
+    } finally {
+        if (sendingFiles) window.ChatAttachments?.setSending?.(false);
+        if (sendingVoice) window.ChatVoice?.setSending?.(false);
     }
 }
 
@@ -145,7 +175,7 @@ document.addEventListener("submit", async (e) => {
     if (window.chat.isSendingMessage) return;
 
     const form = e.target;
-    const input = form.querySelector('input[name="body"]');
+    const input = form.querySelector('[name="body"]');
     const body = input.value.trim();
 
     const hasFiles =
@@ -293,6 +323,7 @@ document.addEventListener("submit", async (e) => {
     }
 
     input.value = "";
+    resizeMessageComposer(input);
     const sent = await attemptMessageSend(clientUuid, send, {
         body,
         uploadSignature,
@@ -379,9 +410,10 @@ function enterEditMode(messageId, body) {
     }
 
     // Populate composer and focus with cursor at end
-    const input = document.querySelector("#message-form input[name='body']");
+    const input = document.querySelector("#message-form [name='body']");
     if (input) {
         input.value = body;
+        resizeMessageComposer(input);
         input.focus();
         input.selectionStart = input.selectionEnd = input.value.length;
     }
@@ -398,8 +430,9 @@ function cancelEditMode() {
     const editPreview = document.getElementById("edit-preview");
     if (editPreview) editPreview.style.display = "none";
 
-    const input = document.querySelector("#message-form input[name='body']");
+    const input = document.querySelector("#message-form [name='body']");
     if (input) input.value = "";
+    resizeMessageComposer(input);
 }
 
 /*
@@ -500,9 +533,7 @@ function appendOptimisticMessage(body, clientUuid) {
                     <strong>${window.chat.currentUserName}</strong>
                     <span>${time} <span class="read-status message-send-status" aria-label="Sending">⏳</span></span>
                 </div>
-                <div class="teams-message-bubble">
-                    ${escapeHtml(body)}
-                </div>
+                <div class="teams-message-bubble">${escapeHtml(body)}</div>
                 <button type="button" class="retry-message-btn" data-client-id="${clientUuid}" hidden>
                     <i class="ti ti-refresh" aria-hidden="true"></i> Retry
                 </button>

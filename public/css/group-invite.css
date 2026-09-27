@@ -1,0 +1,57 @@
+.group-invite-panel { margin: 0 0 16px; padding: 16px; border: 1px solid #dbe4f0; border-radius: 15px; background: linear-gradient(145deg, #eff6ff, #fff 62%, #f5f3ff); box-shadow: 0 8px 22px rgb(30 64 175 / 7%); }
+.group-invite-heading { display: flex; align-items: center; gap: 11px; margin-bottom: 13px; }
+.group-invite-heading-icon { display: grid; width: 39px; height: 39px; place-items: center; flex: 0 0 39px; border-radius: 11px; color: #fff; background: linear-gradient(145deg, #2563eb, #4f46e5); box-shadow: 0 8px 18px rgb(37 99 235 / 22%); font-size: 20px; }
+.group-invite-heading h3 { margin: 0; color: #172554; font-size: 14px; }
+.group-invite-heading p { margin: 3px 0 0; color: #64748b; font-size: 10px; line-height: 1.45; }
+.group-invite-status { min-height: 0; margin: 0; color: #0f766e; font-size: 11px; font-weight: 650; }
+.group-invite-status:not(:empty) { margin-bottom: 10px; }
+.group-invite-active { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 14px; }
+.group-invite-qr { padding: 8px; border: 1px solid #dbeafe; border-radius: 12px; background: #fff; text-align: center; }
+.group-invite-qr img { display: block; width: 94px; height: 94px; margin: auto; }
+.group-invite-qr span { display: block; margin-top: 5px; color: #475569; font-size: 9px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.group-invite-download { display: inline-flex; align-items: center; gap: 4px; margin-top: 7px; padding: 0; border: 0; color: #2563eb; background: transparent; font-size: 9px; font-weight: 750; text-decoration: none; cursor: pointer; }
+.group-invite-download:hover { color: #1d4ed8; text-decoration: underline; }
+.group-invite-details { min-width: 0; }
+.group-invite-details .group-invite-instructions { display: block; margin: 0 0 8px; color: #475569; font-size: 10px; line-height: 1.45; }
+.group-invite-details > label { display: block; margin-bottom: 5px; color: #334155; font-size: 10px; font-weight: 750; }
+.group-invite-link-row { display: flex; gap: 7px; }
+.group-invite-link-row input { min-width: 0; width: 100%; height: 38px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 9px; color: #475569; background: #fff; font-size: 10px; }
+.group-invite-link-row .btn { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; }
+.group-invite-details > p { display: flex; align-items: center; gap: 5px; margin: 8px 0 10px; color: #64748b; font-size: 10px; }
+.group-invite-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.group-invite-actions form { margin: 0; }
+.group-invite-actions .btn { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 6px 9px; font-size: 10px; }
+.group-invite-empty { padding: 15px; border: 1px dashed #a5b4fc; border-radius: 12px; background: rgb(255 255 255 / 72%); text-align: center; }
+.group-invite-empty > i { color: #4f46e5; font-size: 28px; }
+.group-invite-empty p { max-width: 310px; margin: 7px auto 12px; color: #64748b; font-size: 11px; line-height: 1.5; }
+.group-invite-empty .btn { display: inline-flex; align-items: center; gap: 7px; }
+.group-invite-panel.is-busy { opacity: .64; pointer-events: none; }
+
+.group-invite-preview { display: grid; min-height: calc(100dvh - 112px); place-items: center; padding-block: 24px; }
+.group-invite-preview-card { width: min(520px, 100%); overflow: hidden; border: 1px solid #dbe4f0; border-radius: 21px; background: #fff; box-shadow: 0 24px 60px rgb(30 64 175 / 15%); }
+.group-invite-preview-banner { height: 8px; background: linear-gradient(90deg, #2563eb, #4f46e5, #0d9488); }
+.group-invite-preview-body { padding: 30px; text-align: center; }
+.group-invite-preview-avatar { display: grid; width: 82px; height: 82px; margin: 0 auto 15px; place-items: center; overflow: hidden; border: 4px solid #fff; border-radius: 24px; color: #fff; background: linear-gradient(145deg, #2563eb, #7c3aed); box-shadow: 0 11px 28px rgb(67 56 202 / 22%); font-size: 32px; font-weight: 800; }
+.group-invite-preview-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.group-invite-preview-body h1 { margin: 0 0 6px; color: #172554; font-size: 25px; }
+.group-invite-preview-meta { margin: 0 0 16px; color: #64748b; font-size: 12px; }
+.group-invite-preview-description { margin: 0 auto 20px; max-width: 390px; color: #475569; line-height: 1.65; }
+.group-invite-preview-owner { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 20px; padding: 7px 11px; border-radius: 999px; color: #4338ca; background: #eef2ff; font-size: 11px; font-weight: 700; }
+.group-invite-preview-actions { display: grid; gap: 9px; }
+.group-invite-preview-actions .btn { min-height: 44px; }
+.group-invite-unavailable { margin: 18px 0 0; padding: 13px; border: 1px solid #fecaca; border-radius: 11px; color: #991b1b; background: #fef2f2; font-size: 12px; }
+
+@media (max-width: 520px) {
+    .group-invite-active { grid-template-columns: 1fr; }
+    .group-invite-qr { width: 112px; margin-inline: auto; }
+    .group-invite-link-row { align-items: stretch; flex-direction: column; }
+    .group-invite-preview-body { padding: 24px 19px; }
+}
+
+[data-bs-theme="dark"] .group-invite-panel,
+[data-bs-theme="dark"] .group-invite-preview-card { border-color: #35465e; background: linear-gradient(145deg, #213348, #1d2530 62%, #282540); }
+[data-bs-theme="dark"] .group-invite-heading h3,
+[data-bs-theme="dark"] .group-invite-preview-body h1 { color: #f1f5f9; }
+[data-bs-theme="dark"] .group-invite-qr,
+[data-bs-theme="dark"] .group-invite-link-row input,
+[data-bs-theme="dark"] .group-invite-empty { border-color: #46566d; color: #e2e8f0; background: #17202b; }

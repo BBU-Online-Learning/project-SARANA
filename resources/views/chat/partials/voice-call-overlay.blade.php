@@ -47,9 +47,9 @@
                 <span>Mute</span>
             </button>
             <button type="button" class="voice-call-action voice-call-secondary" data-voice-call-action="camera"
-                data-video-control aria-pressed="false" hidden>
+                data-camera-control aria-pressed="false" hidden>
                 <i class="ti ti-video" aria-hidden="true"></i>
-                <span>Camera off</span>
+                <span>Turn on video</span>
             </button>
             <button type="button" class="voice-call-action voice-call-secondary" data-voice-call-action="switch-camera"
                 data-video-control hidden>

@@ -7,6 +7,7 @@ use App\Models\SchoolClass;
 use App\Models\SchoolClassChannel;
 use App\Models\SchoolClassChannelMessage;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -36,6 +37,13 @@ class ClassMessageService
         });
         if ($message->wasRecentlyCreated) {
             $this->signal($message);
+            $schoolClass->members()->where('users.id', '!=', $actor->id)->get()
+                ->each(fn (User $member) => $member->notify(new ActivityNotification(
+                    'class',
+                    'New message in '.$schoolClass->name,
+                    $actor->name.': '.str($message->body)->limit(140),
+                    route('classes.channels.show', [$schoolClass, $channel], false),
+                )));
         }
 
         return $message;

@@ -9,7 +9,8 @@
     $groupAvatar = $isDirect ? null : $room->avatarUrl();
 @endphp
 
-<div class="room-item teams-room-card" data-room-id="{{ $room->id }}" tabindex="0"
+<div class="room-item teams-room-card" data-room-id="{{ $room->id }}" data-room-type="{{ $room->type }}"
+    data-last-message-id="{{ $latestMessage?->id }}" tabindex="0"
     aria-label="Open conversation with {{ $displayName }}">
     @if ($isDirect && $otherUser)
         <a href="{{ route('users.profile', $otherUser) }}" class="chat-profile-avatar-link" data-user-profile
@@ -30,18 +31,8 @@
 
     <div class="teams-room-content">
         <div class="teams-room-title-row">
-            <h2 class="room-name">@if ($isDirect && $otherUser)<a href="{{ route('users.profile', $otherUser) }}"
-                data-user-profile>{{ $displayName }}</a>@else{{ $displayName }}@endif</h2>
-            @if ($isDirect)
-                <span class="room-last-time user-status" data-user-id="{{ $otherUser?->id }}"
-                    data-last-seen="{{ $otherUser?->last_seen_at?->toIso8601String() }}">
-                    {{ $otherUser?->last_seen_at ? 'Last seen ' . $otherUser->last_seen_at->diffForHumans() : 'Offline' }}
-                </span>
-            @else
-                <span class="room-last-time">
-                    {{ optional($room->last_message_at)?->diffForHumans() }}
-                </span>
-            @endif
+            <h2 class="room-name">{{ $displayName }}</h2>
+            <span class="room-last-time">{{ optional($room->last_message_at)?->diffForHumans() }}</span>
         </div>
 
         <div class="teams-room-preview-row">
@@ -51,7 +42,9 @@
                 @elseif ($latestMessage->isDeletedForEveryone())
                     <em>This message was deleted</em>
                 @else
-                    <span>{{ $latestMessage->sender->name }}:</span>
+                    @if(!$isDirect || $latestMessage->sender_id === auth()->id())
+                        <span>{{ $latestMessage->sender_id === auth()->id() ? 'You' : ($latestMessage->sender?->name ?? 'Deleted user') }}:</span>
+                    @endif
                     {{ Str::limit($latestMessage->previewText(), 48) }}
                 @endif
             </p>

@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const overlay = fs.readFileSync("resources/views/chat/partials/voice-call-overlay.blade.php", "utf8").replace(/\{\{.*?\}\}/g, "#");
 const css = fs.readFileSync("public/css/voice-call.css", "utf8");
-const scripts = ["call-media", "call-ui", "voice-call"].map(name =>
+const scripts = ["call-media", "call-ui", "call-sounds", "voice-call"].map(name =>
     '<script>' + fs.readFileSync("public/js/chat/" + name + ".js", "utf8") + '</script>').join("");
 const html = '<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="test"><link rel="stylesheet" href="/backend/assets/css/icons.min.css"><style>body{font-family:Arial;margin:0}button{cursor:pointer} [hidden]{display:none!important}' + css +
     '</style></head><body><button data-start-voice-call data-start-url="/start" data-call-type="video" data-peer-name="Test participant">Video call</button>' +
@@ -149,6 +149,11 @@ async function begin(from, to, type = "video", audioOnly = false) {
 
         await begin(pc, phone, "audio");
         assert.equal(await pc.locator("#voice-call-video-stage").isVisible(), false);
+        assert.equal(await pc.locator('[data-voice-call-action="camera"]').getByText("Turn on video").isVisible(), true);
+        await pc.locator('[data-voice-call-action="camera"]').click();
+        await Promise.all([pc, phone].map(page => page.locator("#voice-call-video-stage").waitFor({ state: "visible" })));
+        await phone.waitForFunction(() => document.getElementById("voice-call-remote-video").videoWidth > 0);
+        console.log("Active voice call upgraded to video without ending the call.");
         failEnd = true;
         await pc.locator('[data-voice-call-action="end"]').click();
         await stopped(pc);

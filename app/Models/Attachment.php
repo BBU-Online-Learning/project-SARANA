@@ -5,6 +5,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Spatie\MediaLibrary\HasMedia;
@@ -18,6 +19,7 @@ class Attachment extends Model implements HasMedia
 
     protected $fillable = [
         'message_id',
+        'forwarded_from_attachment_id',
         'room_id',
         'uploaded_by',
         'original_name',
@@ -36,6 +38,17 @@ class Attachment extends Model implements HasMedia
     public function message()
     {
         return $this->belongsTo(Message::class);
+    }
+
+    public function sourceAttachment(): BelongsTo
+    {
+        return $this->belongsTo(Attachment::class, 'forwarded_from_attachment_id')->withTrashed();
+    }
+
+    public function mediaForDelivery(): ?Media
+    {
+        return $this->getFirstMedia('attachment')
+            ?? $this->sourceAttachment?->getFirstMedia('attachment');
     }
 
     /*
@@ -103,7 +116,7 @@ class Attachment extends Model implements HasMedia
 
     public function url(): ?string
     {
-        return $this->getFirstMedia('attachment')
+        return $this->mediaForDelivery()
             ? route('chat.attachments.show', $this)
             : null;
     }
@@ -114,7 +127,7 @@ class Attachment extends Model implements HasMedia
             return null;
         }
 
-        return $this->getFirstMedia('attachment')
+        return $this->mediaForDelivery()
             ? route('chat.attachments.thumbnail', $this)
             : null;
     }

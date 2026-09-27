@@ -84,6 +84,36 @@ class AttachmentService
     }
 
     /**
+     * Create secured attachment records for a forwarded message without copying the physical files.
+     *
+     * @param  Collection<int, Attachment>  $sourceAttachments
+     * @return Collection<int, Attachment>
+     */
+    public function forward(Message $message, Collection $sourceAttachments): Collection
+    {
+        abort_unless(Auth::user()?->status === 'active'
+            && $message->room?->members()->where('users.id', Auth::id())->exists(), 403);
+
+        return $sourceAttachments->map(function (Attachment $source) use ($message): Attachment {
+            $rootSource = $source->sourceAttachment ?: $source;
+
+            abort_unless($rootSource->mediaForDelivery(), 422, 'One of the forwarded files is no longer available.');
+
+            return Attachment::query()->create([
+                'message_id' => $message->id,
+                'forwarded_from_attachment_id' => $rootSource->id,
+                'room_id' => $message->room_id,
+                'uploaded_by' => Auth::id(),
+                'original_name' => $source->original_name,
+                'storage_path' => $rootSource->storage_path,
+                'mime_type' => $source->mime_type,
+                'file_size' => $source->file_size,
+                'extension' => $source->extension,
+            ]);
+        });
+    }
+
+    /**
      * Delete every attachment belonging to a message.
      */
     public function delete(Message $message): void

@@ -1,0 +1,205 @@
+.workspace-mobile-nav,
+.chat-mobile-call-menu,
+.chat-mobile-message-actions {
+    display: none;
+}
+
+@media (max-width: 760px) {
+    .application-shell {
+        --osen-topbar-height: 60px;
+        --workspace-mobile-nav-height: calc(66px + env(safe-area-inset-bottom));
+    }
+
+    .application-shell .app-topbar { height: 60px; }
+    .application-shell .app-topbar > .page-container { gap: 8px; padding-inline: 12px; }
+    .application-shell .workspace-header-context { flex: 1; flex-direction: row; flex-wrap: nowrap; gap: 0; min-width: 0; }
+    .application-shell .workspace-header-context .fw-semibold { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
+    .application-shell .workspace-header-context :is(.workspace-header-icon, .workspace-role-badge) { display: none; }
+    .application-shell .workspace-topbar-button,
+    .application-shell .notification-center-toggle { width: 42px; height: 42px; flex: 0 0 42px; }
+    .application-shell .workspace-account-link { min-width: 42px; width: 42px; height: 42px; max-width: none; margin-left: 0; padding: 3px; justify-content: center; }
+    .application-shell .workspace-account-link > span:last-child { display: none; }
+    .application-shell .notification-center { margin-left: auto; }
+    .application-shell .notification-center-panel { right: -52px; }
+
+    .application-shell .page-content { padding-top: 72px; padding-bottom: calc(var(--workspace-mobile-nav-height) + 18px); }
+    .learning-workspace .page-content > .page-container { width: 100%; padding: 16px 14px; }
+    .application-shell .workspace-page .card-body { padding: 18px; }
+    .application-shell .sidenav-menu { width: min(320px, 88vw); }
+    .application-shell .workspace-nav-link { min-height: 50px; }
+    .application-shell .workspace-sidebar-close { width: 44px; height: 44px; flex-basis: 44px; }
+    .workspace-anchor { scroll-margin-top: 72px; }
+
+    .workspace-mobile-nav {
+        position: fixed;
+        inset: auto 0 0;
+        z-index: 1025;
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        height: var(--workspace-mobile-nav-height);
+        padding: 4px 5px env(safe-area-inset-bottom);
+        border-top: 1px solid #dce5f1;
+        background: rgb(255 255 255 / 97%);
+        box-shadow: 0 -8px 24px rgb(23 37 84 / 8%);
+    }
+    .workspace-mobile-nav-link {
+        display: flex;
+        min-width: 0;
+        min-height: 56px;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 1px;
+        border-radius: 12px;
+        color: #51627f;
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 1.1;
+        text-decoration: none;
+    }
+    .workspace-mobile-nav-link i { display: grid; width: 36px; height: 32px; place-items: center; border-radius: 10px; font-size: 22px; }
+    .workspace-mobile-nav-link span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .workspace-mobile-nav-link:hover,
+    .workspace-mobile-nav-link.active { color: #1d4ed8; }
+    .workspace-mobile-nav-link.active i { background: #e8f0ff; }
+    .workspace-mobile-nav-link:active { background: #f0f5ff; }
+    .workspace-mobile-nav-link:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
+
+    .application-shell.workspace-chat .page-content {
+        height: var(--chat-viewport-height, 100dvh);
+        max-height: var(--chat-viewport-height, 100dvh);
+        padding: 60px 0 var(--workspace-mobile-nav-height);
+    }
+    .application-shell.workspace-chat.chat-mobile-room .page-content { padding-bottom: 0; }
+    .application-shell.workspace-chat.chat-mobile-room .workspace-mobile-nav { display: none; }
+    .application-shell.workspace-chat .teams-chat-page { min-height: 0; border-radius: 0; }
+    .workspace-chat .teams-panel-header { padding: 18px 16px 14px; }
+    .workspace-chat .teams-search-box { margin-inline: 16px; }
+    .workspace-chat .chat-conversation-filters { padding-inline: 16px; }
+    .workspace-chat .teams-room-card { min-height: 68px; }
+    .workspace-chat .teams-chat-header { height: 62px; padding-inline: 8px; }
+    .workspace-chat .teams-chat-title-group { min-width: 0; }
+    .workspace-chat .teams-chat-title-group h1 { font-size: 15px; }
+    .workspace-chat .teams-chat-actions { border: 0; padding: 0; background: transparent; box-shadow: none; }
+    .workspace-chat .teams-chat-actions .teams-icon-button { width: 40px; height: 40px; }
+    .workspace-chat .teams-chat-actions .chat-desktop-call-action { display: none; }
+    .workspace-chat .chat-mobile-call-menu { display: block; position: relative; }
+    .workspace-chat .chat-mobile-call-menu > summary { display: grid; place-items: center; list-style: none; cursor: pointer; }
+    .workspace-chat .chat-mobile-call-menu > summary::-webkit-details-marker { display: none; }
+    .workspace-chat .chat-mobile-call-menu[open] > summary { color: #1d4ed8; background: #eff6ff; }
+    .workspace-chat .chat-mobile-call-options {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: -42px;
+        z-index: 15;
+        width: 168px;
+        padding: 6px;
+        border: 1px solid #dbe4f0;
+        border-radius: 13px;
+        background: #fff;
+        box-shadow: 0 14px 32px rgb(15 23 42 / 18%);
+    }
+    .workspace-chat .chat-mobile-call-options button { display: flex; width: 100%; min-height: 43px; align-items: center; gap: 10px; border: 0; border-radius: 9px; padding: 8px 10px; color: #1e3154; background: transparent; text-align: left; font-size: 13px; font-weight: 650; }
+    .workspace-chat .chat-mobile-call-options button:hover,
+    .workspace-chat .chat-mobile-call-options button:focus-visible { color: #1d4ed8; background: #eff6ff; }
+    .workspace-chat .chat-mobile-call-options i { font-size: 18px; }
+    .workspace-chat .teams-composer textarea { font-size: 16px; }
+    .workspace-chat .teams-composer-wrap { padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+    .workspace-chat.chat-mobile-room .teams-composer-wrap:focus-within { padding-bottom: 8px; }
+
+    .workspace-chat .teams-message-meta { align-items: center; }
+    .workspace-chat .chat-mobile-message-actions { display: inline-grid; width: 28px; height: 28px; place-items: center; margin-left: auto; border: 0; border-radius: 8px; color: #64748b; background: transparent; font-size: 17px; }
+    .workspace-chat .teams-message.is-own .chat-mobile-message-actions { order: -1; margin: 0 auto 0 0; }
+    .workspace-chat .chat-mobile-message-actions:hover,
+    .workspace-chat .chat-mobile-message-actions[aria-expanded="true"] { color: #1d4ed8; background: #e8f0ff; }
+    .workspace-chat .teams-message .teams-message-toolbar,
+    .workspace-chat .teams-message:hover .teams-message-toolbar,
+    .workspace-chat .teams-message:focus-within .teams-message-toolbar { display: none; }
+    .workspace-chat .teams-message.mobile-actions-open .teams-message-toolbar {
+        position: static;
+        display: flex;
+        width: max-content;
+        max-width: 100%;
+        flex-wrap: wrap;
+        gap: 2px;
+        margin: 2px 0 8px;
+        padding: 4px;
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+    }
+    .workspace-chat .teams-message.is-own.mobile-actions-open .teams-message-toolbar { margin-left: auto; }
+    .workspace-chat .teams-message.mobile-actions-open .teams-message-toolbar button { min-width: 38px; min-height: 38px; }
+
+    .learning-workspace .teacher-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .learning-workspace .teacher-metric { grid-template-columns: 1fr auto; gap: 8px; min-height: 112px; padding: 12px; }
+    .learning-workspace .teacher-metric-icon { width: 34px; height: 34px; font-size: 17px; }
+    .learning-workspace .teacher-metric-copy { grid-column: 1 / -1; }
+    .learning-workspace .teacher-metric-copy strong { margin-block: 3px; font-size: 25px; }
+    .learning-workspace .teacher-metric-copy small { font-size: 11px; }
+    .learning-workspace .classes-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .learning-workspace .classes-summary > a { min-height: 82px; padding: 11px; gap: 9px; }
+    .learning-workspace .classes-summary > a > span:first-child { width: 36px; height: 36px; flex-basis: 36px; font-size: 18px; }
+    .learning-workspace .classes-summary strong { font-size: 19px; }
+    .learning-workspace .classes-page-hero,
+    .learning-workspace .teacher-dashboard-hero { border-radius: 16px; padding: 22px 18px; }
+    .learning-workspace :is(.classes-page-hero, .teacher-dashboard-hero) h1 { font-size: clamp(24px, 7vw, 30px); }
+    .learning-workspace .management-account-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .learning-workspace .management-account-card { grid-template-columns: auto minmax(0, 1fr); padding: 11px; }
+    .learning-workspace .management-account-card > i { display: none; }
+    .learning-workspace .management-account-card > span { width: 34px; height: 34px; font-size: 17px; }
+    .learning-workspace .management-account-card strong { font-size: 20px; }
+    .learning-workspace .profile-page-hero { padding: 20px 18px; }
+    .learning-workspace .profile-page-identity { gap: 13px; }
+    .learning-workspace .profile-page-identity .user-avatar { --user-avatar-size: 76px !important; width: 76px; height: 76px; flex-basis: 76px; }
+    .learning-workspace .profile-page-identity h1 { font-size: 27px; }
+    .learning-workspace .profile-hero-meta { gap: 5px; }
+    .learning-workspace .profile-hero-meta span { padding: 5px 7px; }
+    .learning-workspace .profile-save-actions { align-items: stretch; flex-direction: column; }
+    .learning-workspace .profile-save-actions .btn { justify-content: center; min-height: 44px; }
+    .quiz-overview-intro { padding: 21px 18px; border-radius: 16px; }
+    .quiz-overview-intro h1 { font-size: 28px; }
+    .quiz-overview-summary,
+    .quiz-results-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .quiz-overview-summary-item { gap: 8px; padding: 12px; }
+    .quiz-overview-summary-item:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .quiz-overview-summary-icon { width: 38px; height: 38px; font-size: 18px; }
+    .quiz-overview-summary-arrow { display: none; }
+    .quiz-overview-summary-item strong { font-size: 22px; }
+    .quiz-stat { padding: 12px; }
+
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) { border: 0; background: transparent; box-shadow: none; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) .table-responsive { overflow: visible; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) :is(table, tbody) { display: block; width: 100%; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) thead { display: none; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) tr { display: block; margin-bottom: 12px; padding: 10px 14px; border: 1px solid #dbe4f0; border-radius: 14px; background: #fff; box-shadow: 0 5px 16px rgb(30 64 175 / 7%); }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) td[data-label] { display: flex; align-items: start; justify-content: space-between; gap: 12px; padding: 8px 0; border: 0; overflow-wrap: anywhere; text-align: right; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) td[data-label] + td[data-label] { border-top: 1px solid #eef2f7; }
+    :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) td[data-label]::before { content: attr(data-label); flex: 0 0 66px; color: #64748b; font-size: 12px; font-weight: 650; text-align: left; }
+    .account-admin-page .account-table-card td[data-label="Actions"] { justify-content: flex-end; gap: 8px; }
+    .account-admin-page .account-table-card td[data-label="Actions"]::before { margin-right: auto; }
+    .account-admin-page .account-table-card td[data-label="Actions"] .btn { min-height: 36px; }
+}
+
+@media (max-width: 355px) {
+    .workspace-mobile-nav-link { font-size: 9px; }
+    .workspace-mobile-nav-link i { width: 32px; }
+    .learning-workspace .teacher-metrics,
+    .learning-workspace .classes-summary,
+    .learning-workspace .management-account-grid { grid-template-columns: 1fr; }
+    .quiz-overview-summary,
+    .quiz-results-summary { grid-template-columns: 1fr; }
+    .quiz-overview-summary-item:last-child:nth-child(odd) { grid-column: auto; }
+    .workspace-chat .teams-chat-title-group .user-avatar,
+    .workspace-chat .teams-chat-title-group .teams-room-avatar { --user-avatar-size: 34px !important; width: 34px; height: 34px; flex-basis: 34px; }
+}
+
+[data-bs-theme="dark"] .workspace-mobile-nav { border-color: #345578; background: #19283d; }
+[data-bs-theme="dark"] .workspace-mobile-nav-link { color: #bfcee0; }
+[data-bs-theme="dark"] .workspace-mobile-nav-link.active { color: #a8c9ff; }
+[data-bs-theme="dark"] .workspace-mobile-nav-link.active i { background: #294568; }
+[data-bs-theme="dark"] :is(.account-admin-page .account-table-card, .roles-page .roles-table-card) tr,
+[data-bs-theme="dark"] .workspace-chat .chat-mobile-call-options,
+[data-bs-theme="dark"] .workspace-chat .teams-message.mobile-actions-open .teams-message-toolbar { border-color: #345578; background: #1e3047; }
+[data-bs-theme="dark"] .workspace-chat .chat-mobile-call-options button { color: #edf3fb; }

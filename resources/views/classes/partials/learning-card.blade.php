@@ -13,7 +13,11 @@
                 <p class="learning-class-meta">Join code: <strong>{{ $schoolClass->join_code }}</strong></p>
             @endcan
         @else
-            <p class="learning-class-meta">Class updated {{ $schoolClass->updated_at->diffForHumans() }}</p>
+            <div class="learning-class-meta">
+                @isset($schoolClass->members_count)<span><i class="ti ti-users" aria-hidden="true"></i> {{ $schoolClass->members_count }} members</span>@endisset
+                @isset($schoolClass->channels_count)<span><i class="ti ti-message-circle" aria-hidden="true"></i> {{ $schoolClass->channels_count }} channels</span>@endisset
+            </div>
+            <p class="learning-class-meta">Updated {{ $schoolClass->updated_at->diffForHumans() }}</p>
         @endif
     </div>
     <div class="learning-class-links">

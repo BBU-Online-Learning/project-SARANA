@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -62,6 +63,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'auth_version' => 'integer',
             'two_factor_last_used_step' => 'integer',
+            'preferences' => 'array',
         ];
     }
 
@@ -171,5 +173,25 @@ class User extends Authenticatable
                 'joined_at',
             ])
             ->withTimestamps();
+    }
+
+    public function createdQuizzes(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Quiz::class, 'creator_id');
+    }
+
+    public function quizAssignments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(QuizAssignment::class, 'quiz_assignment_students')->withPivot('assigned_at')->withTimestamps();
+    }
+
+    public function quizAttempts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
+    public function twoFactorTrustedDevices(): HasMany
+    {
+        return $this->hasMany(TwoFactorTrustedDevice::class);
     }
 }

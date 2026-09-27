@@ -11,6 +11,7 @@ use App\Models\CallSession;
 use App\Models\ChatRoom;
 use App\Models\Message;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use Carbon\CarbonInterface;
 use Illuminate\Validation\ValidationException;
 
@@ -148,7 +149,7 @@ class VoiceCallService
             'offer' => in_array($call->status, CallSession::ACTIVE_STATUSES, true) && $isCaller,
             'answer' => $call->status === 'active' && ! $isCaller,
             'ice' => in_array($call->status, CallSession::ACTIVE_STATUSES, true),
-            'media', 'restart' => $call->status === 'active',
+            'media', 'restart', 'video' => $call->status === 'active',
             default => false,
         };
 
@@ -376,6 +377,27 @@ class VoiceCallService
     {
         if (! $message->wasRecentlyCreated) {
             return;
+        }
+
+        $call = CallSession::query()->with(['initiator', 'participants.user'])->find($message->call_session_id);
+        if ($call?->status === 'missed') {
+            $receiver = $call->participants->firstWhere('user_id', '!=', $call->initiated_by)?->user;
+            $receiver?->notify(new ActivityNotification(
+                'call',
+                'Missed '.($call->call_type === 'video' ? 'video' : 'voice').' call',
+                'From '.($call->initiator?->name ?? 'someone'),
+                route('chat.index', ['room' => $call->room_id], false),
+                $call->room_id,
+            ));
+        } elseif ($call?->status === 'declined') {
+            $receiver = $call->participants->firstWhere('user_id', '!=', $call->initiated_by)?->user;
+            $call->initiator?->notify(new ActivityNotification(
+                'call',
+                'Call declined',
+                ($receiver?->name ?? 'The other person').' declined your call.',
+                route('chat.index', ['room' => $call->room_id], false),
+                $call->room_id,
+            ));
         }
 
         rescue(fn () => broadcast(new MessageSent($message)), report: true);

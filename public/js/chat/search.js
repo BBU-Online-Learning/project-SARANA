@@ -11,17 +11,19 @@ document.addEventListener("input", (e) => {
 function filterConversationList(term) {
     const rooms = document.querySelectorAll(".teams-room-scroll .room-item");
     const emptyState = document.getElementById("conversation-search-empty");
+    const filter = document.querySelector('[data-conversation-filter][aria-pressed="true"]')?.dataset.conversationFilter || 'all';
     let visibleCount = 0;
 
     rooms.forEach((room) => {
         const name = room.querySelector(".room-name")?.textContent.toLowerCase() || "";
-        const match = !term || name.includes(term);
+        const matchesType = filter === 'all' || (filter === 'unread' ? !!room.querySelector('.unread-badge') : room.dataset.roomType === filter);
+        const match = (!term || name.includes(term)) && matchesType;
         room.style.display = match ? "" : "none";
         if (match) visibleCount++;
     });
 
     if (emptyState) {
-        emptyState.style.display = term && visibleCount === 0 ? "block" : "none";
+        emptyState.style.display = (term || filter !== 'all') && visibleCount === 0 ? "block" : "none";
     }
 }
 
@@ -34,6 +36,13 @@ let roomSearchIndex = -1;
 let roomSearchRequestId = 0;
 
 document.addEventListener("click", (e) => {
+    const result = e.target.closest('[data-room-search-result]');
+    if (result) {
+        roomSearchIndex = Number(result.dataset.roomSearchResult);
+        updateRoomSearchCount();
+        jumpToRoomSearchResult(roomSearchIndex);
+        return;
+    }
     if (e.target.closest("#open-room-search-btn")) {
         toggleRoomSearchBar();
         return;
@@ -65,6 +74,7 @@ document.addEventListener("input", (e) => {
     if (!e.target.matches("#room-search-input")) return;
 
     clearTimeout(roomSearchDebounce);
+    roomSearchRequestId++;
     const keyword = e.target.value.trim();
 
     if (!keyword) {
@@ -127,6 +137,8 @@ async function runRoomSearch(keyword) {
 
     const requestId = ++roomSearchRequestId;
     const roomId = window.chat.activeRoomId;
+    const count = document.getElementById('room-search-count');
+    if (count) count.textContent = 'Searching…';
 
     try {
         const response = await axios.get(
@@ -152,11 +164,15 @@ async function runRoomSearch(keyword) {
             clearRoomSearchHighlights();
         }
     } catch (error) {
+        if (requestId === roomSearchRequestId && roomId === window.chat.activeRoomId && count) {
+            count.textContent = 'Search failed. Try again.';
+        }
         console.error("Room search failed:", error);
     }
 }
 
 function updateRoomSearchCount() {
+    renderRoomSearchResults();
     const countEl = document.getElementById("room-search-count");
     if (!countEl) return;
 
@@ -209,4 +225,19 @@ async function jumpToRoomSearchResult(index) {
     clearRoomSearchHighlights();
     el.classList.add("search-match-active");
     el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function renderRoomSearchResults() {
+    const list = document.getElementById('room-search-results');
+    if (!list) return;
+    list.replaceChildren();
+    list.hidden = roomSearchResults.length === 0;
+    roomSearchResults.forEach((result, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.roomSearchResult = String(index);
+        button.textContent = result.snippet || `Matching message ${index + 1}`;
+        if (index === roomSearchIndex) button.setAttribute('aria-current', 'true');
+        list.append(button);
+    });
 }

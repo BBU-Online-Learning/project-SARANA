@@ -562,11 +562,14 @@ body.student-chat .teams-chat-shell {
     bottom: calc(100% - 4px);
     z-index: 12;
     width: min(350px, calc(100% - 40px));
+    max-height: min(540px, calc(100dvh - 150px));
     padding: 12px;
     border: 1px solid var(--teams-border);
     border-radius: 18px;
     background: var(--teams-panel);
     box-shadow: 0 18px 48px rgba(15, 23, 42, .18);
+    display: flex;
+    flex-direction: column;
 }
 
 .sticker-picker[hidden] {
@@ -581,25 +584,59 @@ body.student-chat .teams-chat-shell {
     padding: 0 2px 10px;
 }
 
-.sticker-picker-header > div {
-    display: flex;
-    flex-direction: column;
-}
-
 .sticker-picker-header strong {
     color: var(--teams-text);
     font-size: 15px;
 }
 
-.sticker-picker-header span {
+.sticker-pack-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 10px;
+    padding: 3px;
+    border-radius: 11px;
+    background: var(--teams-bg);
+}
+
+.sticker-pack-tab {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 8px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
     color: var(--teams-muted);
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sticker-pack-tab[aria-selected="true"] {
+    background: var(--teams-panel);
+    color: var(--teams-primary);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .1);
+}
+
+.sticker-pack-tab:focus-visible {
+    outline: 2px solid var(--teams-primary);
+    outline-offset: 1px;
 }
 
 .sticker-picker-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 6px;
+    min-height: 0;
+    padding-right: 2px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+}
+
+.sticker-picker-grid[hidden] {
+    display: none;
 }
 
 .sticker-option {
@@ -705,12 +742,13 @@ body.student-chat .teams-chat-shell {
 .sticker-message {
     width: 156px;
     max-width: min(42vw, 156px);
+    aspect-ratio: 1;
 }
 
 .sticker-message img {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
     object-fit: contain;
     filter: drop-shadow(0 8px 10px rgba(15, 23, 42, .12));
 }
@@ -797,13 +835,20 @@ body.student-chat .teams-chat-shell {
     color: var(--teams-primary);
 }
 
-.teams-composer input {
+.teams-composer input,
+.teams-composer textarea {
     flex: 1;
     min-width: 0;
     border: 0;
     outline: 0;
     font-size: 14px;
+    background: transparent;
+    color: inherit;
 }
+
+.teams-composer textarea { resize: none; line-height: 1.5; max-height: 160px; padding: 6px; }
+.composer-help { margin: 6px 4px 0; color: var(--teams-muted); font-size: 12px; }
+.teams-message-bubble[data-message-body], .teams-message.message-pending .teams-message-bubble, .teams-message.message-failed .teams-message-bubble { white-space: pre-line; }
 
 .teams-send-button {
     background: var(--teams-primary);
@@ -1562,13 +1607,15 @@ body.student-chat .teams-chat-shell {
 }
 
 .message-attachment-thumb {
+    display: block;
     width: 220px;
     max-width: 100%;
-    max-height: 260px;
+    aspect-ratio: 4 / 3;
     object-fit: cover;
     border-radius: 12px;
     cursor: pointer;
     border: 1px solid var(--teams-border);
+    background: var(--teams-panel-soft);
     transition: opacity .15s ease;
 }
 
@@ -1698,6 +1745,44 @@ body.student-chat .teams-chat-shell {
 
 .image-preview-close:hover {
     background: rgba(255, 255, 255, .22);
+}
+
+.image-preview-navigation {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    transition: background .15s ease;
+}
+
+.image-preview-navigation[hidden] { display: none; }
+.image-preview-navigation:hover:not(:disabled),
+.image-preview-navigation:focus-visible { background: rgba(255, 255, 255, .28); }
+.image-preview-navigation:focus-visible,
+.image-preview-close:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+.image-preview-navigation:disabled { opacity: .35; cursor: default; }
+.image-preview-previous { left: max(16px, env(safe-area-inset-left)); }
+.image-preview-next { right: max(16px, env(safe-area-inset-right)); }
+.image-preview-counter { color: #fff; font-size: 13px; white-space: nowrap; }
+
+@media (max-width: 576px) {
+    .image-preview-navigation { width: 40px; height: 40px; }
+    .image-preview-previous { left: 8px; }
+    .image-preview-next { right: 8px; }
 }
 
 /* =========================================================
@@ -2560,6 +2645,7 @@ body.class-page .class-member-row.d-none {
 .video-attachment-card video {
     display: block;
     width: 100%;
+    aspect-ratio: 16 / 9;
     max-height: 300px;
     background: #000;
 }
@@ -2595,6 +2681,8 @@ body.class-page .class-member-row.d-none {
     margin-top: 14px;
 }
 
+.image-preview-toolbar .image-preview-caption { margin-top: 0; }
+
 .image-preview-download {
     display: inline-flex;
     align-items: center;
@@ -2625,3 +2713,6 @@ body.class-page .class-member-row.d-none {
         padding: 16px;
     }
 }
+.teams-message-bubble .chat-message-link { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.teams-message-bubble .chat-message-link.is-group-invite { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid rgb(255 255 255 / 42%); border-radius: 9px; background: rgb(255 255 255 / 16%); text-decoration: none; }
+.teams-message.is-other .teams-message-bubble .chat-message-link.is-group-invite { border-color: #c7d2fe; color: #3730a3; background: #eef2ff; }

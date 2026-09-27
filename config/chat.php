@@ -18,6 +18,8 @@ if ($voiceCallTurnUrl !== '') {
 
 // File: D:\education\Laravel_Project\Elearning\config\chat.php
 return [
+    'group_invite_lifetime_days' => 7,
+    'group_invite_public_url' => rtrim((string) env('CHAT_GROUP_INVITE_PUBLIC_URL', ''), '/'),
     'voice_calls' => [
         'heartbeat_timeout_seconds' => max(60, (int) env('VOICE_CALL_HEARTBEAT_TIMEOUT', 120)),
         'turn_secret' => (string) env('VOICE_CALL_TURN_SECRET', ''),
@@ -52,6 +54,81 @@ return [
             'name' => 'You did it',
             'pack' => 'Study Buddies',
             'asset' => 'images/stickers/graduation-cap.webp',
+        ],
+        'bbu_ready' => [
+            'name' => 'Ready',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/ready.png',
+        ],
+        'bbu_laugh' => [
+            'name' => 'So funny',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/laugh.png',
+        ],
+        'bbu_wave' => [
+            'name' => 'Hello',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/wave.png',
+        ],
+        'bbu_thumbs_up' => [
+            'name' => 'Great',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/thumbs-up.png',
+        ],
+        'bbu_thank_you' => [
+            'name' => 'Thank you',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/thank-you.png',
+        ],
+        'bbu_thinking' => [
+            'name' => 'Thinking',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/thinking.png',
+        ],
+        'bbu_confused' => [
+            'name' => 'Confused',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/confused.png',
+        ],
+        'bbu_surprised' => [
+            'name' => 'Surprised',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/surprised.png',
+        ],
+        'bbu_sad' => [
+            'name' => 'Feeling sad',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/sad.png',
+        ],
+        'bbu_angry' => [
+            'name' => 'Not happy',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/angry.png',
+        ],
+        'bbu_sorry' => [
+            'name' => 'Sorry',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/sorry.png',
+        ],
+        'bbu_goodbye' => [
+            'name' => 'Goodbye',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/goodbye.png',
+        ],
+        'bbu_studying' => [
+            'name' => 'Studying',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/studying.png',
+        ],
+        'bbu_celebrate' => [
+            'name' => 'Yes!',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/celebrate.png',
+        ],
+        'bbu_love' => [
+            'name' => 'Love it',
+            'pack' => 'Dev Reactions',
+            'asset' => 'images/stickers/bbu-reactions/love.png',
         ],
     ],
 

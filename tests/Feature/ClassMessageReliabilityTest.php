@@ -24,6 +24,8 @@ beforeEach(function (): void {
 test('current senders edit and soft delete their messages with synchronization tombstones', function (): void {
     $response = $this->postJson($this->url, ['body' => 'Before', 'client_uuid' => (string) Str::uuid()])->assertCreated();
     $id = $response->json('message.message_id');
+    expect($this->owner->notifications()->firstOrFail()->data['category'])->toBe('class')
+        ->and($this->student->notifications()->count())->toBe(0);
     $this->patchJson("$this->url/$id", ['body' => 'After'])->assertOk()
         ->assertJsonPath('message.body', 'After')->assertJsonPath('message.is_edited', true);
     expect(SchoolClassChannelMessage::findOrFail($id)->edited_at)->not->toBeNull();

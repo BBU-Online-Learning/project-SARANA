@@ -5,6 +5,7 @@
 @section('styles')
     <link rel="stylesheet" href="{{ asset('css/create-chat.css') }}">
     <link rel="stylesheet" href="{{ asset('css/group-settings.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/group-invite.css') }}">
 @endsection
 
 @section('content')
@@ -121,6 +122,8 @@
             </section>
 
             @can('manageGroup', $room)
+                @include('chat.partials.group-invite-panel', ['groupInviteData' => $groupInviteData ?? null])
+
                 <section class="card group-settings-card mb-3">
                     <div class="card-body">
                         <div class="group-settings-section-heading">
@@ -242,5 +245,6 @@
 @endsection
 
 @section('scripts')
+    <script src="{{ asset('js/chat/group-invite.js') }}"></script>
     <script src="{{ asset('js/chat/group-settings.js') }}"></script>
 @endsection

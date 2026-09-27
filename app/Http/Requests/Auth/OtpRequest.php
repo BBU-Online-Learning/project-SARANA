@@ -13,7 +13,11 @@ class OtpRequest extends FormRequest
 
     public function rules(): array
     {
-        return ['code' => ['required', 'digits:6'], 'secret' => ['prohibited']];
+        return [
+            'code' => ['required', 'digits:6'],
+            'secret' => ['prohibited'],
+            'trust_device' => ['sometimes', 'boolean'],
+        ];
     }
 
     public function messages(): array

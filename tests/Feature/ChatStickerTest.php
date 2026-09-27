@@ -47,6 +47,23 @@ test('an authorized member can send and reload a trusted sticker message', funct
         ->toContain('Great job sticker');
 })->with(['direct', 'group']);
 
+test('the BBU reaction pack can be sent and rendered from trusted local assets', function (): void {
+    expect(config('chat.stickers.bbu_wave.pack'))->toBe('Dev Reactions');
+
+    $messageId = $this->actingAs($this->sender)->postJson(route('chat.messages.store', $this->room), [
+        'sticker_id' => 'bbu_wave',
+        'client_uuid' => (string) Str::uuid(),
+    ])->assertOk()->json('message_id');
+
+    $message = Message::query()->findOrFail($messageId);
+    expect($message->message_type)->toBe('sticker')
+        ->and($message->sticker_id)->toBe('bbu_wave');
+
+    $this->getJson("/chat/messages/{$message->id}/html")->assertOk()
+        ->assertJsonPath('html', fn (string $html): bool => str_contains($html, 'images/stickers/bbu-reactions/wave.png')
+            && str_contains($html, 'Hello sticker'));
+});
+
 test('sticker identifiers are allowlisted and stickers must be standalone', function (): void {
     $url = route('chat.messages.store', $this->room);
     $this->actingAs($this->sender)->postJson($url, [
@@ -108,12 +125,20 @@ test('stickers keep existing reactions reads and deletion behavior', function ()
 });
 
 test('sticker picker client behavior and bundled assets are valid', function (): void {
+    expect(config('chat.stickers'))->toHaveCount(19);
+
     foreach (config('chat.stickers') as $sticker) {
         $path = public_path($sticker['asset']);
         expect($path)->toBeFile();
         [$width, $height] = getimagesize($path);
         expect($width)->toBe(512)->and($height)->toBe(512);
     }
+
+    $html = $this->actingAs($this->sender)->getJson(route('chat.rooms.show', $this->room))->assertOk()->json('html');
+    expect($html)->toContain('data-sticker-pack-tab="study-buddies"', 'data-sticker-pack-tab="dev-reactions"')
+        ->toContain('data-sticker-pack-panel="study-buddies"', 'data-sticker-pack-panel="dev-reactions"')
+        ->toContain('data-sticker-id="bbu_wave"', 'data-sticker-name="Hello"', 'data-sticker-pack="Dev Reactions"')
+        ->toContain('data-sticker-url="http://localhost/images/stickers/bbu-reactions/wave.png"');
 
     $process = new Process(['node', base_path('tests/chat-sticker-picker-client.cjs')], base_path());
     $process->mustRun();

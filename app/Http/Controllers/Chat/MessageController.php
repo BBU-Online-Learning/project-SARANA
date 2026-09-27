@@ -8,6 +8,7 @@ use App\Events\Chat\ConversationUpdated;
 use App\Events\Chat\MessageDeleted;
 use App\Events\Chat\MessageUpdated;        // This gives access to Laravel controller features.
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Chat\ForwardMessagesRequest;
 use App\Http\Requests\Chat\StoreMessageRequest;
 use App\Http\Requests\Chat\UpdateMessageRequest;
 use App\Models\ChatRoom;
@@ -16,6 +17,7 @@ use App\Models\MessageUserDeletion;
 use App\Models\User;
 use App\Services\Chat\ChatAccessService;
 use App\Services\Chat\MessageService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -75,6 +77,33 @@ class MessageController extends Controller
             'message_id' => $message->id,
             'room_id' => $message->room_id,
             'client_uuid' => $message->client_uuid,
+        ]);
+    }
+
+    public function forward(ForwardMessagesRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $messages = $this->messageService->forwardMessages(
+            $request->user(),
+            array_map('intval', $validated['message_ids']),
+            array_map('intval', $validated['room_ids']),
+            $validated['note'] ?? null,
+        );
+
+        return response()->json([
+            'success' => true,
+            'forwarded_count' => count($validated['message_ids']) * count($validated['room_ids']),
+            'messages' => $messages->map(fn (Message $message): array => [
+                'id' => $message->id,
+                'room_id' => $message->room_id,
+            ])->values(),
+            'sidebar_updates' => $messages->groupBy('room_id')->map(fn ($roomMessages): array => [
+                'room_id' => $roomMessages->last()->room_id,
+                'message_id' => $roomMessages->last()->id,
+                'body' => $roomMessages->last()->previewText(),
+                'sender' => $roomMessages->last()->sender->name,
+                'created_at' => $roomMessages->last()->created_at->diffForHumans(),
+            ])->values(),
         ]);
     }
 
@@ -159,12 +188,14 @@ class MessageController extends Controller
         abort_if($message->isHiddenFor(Auth::id()), 404);
 
         $message->load([
-            'sender',
+            'sender.role',
             'replyTo.sender',
             'room.members',
             'reactions',
             'reads',
             'attachments.media',
+            'attachments.sourceAttachment.media',
+            'forwardedFromSender:id,name',
         ]);
 
         return response()->json([

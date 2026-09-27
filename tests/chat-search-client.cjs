@@ -14,17 +14,20 @@ const trigger = {
 const bar = { hidden: true };
 const input = { value: '', focused: false, focus() { this.focused = true; } };
 const count = { textContent: '' };
+const results = { hidden: true, children: [], replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } };
 const elements = {
     'open-room-search-btn': trigger,
     'room-search-bar': bar,
     'room-search-input': input,
     'room-search-count': count,
+    'room-search-results': results,
 };
 const document = {
     addEventListener(name, callback) { listeners[name] = callback; },
     getElementById(id) { return elements[id] || null; },
     querySelectorAll() { return []; },
     querySelector() { return null; },
+    createElement() { return { dataset: {}, attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } }; },
 };
 const window = { chat: { activeRoomId: 7, nextCursor: null } };
 let resolveSearch;
@@ -61,10 +64,28 @@ const pendingSearch = context.runRoomSearch('old room');
 window.resetRoomSearchState();
 resolveSearch({ data: { results: [{ message_id: 99 }] } });
 
-pendingSearch.then(() => {
+pendingSearch.then(async () => {
     assert.equal(bar.hidden, true);
     assert.equal(count.textContent, '');
-    console.log('Room search toggle, Escape, room reset, and stale response checks passed.');
+    context.toggleRoomSearchBar();
+    input.value = 'lesson';
+    const matchingSearch = context.runRoomSearch('lesson');
+    resolveSearch({ data: { results: [{ message_id: 98, snippet: '<img onerror=alert(1)> lesson' }, { message_id: 99, snippet: 'Next lesson' }] } });
+    await matchingSearch;
+    assert.equal(results.hidden, false);
+    assert.equal(results.children[0].textContent, '<img onerror=alert(1)> lesson');
+    assert.equal(results.children[1].attributes['aria-current'], 'true');
+    listeners.click({ target: { closest: selector => selector === '[data-room-search-result]' ? results.children[0] : null } });
+    assert.equal(count.textContent, '1/2');
+    const clearedSearch = context.runRoomSearch('lesson');
+    input.value = '';
+    listeners.input({ target: { matches: () => true, value: '' } });
+    resolveSearch({ data: { results: [{ message_id: 99 }] } });
+    await clearedSearch;
+    assert.equal(count.textContent, '');
+    assert.equal(results.hidden, true);
+    assert.equal(results.children.length, 0);
+    console.log('Room search toggle, Escape, safe snippets, result selection, reset, and stale response checks passed.');
 }).catch(error => {
     console.error(error);
     process.exitCode = 1;

@@ -7,6 +7,7 @@
     $sticker = $message->message_type === 'sticker'
         ? \App\Services\Chat\StickerCatalog::find($message->sticker_id)
         : null;
+    $canForward = !$isDeleted && !in_array($message->message_type, ['call', 'system_notification'], true);
 
     $isRead = $isOwn && !$isDeleted
         && app(\App\Services\Chat\ReadReceiptService::class)->details($message, $room)['read_count'] > 0;
@@ -22,7 +23,8 @@
 <div class="message-item teams-message {{ $isOwn ? 'is-own' : 'is-other' }} {{ $isDeleted ? 'is-deleted' : '' }}"
     data-message-id="{{ $message->id }}" data-sender-id="{{ $message->sender_id }}"
     data-created-at="{{ $message->created_at->timestamp }}" data-client-id="{{ $message->client_uuid }}"
-    data-message-type="{{ $message->message_type }}">
+    data-message-type="{{ $message->message_type }}" data-forwardable="{{ $canForward ? '1' : '0' }}"
+    data-message-preview="{{ e(Str::limit($message->previewText(), 120)) }}">
 
     <a href="{{ $isOwn ? route('profile.edit') : route('users.profile', $message->sender) }}"
         class="message-profile-link" data-user-profile aria-label="View {{ $message->sender->name }}'s profile">
@@ -31,49 +33,12 @@
 
     <div class="teams-message-stack">
 
-        {{-- Toolbar: hidden when message is deleted --}}
-        @if (!$isDeleted)
-            <div class="teams-message-toolbar">
-                {{-- Reply Button --}}
-                <button class="reply-btn" data-message-id="{{ $message->id }}"
-                    data-message-body="{{ e($message->previewText()) }}">
-                    <i class="ti ti-arrow-back-up"></i>
-                </button>
-
-                {{-- Delete button — available to own messages only --}}
-                @if ($isOwn)
-                    <button class="delete-message-btn" data-message-id="{{ $message->id }}"
-                        aria-label="Delete message">
-                        <i class="ti ti-trash"></i>
-                    </button>
-                @endif
-
-                {{-- Delete For Me — available to everyone --}}
-                @if (!$isOwn)
-                    <button class="hide-message-btn" data-message-id="{{ $message->id }}" aria-label="Delete for me">
-                        <i class="ti ti-trash"></i>
-                    </button>
-                @endif
-                {{-- Edit Message --}}
-                @if ($isOwn && !in_array($message->message_type, ['sticker', 'call'], true) && $message->created_at->gt(now()->subMinutes(15)) && !$isDeleted)
-                    <button class="edit-message-btn" data-message-id="{{ $message->id }}"
-                        data-message-body="{{ e($message->body) }}">
-                        <i class="ti ti-edit"></i>
-                    </button>
-                @endif
-                {{-- Reaction picker trigger --}}
-                @if (!$isDeleted)
-                    <button class="reaction-trigger-btn" data-message-id="{{ $message->id }}"
-                        aria-label="Add reaction">
-                        <i class="ti ti-mood-smile"></i>
-                    </button>
-                @endif
-            </div>
-        @endif
-
         <div class="teams-message-meta">
             <strong><a href="{{ $isOwn ? route('profile.edit') : route('users.profile', $message->sender) }}"
                 data-user-profile>{{ $message->sender->name }}</a></strong>
+            @if($isGroup && $message->sender?->role)
+                <small class="chat-sender-role">{{ ucwords(str_replace('_', ' ', $message->sender->role->name)) }}</small>
+            @endif
             <span>
                 {{ $message->created_at->format('h:i A') }}
                 @if ($isOwn && !$isDeleted)
@@ -86,7 +51,55 @@
                     <span class="teams-edited-label">edited</span>
                 @endif
             </span>
+            @if (! $isDeleted)
+                <button type="button" class="chat-mobile-message-actions" data-mobile-message-actions
+                    aria-label="Message actions" aria-controls="message-actions-{{ $message->id }}"
+                    aria-expanded="false" title="Message actions">
+                    <i class="ti ti-dots" aria-hidden="true"></i>
+                </button>
+            @endif
         </div>
+
+        @if (!$isDeleted)
+            <div class="teams-message-toolbar" id="message-actions-{{ $message->id }}">
+                <button class="reply-btn" aria-label="Reply to message" data-message-id="{{ $message->id }}"
+                    data-message-body="{{ e($message->previewText()) }}">
+                    <i class="ti ti-arrow-back-up"></i>
+                </button>
+
+                @if ($canForward)
+                    <button type="button" class="forward-message-btn" data-message-id="{{ $message->id }}"
+                        aria-label="Forward message" title="Forward">
+                        <i class="ti ti-arrow-forward-up" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="select-message-btn" data-message-id="{{ $message->id }}"
+                        aria-label="Select message" title="Select">
+                        <i class="ti ti-circle-check" aria-hidden="true"></i>
+                    </button>
+                @endif
+
+                @if ($isOwn)
+                    <button class="delete-message-btn" data-message-id="{{ $message->id }}"
+                        aria-label="Delete message">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                @else
+                    <button class="hide-message-btn" data-message-id="{{ $message->id }}" aria-label="Delete for me">
+                        <i class="ti ti-trash"></i>
+                    </button>
+                @endif
+                @if ($isOwn && !$message->isForwarded() && !in_array($message->message_type, ['sticker', 'call'], true) && $message->created_at->gt(now()->subMinutes(15)))
+                    <button class="edit-message-btn" aria-label="Edit message" data-message-id="{{ $message->id }}"
+                        data-message-body="{{ e($message->body) }}">
+                        <i class="ti ti-edit"></i>
+                    </button>
+                @endif
+                <button class="reaction-trigger-btn" data-message-id="{{ $message->id }}"
+                    aria-label="Add reaction">
+                    <i class="ti ti-mood-smile"></i>
+                </button>
+            </div>
+        @endif
 
         {{-- Reply preview — show "Deleted message" if parent was deleted --}}
         @if (!$isDeleted && $message->replyTo)
@@ -115,7 +128,12 @@
                 </div>
             </div>
         @endif
-
+        @if (!$isDeleted && $message->isForwarded())
+            <div class="forwarded-message-label">
+                <i class="ti ti-arrow-forward-up" aria-hidden="true"></i>
+                <span>Forwarded from <strong>{{ $message->forwarded_from_sender_name ?: ($message->forwardedFromSender?->name ?? 'Unknown user') }}</strong></span>
+            </div>
+        @endif
 
         {{-- Bubble --}}
         @if ($isDeleted)
@@ -139,10 +157,9 @@
                 </div>
             @endif
         @elseif (filled($message->body))
-            <div class="teams-message-bubble" data-message-body="{{ e($message->body) }}">
-                {{ $message->body }}
-            </div>
+            <div class="teams-message-bubble" data-message-body="{{ e($message->body) }}">{!! \App\Support\ChatMessageFormatter::linkify($message->body) !!}</div>
         @endif
+
         {{-- Attachment Rendering --}}
         @if (!$isDeleted && $message->attachments->isNotEmpty())
             <div class="message-attachments">

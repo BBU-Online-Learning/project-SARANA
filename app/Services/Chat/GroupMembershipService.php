@@ -4,6 +4,7 @@ namespace App\Services\Chat;
 
 use App\Models\ChatRoom;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
@@ -22,6 +23,13 @@ class GroupMembershipService
             foreach ($ids as $id) {
                 $room->members()->attach($id, ['role' => 'member', 'joined_at' => now()]);
             }
+
+            User::query()->whereIn('id', $ids)->get()->each(fn (User $member) => $member->notify(new ActivityNotification(
+                'group',
+                'Added to a group',
+                $creator->name.' added you to '.$room->name.'.',
+                route('chat.index', ['room' => $room->id], false),
+            )));
 
             return $room;
         });
@@ -55,6 +63,13 @@ class GroupMembershipService
             foreach ($new as $id) {
                 $room->members()->attach($id, ['role' => 'member', 'joined_at' => now()]);
             }
+
+            User::query()->whereIn('id', $new)->get()->each(fn (User $member) => $member->notify(new ActivityNotification(
+                'group',
+                'Added to a group',
+                $actor->name.' added you to '.$room->name.'.',
+                route('chat.index', ['room' => $room->id], false),
+            )));
         });
     }
 
@@ -72,6 +87,15 @@ class GroupMembershipService
                 throw ValidationException::withMessages(['member' => 'The owner cannot leave or be removed. The group must retain its owner.']);
             }
             $membership->delete();
+
+            if (! $leaving) {
+                User::query()->find($targetId)?->notify(new ActivityNotification(
+                    'group',
+                    'Removed from a group',
+                    'You were removed from '.$room->name.'.',
+                    route('chat.index', absolute: false),
+                ));
+            }
         });
     }
 

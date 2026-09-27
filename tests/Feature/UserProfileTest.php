@@ -28,6 +28,7 @@ beforeEach(function (): void {
 test('user can view and update their own complete profile', function (): void {
     $this->actingAs($this->viewer)->get(route('profile.edit'))->assertOk()
         ->assertSee('My profile')->assertSee($this->viewer->email)->assertSee('Member since')
+        ->assertSee('profile-page-hero', false)->assertSee('profile-layout', false)
         ->assertSee('name="bio"', false)->assertSee('name="phone"', false);
 
     $roleId = $this->viewer->role_id;

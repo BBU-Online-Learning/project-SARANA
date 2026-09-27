@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Classes\IndexClassRequest;
 use App\Http\Requests\Classes\JoinClassRequest;
 use App\Http\Requests\Classes\StoreClassMemberRequest;
 use App\Http\Requests\Classes\StoreClassRequest;
@@ -12,6 +13,7 @@ use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\SchoolClassChannel;
 use App\Models\User;
+use App\Notifications\ActivityNotification;
 use App\Services\ClassAccessService;
 use App\Services\ClassManagementService;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,16 +30,32 @@ class SchoolClassController extends Controller
 {
     public function __construct(private ClassManagementService $classes, private ClassAccessService $access) {}
 
-    public function index(): View
+    public function index(IndexClassRequest $request): View
     {
         abort_unless($this->access->ready(Auth::user()), 403);
-        $classes = SchoolClass::query()->with(['creator', 'channels'])->withCount('members')
+        $search = trim($request->validated('search') ?? '');
+        $status = $request->validated('status') ?? 'all';
+        $accessibleClasses = SchoolClass::query()
             ->when(! $this->access->administrator(Auth::user()), function (Builder $query): void {
                 $query->whereHas('members', fn (Builder $members): Builder => $members->where('users.id', Auth::id()));
+            });
+        $classSummary = [
+            'total' => (clone $accessibleClasses)->count(),
+            'active' => (clone $accessibleClasses)->whereNull('archived_at')->count(),
+            'archived' => (clone $accessibleClasses)->whereNotNull('archived_at')->count(),
+        ];
+        $classes = (clone $accessibleClasses)->with(['creator', 'channels'])->withCount('members')
+            ->when($status === 'active', fn (Builder $query): Builder => $query->whereNull('archived_at'))
+            ->when($status === 'archived', fn (Builder $query): Builder => $query->whereNotNull('archived_at'))
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $query) use ($search): void {
+                    $query->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('description', 'like', '%'.$search.'%');
+                });
             })->latest()->get();
         $eligibleTeachers = $this->access->administrator(Auth::user()) ? $this->eligibleTeachers()->get() : collect();
 
-        return view('classes.index', compact('classes', 'eligibleTeachers'));
+        return view('classes.index', compact('classes', 'eligibleTeachers', 'search', 'status', 'classSummary'));
     }
 
     public function store(StoreClassRequest $request): RedirectResponse
@@ -74,6 +92,16 @@ class SchoolClassController extends Controller
 
             return $schoolClass;
         });
+
+        $owner = $schoolClass->members()->wherePivot('role', 'owner')->first();
+        if ($owner && $owner->id !== $request->user()->id) {
+            $owner->notify(new ActivityNotification(
+                'class',
+                'New class to manage',
+                'You are the owner of '.$schoolClass->name.'.',
+                route('classes.show', $schoolClass, false),
+            ));
+        }
 
         return redirect()->route('classes.show', $schoolClass)->with('success', 'Class created successfully.');
     }

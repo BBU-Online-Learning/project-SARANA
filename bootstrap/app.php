@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // This gives you a simple route alias called twofactor.setup.
         $middleware->alias([
             'twofactor.setup' => RequireTwoFactorSetup::class,
+            'signed.flexible' => \App\Http\Middleware\ValidateFlexibleSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

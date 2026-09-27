@@ -4,6 +4,10 @@
         <i class="ti ti-message-circle"></i>
     </div>
 
-    <h1>Select a conversation</h1>
-    <p>Choose a chat from the left panel to start messaging.</p>
+    <span class="chat-empty-eyebrow">Connected learning</span>
+    <h1>Your conversations</h1>
+    <p>A question, an idea, a little progress.<br>Select a conversation or start something new.</p>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createChatModal">
+        <i class="ti ti-plus" aria-hidden="true"></i> New conversation
+    </button>
 </div>

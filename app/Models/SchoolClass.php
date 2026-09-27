@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SchoolClass extends Model
@@ -59,5 +60,25 @@ class SchoolClass extends Model
     public function memberRecords(): HasMany
     {
         return $this->hasMany(SchoolClassMember::class, 'school_class_id');
+    }
+
+    public function quizzes(): HasMany
+    {
+        return $this->hasMany(Quiz::class);
+    }
+
+    public function quizAssignments(): HasMany
+    {
+        return $this->hasMany(QuizAssignment::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->quizAssignments();
+    }
+
+    public function attempts(): HasManyThrough
+    {
+        return $this->hasManyThrough(QuizAttempt::class, QuizAssignment::class);
     }
 }
