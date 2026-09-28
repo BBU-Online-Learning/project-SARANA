@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Classes\ClassMessagesRequest;
+use App\Http\Requests\Classes\MarkClassChannelReadRequest;
 use App\Http\Requests\Classes\StoreSchoolClassChannelMessageRequest;
 use App\Http\Requests\Classes\UpdateSchoolClassChannelMessageRequest;
 use App\Models\SchoolClass;
 use App\Models\SchoolClassChannel;
 use App\Models\SchoolClassChannelMessage;
 use App\Services\ClassAccessService;
+use App\Services\ClassChannelReadService;
 use App\Services\ClassMessageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,11 +20,12 @@ use Illuminate\Support\Facades\Gate;
 
 class SchoolClassChannelMessageController extends Controller
 {
-    public function __construct(private ClassMessageService $messages) {}
+    public function __construct(private ClassMessageService $messages, private ClassChannelReadService $channelReads) {}
 
     public function show(ClassMessagesRequest $request, SchoolClass $schoolClass, SchoolClassChannel $channel): Response
     {
         $schoolClass->load(['creator', 'channels']);
+        $channelUnreadCounts = $this->channelReads->unreadCounts($request->user(), $schoolClass->channels);
         $focusMessageId = $request->validated('message_id');
         if ($focusMessageId) {
             abort_unless($channel->messages()->whereKey($focusMessageId)->exists(), 404);
@@ -53,8 +56,16 @@ class SchoolClassChannelMessageController extends Controller
                 ->paginate(10, ['*'], 'notices_page')->withQueryString();
         }
 
-        return response()->view('classes.channels.show', compact('schoolClass', 'channel', 'messages', 'membership', 'hasOlder', 'historyPage', 'initialMessages', 'notices', 'canManageNotices'))
+        return response()->view('classes.channels.show', compact('schoolClass', 'channel', 'messages', 'membership', 'hasOlder', 'historyPage', 'initialMessages', 'notices', 'canManageNotices', 'channelUnreadCounts'))
             ->header('Cache-Control', 'private, no-store');
+    }
+
+    public function markRead(MarkClassChannelReadRequest $request, SchoolClass $schoolClass, SchoolClassChannel $channel): JsonResponse
+    {
+        abort_unless((int) $channel->school_class_id === (int) $schoolClass->id, 404);
+        $state = $this->channelReads->mark($request->user(), $channel, (int) $request->validated('message_id'));
+
+        return response()->json(['last_read_message_id' => $state->last_read_message_id]);
     }
 
     public function index(ClassMessagesRequest $request, SchoolClass $schoolClass, SchoolClassChannel $channel): JsonResponse

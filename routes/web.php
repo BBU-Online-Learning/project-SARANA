@@ -11,6 +11,7 @@ use App\Http\Controllers\CourseworkAssignmentController;
 use App\Http\Controllers\CourseworkAttachmentController;
 use App\Http\Controllers\CourseworkSubmissionController;
 use App\Http\Controllers\GlobalSearchController;
+use App\Http\Controllers\LiveKitMeetingController;
 use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Quiz\AssessmentController;
@@ -23,6 +24,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassChannelMessageController;
 use App\Http\Controllers\SchoolClassController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SubjectTeacherController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -105,6 +107,8 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::post('/classes', [SchoolClassController::class, 'store'])->middleware('can:manage-classes')->name('classes.store');
     Route::post('/classes/join', [SchoolClassController::class, 'join'])->name('classes.join');
     Route::get('/classes/{schoolClass}', [SchoolClassController::class, 'show'])->name('classes.show');
+    Route::post('/classes/{schoolClass}/subject-teachers', [SubjectTeacherController::class, 'store'])->name('classes.subject-teachers.store');
+    Route::post('/classes/{schoolClass}/subject-teachers/{subjectTeacherAssignment}/end', [SubjectTeacherController::class, 'end'])->name('classes.subject-teachers.end');
     Route::get('/classes/{schoolClass}/avatar', [SchoolClassController::class, 'avatar'])->name('classes.avatar');
     Route::patch('/classes/{schoolClass}', [SchoolClassController::class, 'update'])->name('classes.update');
     Route::post('/classes/{schoolClass}/archive', [SchoolClassController::class, 'archive'])->name('classes.archive');
@@ -129,6 +133,8 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
         ->name('classes.channels.messages.store');
     Route::get('/classes/{schoolClass}/channels/{channel}/messages', [SchoolClassChannelMessageController::class, 'index'])
         ->name('classes.channels.messages.index');
+    Route::put('/classes/{schoolClass}/channels/{channel}/read', [SchoolClassChannelMessageController::class, 'markRead'])
+        ->middleware('throttle:messages')->name('classes.channels.read');
     Route::patch('/classes/{schoolClass}/channels/{channel}/messages/{message}', [SchoolClassChannelMessageController::class, 'update'])
         ->middleware('throttle:messages')->name('classes.channels.messages.update');
     Route::delete('/classes/{schoolClass}/channels/{channel}/messages/{message}', [SchoolClassChannelMessageController::class, 'destroy'])
@@ -217,6 +223,9 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::get('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'show'])->name('classes.meetings.show');
     Route::patch('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'update'])->name('classes.meetings.update');
     Route::post('/classes/{schoolClass}/meetings/{meeting}/cancel', [ClassMeetingController::class, 'cancel'])->name('classes.meetings.cancel');
+    Route::post('/classes/{schoolClass}/meeting-series/{meetingSeries}/cancel', [ClassMeetingController::class, 'cancelSeries'])->name('classes.meetings.series.cancel');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}/room', [LiveKitMeetingController::class, 'show'])->name('classes.meetings.room');
+    Route::post('/classes/{schoolClass}/meetings/{meeting}/credentials', [LiveKitMeetingController::class, 'credentials'])->middleware('throttle:30,1')->name('classes.meetings.credentials');
 });
 
 // 2fa

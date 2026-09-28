@@ -27,6 +27,9 @@
                                         @if ($channel->is_default)
                                             <span class="badge bg-info-subtle text-info">Default</span>
                                         @endif
+                                        @if (($channelUnreadCounts[$channel->id] ?? 0) > 0)
+                                            <span class="badge bg-primary" aria-label="{{ $channelUnreadCounts[$channel->id] }} unread messages">{{ $channelUnreadCounts[$channel->id] > 99 ? '99+' : $channelUnreadCounts[$channel->id] }} unread</span>
+                                        @endif
                                     </a>
                                     @else
                                         <span>{{ $channel->name }} (enrollment required)</span>

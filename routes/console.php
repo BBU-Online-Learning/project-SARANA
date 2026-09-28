@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('calls:expire')->everyMinute()->withoutOverlapping();
 Schedule::command('class-announcements:process')->everyMinute()->withoutOverlapping();
+Schedule::command('class-meetings:replenish')->daily()->withoutOverlapping();

@@ -73,6 +73,7 @@ class ClassMeetingService
                 'starts_at' => $startsAt, 'ends_at' => $endsAt,
                 'rescheduled_at' => $rescheduled ? now() : $locked->rescheduled_at,
                 'rescheduled_by' => $rescheduled ? $actor->id : $locked->rescheduled_by,
+                'series_override_at' => $locked->class_meeting_series_id ? now() : null,
             ]);
             $change = $rescheduled ? 'rescheduled' : 'updated';
 
@@ -91,7 +92,8 @@ class ClassMeetingService
         $meeting = $this->classes->withClass($actor, $schoolClass, function (User $actor, SchoolClass $lockedClass) use ($meeting): ClassMeeting {
             $locked = $lockedClass->meetings()->lockForUpdate()->findOrFail($meeting->id);
             Gate::forUser($actor)->authorize('cancel', $locked);
-            $locked->update(['status' => 'cancelled', 'cancelled_at' => now(), 'cancelled_by' => $actor->id]);
+            $locked->update(['status' => 'cancelled', 'cancelled_at' => now(), 'cancelled_by' => $actor->id,
+                'series_override_at' => $locked->class_meeting_series_id ? now() : null]);
 
             return $locked;
         });
@@ -101,7 +103,7 @@ class ClassMeetingService
         return $meeting;
     }
 
-    private function notifyMembers(ClassMeeting $meeting, User $actor, string $change): void
+    public function notifyMembers(ClassMeeting $meeting, User $actor, string $change): void
     {
         $schoolClass = $meeting->schoolClass()->first();
         if (! $schoolClass) {
@@ -113,10 +115,13 @@ class ClassMeetingService
             'rescheduled' => 'Class meeting rescheduled',
             'updated' => 'Class meeting updated',
             'cancelled' => 'Class meeting cancelled',
+            'series_cancelled' => 'Recurring class meetings cancelled',
         };
         $body = $meeting->title.' · '.$schoolClass->name.' · '.$meeting->starts_at->format('d M Y, g:i A').' '.config('app.timezone');
         if ($change === 'scheduled' && $meeting->occurrence_count > 1) {
             $body .= ' · '.$meeting->occurrence_count.' '.$meeting->recurrence.' meetings';
+        } elseif ($change === 'scheduled' && $meeting->class_meeting_series_id) {
+            $body .= ' · recurring '.$meeting->recurrence.' meetings';
         }
 
         $schoolClass->members()->with('role')->where('users.id', '!=', $actor->id)

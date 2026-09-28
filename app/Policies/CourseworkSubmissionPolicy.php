@@ -6,10 +6,11 @@ use App\Models\CourseworkAssignment;
 use App\Models\CourseworkSubmission;
 use App\Models\User;
 use App\Services\ClassAccessService;
+use App\Services\SubjectTeacherService;
 
 class CourseworkSubmissionPolicy
 {
-    public function __construct(private ClassAccessService $access) {}
+    public function __construct(private ClassAccessService $access, private SubjectTeacherService $subjectTeachers) {}
 
     public function create(User $user, CourseworkAssignment $assignment): bool
     {
@@ -32,7 +33,7 @@ class CourseworkSubmissionPolicy
             return true;
         }
 
-        return $this->access->teachingRole($user, $schoolClass) !== null
+        return $this->subjectTeachers->canManageCoursework($user, $schoolClass, $submission->assignment->subject_id)
             && $submission->revisions()->where('status', 'submitted')->exists();
     }
 
@@ -60,7 +61,7 @@ class CourseworkSubmissionPolicy
         $schoolClass = $submission->assignment->schoolClass;
 
         return ! $schoolClass->isArchived()
-            && $this->access->teachingRole($user, $schoolClass) !== null
+            && $this->subjectTeachers->canManageCoursework($user, $schoolClass, $submission->assignment->subject_id)
             && $submission->revisions()->where('status', 'submitted')->exists();
     }
 }

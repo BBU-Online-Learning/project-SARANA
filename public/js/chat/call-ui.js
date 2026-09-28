@@ -5,14 +5,19 @@
     let timer = null;
     let closeTimer = null;
     let remoteMedia = { camera: false, microphone: true };
+    let minimized = false;
 
-    function status(message) { element("status").textContent = message; }
+    function status(message) {
+        element("status").textContent = message;
+        element("mini-status").textContent = message;
+    }
     function show(call, userId, videoMode = call.call_type === "video") {
         clearTimeout(closeTimer);
         const layer = element("layer");
         const wasHidden = layer.hidden;
-        if (wasHidden) previousFocus = document.activeElement;
-        layer.hidden = false;
+        if (wasHidden && !minimized) previousFocus = document.activeElement;
+        layer.hidden = minimized;
+        element("mini").hidden = !minimized;
         const video = videoMode;
         const startedAsVideo = call.call_type === "video";
         const incoming = call.status === "ringing" && Number(call.initiated_by) !== Number(userId);
@@ -22,6 +27,7 @@
         element("title").textContent = `${incoming ? "Incoming " : ""}${callKind} call`;
         const peer = call.participants?.find((person) => Number(person.id) !== Number(userId));
         element("peer-name").textContent = peer?.name || "Call";
+        element("mini-peer").textContent = peer?.name || "Call in progress";
         const image = element("avatar-image");
         image.hidden = !peer?.avatar;
         if (peer?.avatar) image.src = peer.avatar;
@@ -46,11 +52,31 @@
         if (call.answered_at && call.status === "active") {
             const update = () => {
                 const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(call.answered_at)) / 1000));
-                element("duration").textContent = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+                const duration = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+                element("duration").textContent = duration;
+                element("mini-duration").textContent = duration;
             };
             update(); timer = setInterval(update, 1000);
         }
-        if (wasHidden) [...layer.querySelectorAll("button")].find((button) => !button.disabled && button.getClientRects().length)?.focus();
+        if (wasHidden && !minimized) [...layer.querySelectorAll("button")].find((button) => !button.disabled && button.getClientRects().length)?.focus();
+    }
+
+    function minimize() {
+        if (element("active-actions").hidden || element("layer").hidden) return;
+        minimized = true;
+        element("layer").hidden = true;
+        element("mini").hidden = false;
+        if (previousFocus?.isConnected) previousFocus.focus();
+        else element("mini").querySelector('[data-voice-call-action="restore"]').focus();
+    }
+
+    function restore() {
+        if (!minimized) return;
+        minimized = false;
+        previousFocus = document.activeElement;
+        element("mini").hidden = true;
+        element("layer").hidden = false;
+        element("layer").querySelector('[data-voice-call-action="minimize"]').focus();
     }
 
     function local(media) {
@@ -114,10 +140,15 @@
     function close() {
         clear();
         element("layer").hidden = true;
+        element("mini").hidden = true;
+        minimized = false;
         if (previousFocus?.isConnected) previousFocus.focus();
     }
 
     function finished(message) {
+        minimized = false;
+        element("mini").hidden = true;
+        element("layer").hidden = false;
         clear(); status(message);
         element("layer").classList.remove("is-active");
         ["incoming-actions", "active-actions", "retry-actions", "device-settings", "video-stage", "duration"].forEach((id) => { element(id).hidden = true; });
@@ -131,5 +162,5 @@
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     });
-    window.CallUI = { show, status, local, remote, remoteState, devices, clear, close, finished };
+    window.CallUI = { show, status, local, remote, remoteState, devices, clear, close, finished, minimize, restore };
 })();

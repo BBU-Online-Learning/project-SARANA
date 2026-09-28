@@ -18,6 +18,29 @@ document.addEventListener("DOMContentLoaded", () => {
     let dirty = false;
     let sending = false;
     let canSend = !!form;
+    let lastMarkedId = 0;
+    let markingRead = false;
+
+    async function markVisibleMessagesRead() {
+        if (historyPage || stopped || markingRead || document.visibilityState !== "visible" || !page.dataset.readUrl) return;
+        if (list.scrollHeight - list.scrollTop - list.clientHeight >= 100 || messages.size === 0) return;
+        const messageId = Math.max(...messages.keys());
+        if (messageId <= lastMarkedId) return;
+        markingRead = true;
+        try {
+            const data = await request(page.dataset.readUrl, {
+                method: "PUT", body: JSON.stringify({ message_id: messageId }),
+            });
+            lastMarkedId = Math.max(lastMarkedId, Number(data.last_read_message_id));
+            if (lastMarkedId >= messageId) {
+                page.querySelector(`[data-class-channel-unread="${page.dataset.channelId}"]`)?.remove();
+            }
+        } catch (error) {
+            status.textContent = "Messages loaded, but read status could not be saved. Retrying when you return.";
+        } finally {
+            markingRead = false;
+        }
+    }
 
     const enqueue = (work) => {
         queue = queue.then(work).catch(() => {
@@ -221,6 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const notice = document.getElementById("class-channel-read-only");
                 if (notice) notice.hidden = canSend;
                 if (nearBottom) list.scrollTop = list.scrollHeight;
+                markVisibleMessagesRead();
                 status.textContent = historyPage ? "Viewing older history. Use Latest messages to return to the conversation." : "Messages are up to date.";
                 dirty = dirty || data.has_more;
             } finally {
@@ -263,6 +287,8 @@ document.addEventListener("DOMContentLoaded", () => {
     showEmptyState();
     const timer = setInterval(refresh, 15000);
     window.addEventListener("online", refresh);
+    list.addEventListener("scroll", markVisibleMessagesRead, { passive: true });
+    document.addEventListener("visibilitychange", markVisibleMessagesRead);
     window.addEventListener("pageshow", (event) => { if (event.persisted) window.location.reload(); });
     window.addEventListener("pagehide", () => {
         stopped = true;

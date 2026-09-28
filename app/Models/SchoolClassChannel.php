@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SchoolClassChannel extends Model
 {
-    use SoftDeletes;
+    /** @use HasFactory<\Database\Factories\SchoolClassChannelFactory> */
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'school_class_id',
@@ -52,5 +54,10 @@ class SchoolClassChannel extends Model
     public function notices(): HasMany
     {
         return $this->hasMany(ClassAnnouncement::class, 'school_class_channel_id');
+    }
+
+    public function readStates(): HasMany
+    {
+        return $this->hasMany(SchoolClassChannelRead::class, 'school_class_channel_id');
     }
 }

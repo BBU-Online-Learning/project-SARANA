@@ -23,12 +23,12 @@ class ClassManagementService
                 'school_classes', 'school_class_members', 'school_class_channels',
                 'school_class_channel_messages', 'class_membership_audits',
                 'academic_years', 'grade_levels', 'subjects', 'class_subjects',
-                'student_class_enrollments', 'teacher_class_assignments',
+                'student_class_enrollments', 'teacher_class_assignments', 'teacher_subject_assignments',
                 'coursework_assignments', 'coursework_submissions', 'coursework_revisions',
                 'coursework_attachments', 'coursework_grades',
                 'class_attendance_registers', 'class_attendance_records', 'class_attendance_corrections',
                 'class_announcements',
-                'class_meetings',
+                'class_meetings', 'class_meeting_series', 'school_class_channel_reads',
             ];
             $engines = $connection->table('information_schema.TABLES')
                 ->where('TABLE_SCHEMA', $connection->getDatabaseName())

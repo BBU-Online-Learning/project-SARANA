@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ActivityNotification;
 use App\Services\ClassAccessService;
 use App\Services\ClassManagementService;
+use App\Services\SubjectTeacherService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -18,14 +19,24 @@ use Illuminate\View\View;
 
 class CourseworkAssignmentController extends Controller
 {
-    public function __construct(private ClassManagementService $classes, private ClassAccessService $access) {}
+    public function __construct(private ClassManagementService $classes, private ClassAccessService $access, private SubjectTeacherService $subjectTeachers) {}
 
     public function index(SchoolClass $schoolClass): View
     {
         Gate::authorize('viewAny', [CourseworkAssignment::class, $schoolClass]);
         $isTeacher = $this->access->teachingRole(Auth::user(), $schoolClass) !== null;
+        $blockedSubjects = [];
+        if ($isTeacher && $this->access->teachingRole(Auth::user(), $schoolClass) !== 'owner') {
+            $restricted = $schoolClass->subjectTeacherAssignments()->distinct()->pluck('subject_id');
+            $assigned = $schoolClass->subjectTeacherAssignments()->where('user_id', Auth::id())
+                ->where('active_slot', 1)->pluck('subject_id');
+            $blockedSubjects = $restricted->diff($assigned)->all();
+        }
         $assignments = $schoolClass->courseworkAssignments()->with(['creator', 'academicYear', 'subject'])
             ->when(! $isTeacher, fn ($query) => $query->whereIn('status', ['published', 'closed']))
+            ->when($blockedSubjects !== [], fn ($query) => $query->where(function ($query) use ($blockedSubjects): void {
+                $query->where('status', '!=', 'draft')->orWhereNull('subject_id')->orWhereNotIn('subject_id', $blockedSubjects);
+            }))
             ->orderByDesc('id')->paginate(20);
 
         return view('coursework.index', compact('schoolClass', 'assignments', 'isTeacher'));
@@ -35,9 +46,10 @@ class CourseworkAssignmentController extends Controller
     {
         Gate::authorize('create', [CourseworkAssignment::class, $schoolClass]);
         $schoolClass->load('subjects');
+        $availableSubjects = $schoolClass->subjects->filter(fn ($subject): bool => $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $subject->id));
         $assignment = null;
 
-        return view('coursework.form', compact('schoolClass', 'assignment'));
+        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects'));
     }
 
     public function store(StoreCourseworkAssignmentRequest $request, SchoolClass $schoolClass): RedirectResponse
@@ -46,6 +58,7 @@ class CourseworkAssignmentController extends Controller
         $assignment = $this->classes->withClass($request->user(), $schoolClass, function (User $actor, SchoolClass $lockedClass) use ($validated): CourseworkAssignment {
             Gate::forUser($actor)->authorize('create', [CourseworkAssignment::class, $lockedClass]);
             $this->ensureSubject($lockedClass, $validated['subject_id'] ?? null);
+            abort_unless($this->subjectTeachers->canManageCoursework($actor, $lockedClass, $validated['subject_id'] ?? null), 403);
 
             return $lockedClass->courseworkAssignments()->create($validated + [
                 'created_by' => $actor->id,
@@ -62,18 +75,19 @@ class CourseworkAssignmentController extends Controller
         Gate::authorize('view', $assignment);
         $assignment->load(['creator', 'academicYear', 'subject']);
         $isTeacher = $this->access->teachingRole(Auth::user(), $schoolClass) !== null;
+        $canReviewSubmissions = $isTeacher && $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $assignment->subject_id);
         $submissions = null;
         $ownSubmission = null;
-        if ($isTeacher) {
+        if ($canReviewSubmissions) {
             $submissions = $assignment->submissions()->with('student')
                 ->whereHas('revisions', fn ($query) => $query->where('status', 'submitted'))
                 ->orderByDesc('last_submitted_at')->paginate(20);
-        } else {
+        } elseif (! $isTeacher) {
             $ownSubmission = $assignment->submissions()->where('student_id', Auth::id())
                 ->with(['revisions.attachments', 'grades.grader', 'grades.revision'])->first();
         }
 
-        return view('coursework.show', compact('schoolClass', 'assignment', 'isTeacher', 'submissions', 'ownSubmission'));
+        return view('coursework.show', compact('schoolClass', 'assignment', 'isTeacher', 'canReviewSubmissions', 'submissions', 'ownSubmission'));
     }
 
     public function edit(SchoolClass $schoolClass, CourseworkAssignment $assignment): View
@@ -81,8 +95,9 @@ class CourseworkAssignmentController extends Controller
         $this->ensureClass($schoolClass, $assignment);
         Gate::authorize('update', $assignment);
         $schoolClass->load('subjects');
+        $availableSubjects = $schoolClass->subjects->filter(fn ($subject): bool => $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $subject->id));
 
-        return view('coursework.form', compact('schoolClass', 'assignment'));
+        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects'));
     }
 
     public function update(UpdateCourseworkAssignmentRequest $request, SchoolClass $schoolClass, CourseworkAssignment $assignment): RedirectResponse
@@ -92,6 +107,7 @@ class CourseworkAssignmentController extends Controller
             $locked = $lockedClass->courseworkAssignments()->lockForUpdate()->findOrFail($assignment->id);
             Gate::forUser($actor)->authorize('update', $locked);
             $this->ensureSubject($lockedClass, $validated['subject_id'] ?? null);
+            abort_unless($this->subjectTeachers->canManageCoursework($actor, $lockedClass, $validated['subject_id'] ?? null), 403);
             $locked->update($validated);
         });
 

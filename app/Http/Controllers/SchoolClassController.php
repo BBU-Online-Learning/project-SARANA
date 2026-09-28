@@ -15,6 +15,7 @@ use App\Models\SchoolClassChannel;
 use App\Models\User;
 use App\Notifications\ActivityNotification;
 use App\Services\ClassAccessService;
+use App\Services\ClassChannelReadService;
 use App\Services\ClassManagementService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -28,7 +29,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SchoolClassController extends Controller
 {
-    public function __construct(private ClassManagementService $classes, private ClassAccessService $access) {}
+    public function __construct(private ClassManagementService $classes, private ClassAccessService $access, private ClassChannelReadService $channelReads) {}
 
     public function index(IndexClassRequest $request): View
     {
@@ -145,11 +146,17 @@ class SchoolClassController extends Controller
     {
         Gate::authorize('view', $schoolClass);
         $schoolClass->load(['creator', 'members.role', 'channels', 'academicYear', 'gradeLevel', 'subjects']);
+        $channelUnreadCounts = $this->access->content(Auth::user(), $schoolClass)
+            ? $this->channelReads->unreadCounts(Auth::user(), $schoolClass->channels) : [];
         if (Gate::allows('manageMembers', $schoolClass)) {
             $schoolClass->load([
                 'studentEnrollments' => fn ($query) => $query->with(['user', 'academicYear'])->orderByDesc('started_at')->limit(20),
                 'teacherAssignments' => fn ($query) => $query->with(['user', 'academicYear'])->orderByDesc('started_at')->limit(20),
             ]);
+        }
+        if (Gate::allows('manageTeachers', $schoolClass)) {
+            $schoolClass->load(['subjectTeacherAssignments' => fn ($query) => $query->where('active_slot', 1)
+                ->with(['user', 'subject'])->orderBy('subject_id')->limit(100)]);
         }
         $availableUsers = collect();
         if (Gate::allows('manageMembers', $schoolClass)) {
@@ -162,7 +169,7 @@ class SchoolClassController extends Controller
         }
         $eligibleTeachers = Gate::allows('transferOwnership', $schoolClass) ? $this->eligibleTeachers()->get() : collect();
 
-        return view('classes.show', compact('schoolClass', 'availableUsers', 'eligibleTeachers'));
+        return view('classes.show', compact('schoolClass', 'availableUsers', 'eligibleTeachers', 'channelUnreadCounts'));
     }
 
     public function addChannel(StoreSchoolClassChannelRequest $request, SchoolClass $schoolClass): RedirectResponse

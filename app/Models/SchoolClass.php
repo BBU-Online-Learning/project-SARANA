@@ -59,9 +59,19 @@ class SchoolClass extends Model
         return $this->hasMany(ClassMeeting::class);
     }
 
+    public function meetingSeries(): HasMany
+    {
+        return $this->hasMany(ClassMeetingSeries::class);
+    }
+
     public function teacherAssignments(): HasMany
     {
         return $this->hasMany(TeacherClassAssignment::class);
+    }
+
+    public function subjectTeacherAssignments(): HasMany
+    {
+        return $this->hasMany(TeacherSubjectAssignment::class);
     }
 
     protected function casts(): array

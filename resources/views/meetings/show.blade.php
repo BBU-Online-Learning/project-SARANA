@@ -11,7 +11,9 @@
         <h2 class="visually-hidden">Meeting details</h2>
         <p class="mb-1">{{ $meeting->starts_at->format('l, F j, Y g:i A') }} to {{ $meeting->ends_at->format('l, F j, Y g:i A') }} · {{ config('app.timezone') }}</p>
         <p class="mb-2">Status: <x-class-status :value="$meeting->status" /> @if ($meeting->rescheduled_at)<x-class-status value="rescheduled" />@endif</p>
-        @if ($meeting->occurrence_count > 1)
+        @if ($meeting->series)
+            <p class="mb-1">Ongoing {{ str_replace('_', ' ', $meeting->series->recurrence) }} series · occurrence {{ $meeting->occurrence_number }}@if ($meeting->series->ends_on) · repeats until {{ $meeting->series->ends_on->format('M j, Y') }}@endif</p>
+        @elseif ($meeting->occurrence_count > 1)
             <p class="mb-1">{{ ucfirst($meeting->recurrence) }} meeting {{ $meeting->occurrence_number }} of {{ $meeting->occurrence_count }}</p>
         @endif
         @if ($meeting->rescheduled_at)
@@ -22,7 +24,13 @@
         @endif
         @if ($meeting->description)<p class="mt-3 mb-0" style="white-space: pre-wrap">{{ $meeting->description }}</p>@endif
     </div></div>
-    <p class="alert alert-info">Online joining is not available for class meetings yet.</p>
+    @if ($joinAvailable)
+        <p><a class="btn btn-primary" href="{{ route('classes.meetings.room', [$schoolClass, $meeting]) }}"><i class="ti ti-video" aria-hidden="true"></i> Join meeting</a></p>
+    @elseif (! $videoConfigured)
+        <p class="alert alert-info">Online joining is not available until a LiveKit meeting service is configured.</p>
+    @elseif ($meeting->status === 'scheduled')
+        <p class="alert alert-info">Join opens 15 minutes before the scheduled start and closes 15 minutes after the scheduled end.</p>
+    @endif
     @can('update', $meeting)
         <form method="POST" action="{{ route('classes.meetings.update', [$schoolClass, $meeting]) }}" class="card mb-3"><div class="card-body">
             @csrf @method('PATCH')
@@ -53,5 +61,13 @@
             <button type="submit" class="btn btn-outline-danger">Cancel this meeting</button>
         </form>
     @endcan
+    @if ($meeting->series?->status === 'active')
+        @can('create', [\App\Models\ClassMeeting::class, $schoolClass])
+            <form method="POST" action="{{ route('classes.meetings.series.cancel', [$schoolClass, $meeting->series]) }}" class="mt-2" data-confirm-title="Cancel all future meetings?" data-confirm-message="Future scheduled dates in this series will be cancelled." data-confirm-label="Cancel series">
+                @csrf
+                <button type="submit" class="btn btn-outline-danger">Cancel future meetings in this series</button>
+            </form>
+        @endcan
+    @endif
 </div>
 @endsection

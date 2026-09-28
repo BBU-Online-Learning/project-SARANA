@@ -129,11 +129,26 @@ async function begin(from, to, type = "video", audioOnly = false) {
         await pc.waitForFunction(() => window.__tracks.filter(t => t.kind === "video").every(t => t.readyState === "ended"));
         await pc.locator('[data-voice-call-action="camera"]').click();
         await pc.waitForFunction(() => window.__tracks.some(t => t.kind === "video" && t.readyState === "live"));
+        await pc.locator('[data-voice-call-action="minimize"]').click();
+        assert.equal(await pc.locator("#voice-call-layer").isVisible(), false);
+        assert.equal(await pc.locator("#voice-call-mini").isVisible(), true);
+        await pc.locator('[data-voice-call-action="restore"]').click();
+        assert.equal(await pc.locator("#voice-call-layer").isVisible(), true);
+        await pc.reload();
+        assert.equal(active.status, "active", "page navigation must not end the call");
+        await Promise.all([connected(pc), connected(phone)]);
+        assert.equal(await pc.evaluate(() => document.querySelector('[data-voice-call-action="mute"]').getAttribute("aria-pressed")), "true");
+        await pc.goto("https://calls.test/another-page");
+        await Promise.all([connected(pc), connected(phone)]);
+        await phone.reload();
+        await Promise.all([connected(pc), connected(phone)]);
+        console.log("Call minimized, restored, and reconnected across page navigation on both peers.");
         const otherTab = await createClient(browser, 1);
         assert.equal(active.status, "active", "opening another tab must not end the call");
         assert.equal(await otherTab.locator("#voice-call-layer").isVisible(), false);
         await otherTab.close();
-        await pc.locator('[data-voice-call-action="end"]').click();
+        await pc.locator('[data-voice-call-action="minimize"]').click();
+        await pc.locator('[data-voice-call-action="end-mini"]').click();
         await Promise.all([stopped(pc), stopped(phone)]);
         console.log("Controls: mute, camera release/reacquire, second-tab isolation and hangup passed.");
 

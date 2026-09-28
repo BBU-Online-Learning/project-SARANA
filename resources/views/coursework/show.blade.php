@@ -28,7 +28,9 @@
         @endif
     </div></div>
 
-    @if ($isTeacher)
+    @if ($isTeacher && ! $canReviewSubmissions)
+        <div class="alert alert-info">A teacher assigned to this subject can review its submissions. Contact the class owner if you need access.</div>
+    @elseif ($canReviewSubmissions)
         <div class="card"><div class="card-body">
             <h2 class="h5">Submitted work</h2>
             @forelse ($submissions as $submission)

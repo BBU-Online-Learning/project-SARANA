@@ -10,18 +10,29 @@
     }
     const ui = window.CallUI;
     const sounds = window.CallSounds;
-    const clientId = crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,
+    const clientStorageKey = `elearning:call-client:${config.userId}`;
+    const newClientId = () => crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,
         (digit) => (digit ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> digit / 4).toString(16));
+    let clientId = newClientId();
+    try {
+        const savedClientId = sessionStorage.getItem(clientStorageKey);
+        if (savedClientId && /^[0-9a-f-]{36}$/i.test(savedClientId)) clientId = savedClientId;
+        sessionStorage.setItem(clientStorageKey, clientId);
+    } catch (_) { /* Calls still work without browser storage. */ }
     let call = null, connection = null, pendingOffer = null, remoteStream = null;
     let ice = [], seenIce = new Set(), epoch = 0, starting = false, accepting = false;
     let ringTimer = null, connectTimer = null, disconnectTimer = null, negotiating = false;
     let polling = false, signaling = Promise.resolve(), subscribed = false, restarts = 0;
     let lastOffer = null, lastAnswer = null, iceServers = [], lastContact = Date.now();
     let upgradedToVideo = false;
+    let restoring = false;
     const finishedIds = new Set();
     const media = new window.CallMedia(() => {
         ui.local(media);
-        if (owned() && call?.status === "active") sendMedia().catch(report);
+        if (owned() && call?.status === "active" && !restoring) {
+            rememberMedia();
+            sendMedia().catch(report);
+        }
     });
     const caller = () => Number(call?.initiated_by) === Number(config.userId);
     const owned = () => !!call?.participants?.some((person) => Number(person.id) === Number(config.userId) && person.client_id === clientId);
@@ -29,6 +40,26 @@
     const live = (generation, id) => generation === epoch && call?.id === id;
     const endpoint = (id, action) => config.callBaseUrl + "/" + id + "/" + action;
     const post = (id, action, data = {}) => axios.post(endpoint(id, action), { ...data, client_id: clientId }, { timeout: 12000 });
+    const mediaStorageKey = (id) => `elearning:call-media:${config.userId}:${id}`;
+
+    function rememberMedia() {
+        if (!call?.id || !owned()) return;
+        try { sessionStorage.setItem(mediaStorageKey(call.id), JSON.stringify(media.state())); }
+        catch (_) { /* Browser storage is optional. */ }
+    }
+
+    function rememberedMedia(id) {
+        try {
+            const value = JSON.parse(sessionStorage.getItem(mediaStorageKey(id)) || "null");
+            return value && typeof value.camera === "boolean" && typeof value.microphone === "boolean" ? value : null;
+        } catch (_) { return null; }
+    }
+
+    function forgetMedia(id) {
+        if (!id) return;
+        try { sessionStorage.removeItem(mediaStorageKey(id)); }
+        catch (_) { /* Browser storage is optional. */ }
+    }
 
     function message(error) {
         if (error?.name === "NotAllowedError") return "Microphone access is required. Allow it in your browser settings and try again.";
@@ -66,6 +97,7 @@
         const ending = call;
         if (!ending) return;
         if (ending.id) finishedIds.add(ending.id);
+        forgetMedia(ending.id);
         reset(); ui.finished(label);
         sounds.play({ end: "ended", cancel: "cancelled", decline: "declined", timeout: "missed", fail: "failed" }[action] || "ended");
         if (ending.id) {
@@ -159,6 +191,28 @@
         if (caller()) await offer(true);
         else await sendSignal("restart", {});
     }
+    async function restoreOwnedCall() {
+        if (restoring || !owned() || call?.status !== "active") return;
+        restoring = true;
+        const generation = epoch, id = call.id;
+        const intent = rememberedMedia(id) || { microphone: false, camera: false };
+        try {
+            iceServers = await fetchIce();
+            if (!live(generation, id)) return;
+            const cameraError = await media.prepare(video(), !intent.camera);
+            if (!live(generation, id)) return;
+            if (!intent.microphone) media.toggleMute();
+            createConnection();
+            ui.devices(media);
+            rememberMedia();
+            lastContact = Date.now();
+            if (caller()) await offer(true);
+            else { watchConnection(); await sendSignal("restart", {}); }
+            if (cameraError) window.AppNotifications?.warning("Camera unavailable. The call continues with audio.");
+        } catch (error) {
+            if (live(generation, id)) { ui.status("Call reconnection needs your attention."); report(error); }
+        } finally { restoring = false; }
+    }
     async function flushIce() {
         const pc = connection;
         if (!pc?.remoteDescription) return;
@@ -243,7 +297,7 @@
         if (!["ringing", "active"].includes(incoming.status)) {
             if (call?.id !== incoming.id) return;
             const labels = { declined: "Call declined", missed: "Missed call", cancelled: "Call cancelled", ended: "Call ended", failed: "Call failed" };
-            finishedIds.add(incoming.id); reset(); ui.finished(labels[incoming.status] || "Call ended");
+            finishedIds.add(incoming.id); forgetMedia(incoming.id); reset(); ui.finished(labels[incoming.status] || "Call ended");
             sounds.play(incoming.status); return;
         }
         if (call?.status === "active" && incoming.status === "ringing") return;
@@ -252,8 +306,10 @@
             if (call) { reset(); ui.close(); window.AppNotifications?.info("Call answered in another tab or device."); }
             return;
         }
-        if (!call && Number(incoming.initiated_by) === Number(config.userId)) return;
+        if (!call && Number(incoming.initiated_by) === Number(config.userId) && owner !== clientId) return;
+        const needsRecovery = !call && incoming.status === "active" && owner === clientId;
         call = incoming; render();
+        if (needsRecovery) { restoreOwnedCall(); return; }
         if (owned() && caller() && call.status === "active" && !connection?.remoteDescription) {
             const generation = epoch, id = call.id;
             offer().catch((error) => { if (live(generation, id)) { report(error); fail(); } });
@@ -278,7 +334,7 @@
             const response = await axios.post(button.dataset.startUrl, { call_type: call.call_type, client_id: clientId }, { timeout: 12000 });
             created = response.data.call;
             if (generation !== epoch) { await post(created.id, "cancel"); return; }
-            call = created; createConnection(); render(); ui.devices(media);
+            call = created; createConnection(); render(); ui.devices(media); rememberMedia();
             lastContact = Date.now();
         } catch (error) {
             if (generation !== epoch) return;
@@ -302,7 +358,7 @@
                 if (response.data.call.status === "active") await post(id, "fail");
                 return;
             }
-            call = response.data.call; createConnection(); render(); ui.devices(media); watchConnection();
+            call = response.data.call; createConnection(); render(); ui.devices(media); rememberMedia(); watchConnection();
             await answerPending(); lastContact = Date.now();
             if (cameraError) window.AppNotifications?.warning("Camera unavailable. You joined with audio only.");
         } catch (error) {
@@ -383,7 +439,9 @@
         if (action === "accept" || action === "retry") accept();
         else if (action === "accept-audio") accept(true);
         else if (action === "decline") finish("decline", "Call declined");
-        else if (action === "end") finish(call?.status === "ringing" ? (caller() ? "cancel" : "decline") : "end");
+        else if (action === "end" || action === "end-mini") finish(call?.status === "ringing" ? (caller() ? "cancel" : "decline") : "end");
+        else if (action === "minimize") ui.minimize();
+        else if (action === "restore") ui.restore();
         else if (action === "mute") media.toggleMute();
         else if (action === "camera") toggleVideo().catch(reportCamera);
         else if (action === "switch-camera" && video()) media.switchCamera(connection).catch(reportCamera);
@@ -397,12 +455,7 @@
     });
     navigator.mediaDevices?.addEventListener?.("devicechange", () => { if (owned()) ui.devices(media); });
     window.addEventListener("pagehide", () => {
-        if (owned() && call?.id) {
-            const data = new FormData();
-            data.append("_token", document.querySelector('meta[name="csrf-token"]')?.content || "");
-            data.append("client_id", clientId);
-            navigator.sendBeacon(endpoint(call.id, call.status === "ringing" ? "cancel" : "fail"), data);
-        }
+        rememberMedia();
         reset();
     });
     function initialize() { subscribe(); reconcile(); setInterval(reconcile, 15000); }

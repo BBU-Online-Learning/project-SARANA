@@ -18,11 +18,15 @@ use Throwable;
 
 class CourseworkService
 {
-    public function __construct(private ClassManagementService $classes) {}
+    public function __construct(private ClassManagementService $classes, private CourseworkAttachmentInspector $attachmentInspector, private SubjectTeacherService $subjectTeachers) {}
 
     /** @param array<int, UploadedFile> $files */
     public function saveDraft(User $student, SchoolClass $schoolClass, CourseworkAssignment $assignment, ?string $body, array $files): CourseworkSubmission
     {
+        foreach ($files as $position => $file) {
+            $this->attachmentInspector->inspect($file, $position);
+        }
+
         $storedPaths = [];
         try {
             return $this->classes->withClass($student, $schoolClass, function (User $actor, SchoolClass $lockedClass) use ($assignment, $body, $files, &$storedPaths): CourseworkSubmission {
@@ -193,9 +197,13 @@ class CourseworkService
     private function notifyTeachers(SchoolClass $schoolClass, CourseworkAssignment $assignment, string $title, string $body): void
     {
         $teacherIds = $schoolClass->memberRecords()->whereIn('role', ['owner', 'teacher'])->pluck('user_id');
-        User::query()->whereIn('id', $teacherIds)->get()->each(fn (User $teacher) => $teacher->notify(new ActivityNotification(
-            'coursework', $title, $body,
-            route('classes.coursework.assignments.show', [$schoolClass, $assignment], false),
-        )));
+        User::query()->whereIn('id', $teacherIds)->get()->each(function (User $teacher) use ($schoolClass, $assignment, $title, $body): void {
+            if ($this->subjectTeachers->canManageCoursework($teacher, $schoolClass, $assignment->subject_id)) {
+                $teacher->notify(new ActivityNotification(
+                    'coursework', $title, $body,
+                    route('classes.coursework.assignments.show', [$schoolClass, $assignment], false),
+                ));
+            }
+        });
     }
 }

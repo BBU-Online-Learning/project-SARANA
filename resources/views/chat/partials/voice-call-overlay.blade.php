@@ -41,6 +41,10 @@
         </div>
 
         <div id="voice-call-active-actions" class="voice-call-actions" hidden>
+            <button type="button" class="voice-call-action voice-call-secondary" data-voice-call-action="minimize">
+                <i class="ti ti-minimize" aria-hidden="true"></i>
+                <span>Keep browsing</span>
+            </button>
             <button type="button" class="voice-call-action voice-call-secondary" data-voice-call-action="mute"
                 aria-pressed="false">
                 <i class="ti ti-microphone" aria-hidden="true"></i>
@@ -85,3 +89,12 @@
         <audio id="voice-call-remote-audio" autoplay playsinline></audio>
     </div>
 </div>
+<aside id="voice-call-mini" class="voice-call-mini" aria-label="Ongoing call" hidden>
+    <div class="voice-call-mini-details">
+        <strong id="voice-call-mini-peer">Call in progress</strong>
+        <span id="voice-call-mini-status" aria-live="polite">Connected</span>
+        <span id="voice-call-mini-duration">00:00</span>
+    </div>
+    <button type="button" class="btn btn-sm btn-light" data-voice-call-action="restore">Open call</button>
+    <button type="button" class="btn btn-sm btn-danger" data-voice-call-action="end-mini">End</button>
+</aside>

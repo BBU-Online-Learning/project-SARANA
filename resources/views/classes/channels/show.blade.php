@@ -8,6 +8,7 @@
      data-history-page="{{ $historyPage ? '1' : '0' }}"
      data-page-url="{{ route('classes.channels.show', [$schoolClass, $channel]) }}"
      data-messages-url="{{ route('classes.channels.messages.index', [$schoolClass, $channel]) }}"
+     data-read-url="{{ route('classes.channels.read', [$schoolClass, $channel]) }}"
      class="page-container"
      data-class-id="{{ $schoolClass->id }}"
      data-channel-id="{{ $channel->id }}">
@@ -70,6 +71,9 @@
 
                                 @if ($classChannel->is_default)
                                     <span class="badge bg-info-subtle text-info">Default</span>
+                                @endif
+                                @if (($channelUnreadCounts[$classChannel->id] ?? 0) > 0)
+                                    <span class="badge bg-primary" data-class-channel-unread="{{ $classChannel->id }}" aria-label="{{ $channelUnreadCounts[$classChannel->id] }} unread messages">{{ $channelUnreadCounts[$classChannel->id] > 99 ? '99+' : $channelUnreadCounts[$classChannel->id] }} unread</span>
                                 @endif
                             </a>
                         @endforeach

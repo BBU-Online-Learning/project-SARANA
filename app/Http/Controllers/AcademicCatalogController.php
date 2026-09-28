@@ -21,7 +21,7 @@ use Illuminate\View\View;
 
 class AcademicCatalogController extends Controller
 {
-    public function __construct(private AcademicMembershipService $academicMemberships, private ClassManagementService $classes) {}
+    public function __construct(private AcademicMembershipService $academicMemberships, private ClassManagementService $classes, private \App\Services\SubjectTeacherService $subjectTeachers) {}
 
     public function index(IndexAcademicClassesRequest $request): View
     {
@@ -86,7 +86,11 @@ class AcademicCatalogController extends Controller
         $validated = $request->validated();
         $this->classes->withClass($request->user(), $schoolClass, function (User $actor, SchoolClass $schoolClass) use ($validated): void {
             Gate::forUser($actor)->authorize('access-admin');
+            if ((int) $schoolClass->academic_year_id !== (int) $validated['academic_year_id']) {
+                $this->subjectTeachers->moveToYear($schoolClass, (int) $validated['academic_year_id']);
+            }
             $this->academicMemberships->moveToYear($schoolClass, (int) $validated['academic_year_id']);
+            $this->subjectTeachers->endRemovedSubjects($schoolClass, $validated['subject_ids'] ?? []);
             $schoolClass->update([
                 'academic_year_id' => $validated['academic_year_id'],
                 'grade_level_id' => $validated['grade_level_id'] ?? null,

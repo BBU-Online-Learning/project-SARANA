@@ -119,6 +119,37 @@
             </details>
         @endcan
 
+        @can('manageTeachers', $schoolClass)
+            <details class="card mb-3" @if($errors->hasAny(['subject_id', 'user_id', 'assignment'])) open @endif>
+                <summary class="card-header">Subject teachers</summary>
+                <div class="card-body">
+                    <p class="text-muted small">Assign class teachers to subjects. Once a subject has assignment history, only its current teachers and the class owner can manage its coursework.</p>
+                    @if (session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
+                    @if ($errors->hasAny(['subject_id', 'user_id', 'assignment'])) <div class="alert alert-danger">{{ $errors->first() }}</div> @endif
+                    <ul class="list-group mb-3">
+                        @forelse ($schoolClass->subjectTeacherAssignments as $subjectAssignment)
+                            <li class="list-group-item d-flex flex-wrap align-items-center justify-content-between gap-2">
+                                <span><strong>{{ $subjectAssignment->subject?->name ?? 'Former subject' }}</strong> · {{ $subjectAssignment->user?->name ?? 'Former teacher' }} <small class="text-muted">since {{ $subjectAssignment->started_at->format('Y-m-d') }}</small></span>
+                                <form method="POST" action="{{ route('classes.subject-teachers.end', [$schoolClass, $subjectAssignment]) }}">@csrf<button class="btn btn-sm btn-outline-danger" type="submit">End assignment</button></form>
+                            </li>
+                        @empty
+                            <li class="list-group-item text-muted">No subject teachers assigned yet.</li>
+                        @endforelse
+                    </ul>
+                    @if ($schoolClass->subjects->isNotEmpty())
+                        <form method="POST" action="{{ route('classes.subject-teachers.store', $schoolClass) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-5"><label class="form-label" for="subject-teacher-subject">Subject</label><select id="subject-teacher-subject" class="form-select" name="subject_id" required><option value="">Choose subject</option>@foreach ($schoolClass->subjects as $subject)<option value="{{ $subject->id }}" @selected((string) old('subject_id') === (string) $subject->id)>{{ $subject->name }}</option>@endforeach</select></div>
+                            <div class="col-md-5"><label class="form-label" for="subject-teacher-user">Class teacher</label><select id="subject-teacher-user" class="form-select" name="user_id" required><option value="">Choose teacher</option>@foreach ($schoolClass->members->filter(fn ($member) => in_array($member->pivot->role, ['owner', 'teacher'], true) && $member->role?->name === \App\Models\Role::TEACHER && $member->status === 'active') as $member)<option value="{{ $member->id }}" @selected((string) old('user_id') === (string) $member->id)>{{ $member->name }}</option>@endforeach</select></div>
+                            <div class="col-md-2"><button class="btn btn-primary w-100" type="submit">Assign</button></div>
+                        </form>
+                    @else
+                        <p class="text-muted mb-0">Add subjects in academic management before assigning subject teachers.</p>
+                    @endif
+                </div>
+            </details>
+        @endcan
+
         @if (auth()->user()->can('report', [\App\Models\ClassAttendanceRegister::class, $schoolClass]) && ! in_array(auth()->user()->role->name, ['teacher', 'student'], true))
             <p><a class="btn btn-outline-primary" href="{{ route('classes.attendance.report', $schoolClass) }}">Attendance report</a></p>
         @endif

@@ -10,6 +10,7 @@
 }
 
 .voice-call-layer[hidden],
+.voice-call-mini[hidden],
 .voice-call-actions[hidden],
 .voice-call-duration[hidden],
 .voice-call-open-chat[hidden] {
@@ -170,6 +171,30 @@
     margin-top: 22px;
     color: #c7c9f5;
     font-weight: 700;
+}
+
+.voice-call-mini {
+    position: fixed;
+    z-index: 1075;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: min(100% - 32px, 440px);
+    padding: 12px;
+    border-radius: 14px;
+    background: #252742;
+    color: #fff;
+    box-shadow: 0 12px 36px rgb(0 0 0 / 28%);
+}
+
+.voice-call-mini-details { display: flex; flex-direction: column; min-width: 0; flex: 1; font-size: .8rem; }
+.voice-call-mini-details strong, .voice-call-mini-details span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.voice-call-mini-duration { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 576px) {
+    .voice-call-mini { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); }
 }
 
 .voice-call-history-card {

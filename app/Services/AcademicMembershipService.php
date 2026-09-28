@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SchoolClass;
 use App\Models\StudentClassEnrollment;
 use App\Models\TeacherClassAssignment;
+use App\Models\TeacherSubjectAssignment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +18,11 @@ class AcademicMembershipService
         }
 
         $changedAt = now();
+        if (in_array($oldRole, ['owner', 'teacher'], true) && ! in_array($newRole, ['owner', 'teacher'], true)) {
+            TeacherSubjectAssignment::query()->where('school_class_id', $schoolClass->id)
+                ->where('user_id', $user->id)->where('active_slot', 1)
+                ->update(['ended_at' => $changedAt, 'end_reason' => $reason, 'active_slot' => null]);
+        }
         if ($oldRole !== null) {
             $oldModel = $this->modelForRole($oldRole);
             $active = $oldModel::query()->where('school_class_id', $schoolClass->id)
