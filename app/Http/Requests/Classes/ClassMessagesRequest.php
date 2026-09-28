@@ -16,6 +16,8 @@ class ClassMessagesRequest extends FormRequest
         return [
             'after_id' => ['sometimes', 'integer', 'min:0', 'prohibits:before_id'],
             'before_id' => ['sometimes', 'integer', 'min:1'],
+            'message_id' => ['sometimes', 'integer', 'min:1', 'prohibits:before_id'],
+            'notice_id' => ['sometimes', 'integer', 'min:1'],
             'sync_only' => ['sometimes', 'boolean'],
             'visible_ids' => ['sometimes', 'array', 'max:200'],
             'visible_ids.*' => ['integer', 'min:1', 'distinct'],
@@ -30,6 +32,8 @@ class ClassMessagesRequest extends FormRequest
             'after_id.prohibits' => 'Use only one history direction.',
             'before_id.integer' => 'The history cursor must be an integer.',
             'before_id.min' => 'The history cursor must be positive.',
+            'message_id.integer' => 'The message identifier must be an integer.',
+            'notice_id.integer' => 'The notice identifier must be an integer.',
             'visible_ids.max' => 'Synchronize at most 200 visible messages.',
             'visible_ids.*.integer' => 'Message identifiers must be integers.',
         ];

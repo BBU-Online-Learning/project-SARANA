@@ -23,17 +23,37 @@ class SchoolClassChannelMessageController extends Controller
     public function show(ClassMessagesRequest $request, SchoolClass $schoolClass, SchoolClassChannel $channel): Response
     {
         $schoolClass->load(['creator', 'channels']);
+        $focusMessageId = $request->validated('message_id');
+        if ($focusMessageId) {
+            abort_unless($channel->messages()->whereKey($focusMessageId)->exists(), 404);
+        }
         $page = $channel->messages()->with('sender')
-            ->when($request->validated('before_id'), fn ($query, $id) => $query->where('id', '<', $id))
+            ->when($focusMessageId, fn ($query) => $query->where('id', '<=', $focusMessageId))
+            ->when(! $focusMessageId && $request->validated('before_id'), fn ($query) => $query->where('id', '<', $request->validated('before_id')))
             ->orderByDesc('id')->limit(51)->get();
         $hasOlder = $page->count() > 50;
         $messages = $page->take(50)->reverse()->values();
         $membership = app(ClassAccessService::class)->membership($request->user(), $schoolClass);
-        $historyPage = $request->has('before_id');
+        $historyPage = $request->has('before_id') || (bool) $focusMessageId;
         $canSend = Gate::allows('sendMessage', [$schoolClass, $channel]);
         $initialMessages = $messages->map(fn ($message) => $this->messages->payload($message, $request->user()->id, $canSend));
+        $notices = null;
+        $canManageNotices = false;
+        if ($channel->isAnnouncement()) {
+            $canSeeAllNotices = app(ClassAccessService::class)->teachingRole($request->user(), $schoolClass) !== null;
+            $canManageNotices = Gate::allows('create', [\App\Models\ClassAnnouncement::class, $schoolClass, $channel]);
+            $noticeQuery = $channel->notices()->when(! $canSeeAllNotices, fn ($query) => $query->visible());
+            $focusNoticeId = $request->validated('notice_id');
+            if ($focusNoticeId) {
+                abort_unless((clone $noticeQuery)->whereKey($focusNoticeId)->exists(), 404);
+            }
+            $notices = $noticeQuery->with(['author', 'scheduledBy'])
+                ->when($focusNoticeId, fn ($query) => $query->whereKey($focusNoticeId))
+                ->orderByDesc('pinned_at')->orderByDesc('id')
+                ->paginate(10, ['*'], 'notices_page')->withQueryString();
+        }
 
-        return response()->view('classes.channels.show', compact('schoolClass', 'channel', 'messages', 'membership', 'hasOlder', 'historyPage', 'initialMessages'))
+        return response()->view('classes.channels.show', compact('schoolClass', 'channel', 'messages', 'membership', 'hasOlder', 'historyPage', 'initialMessages', 'notices', 'canManageNotices'))
             ->header('Cache-Control', 'private, no-store');
     }
 

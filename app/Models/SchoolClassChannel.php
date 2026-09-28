@@ -48,4 +48,9 @@ class SchoolClassChannel extends Model
     {
         return $this->hasMany(SchoolClassChannelMessage::class, 'school_class_channel_id');
     }
+
+    public function notices(): HasMany
+    {
+        return $this->hasMany(ClassAnnouncement::class, 'school_class_channel_id');
+    }
 }

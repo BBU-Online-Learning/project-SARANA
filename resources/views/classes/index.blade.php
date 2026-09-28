@@ -18,6 +18,9 @@
 <div class="page-container">
     <div class="card class-hero mb-4">
         <div class="card-body">
+            @if ($classAdministration)
+                <a class="btn btn-outline-primary btn-sm mb-3" href="{{ route('academics.index') }}">Manage academic years, grades and subjects</a>
+            @endif
             <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3">
                 <div class="flex-grow-1">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">

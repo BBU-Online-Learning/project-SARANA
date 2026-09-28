@@ -4,7 +4,7 @@
         ['home', 'Dashboard', 'ti-home', request()->routeIs('home')],
     ];
     if (auth()->user()->can('access-admin')) {
-        $links[] = ['users.index', auth()->user()->role->name === 'super_admin' ? 'Account administration' : 'Teachers and students', 'ti-users', request()->routeIs('users.*')];
+        $links[] = ['users.index', auth()->user()->role->name === 'super_admin' ? 'Account administration' : 'Accounts', 'ti-users', request()->routeIs('users.*')];
         $links[] = ['classes.index', 'Class administration', 'ti-school', request()->routeIs('classes.*') && !request()->routeIs('classes.*quiz*') && !request()->routeIs('classes.assessments.*')];
         $links[] = ['roles.index', 'Fixed roles', 'ti-shield', request()->routeIs('roles.*')];
     } else {
@@ -12,12 +12,14 @@
     }
     if (in_array(auth()->user()->role->name, ['teacher', 'student'], true)) {
         $links[] = ['assessments.index', auth()->user()->role->name === 'teacher' ? 'Assessments' : 'My quizzes', 'ti-clipboard-check', request()->routeIs('assessments.*') || request()->routeIs('classes.*quiz*') || request()->routeIs('classes.assessments.*')];
+        $links[] = ['calendar.index', 'Calendar', 'ti-calendar', request()->routeIs('calendar.*')];
         if (auth()->user()->can('manage-classes')) {
             $links[] = ['classes.index', 'Create Class', 'ti-plus', false, 'create-class'];
         } else {
             $links[] = ['classes.index', 'Join Class', 'ti-plus', false, 'join-class'];
         }
     }
+    $links[] = ['search.index', 'Search', 'ti-search', request()->routeIs('search.*')];
     $links[] = ['chat.index', 'Chats', 'ti-messages', request()->routeIs('chat.*')];
     $links[] = ['profile.edit', 'My profile', 'ti-user-circle', request()->routeIs('profile.*')];
     $links[] = ['settings.edit', 'Settings', 'ti-settings', request()->routeIs('settings.*')];

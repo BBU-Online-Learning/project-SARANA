@@ -1,7 +1,16 @@
 <?php
 
+use App\Http\Controllers\AcademicCatalogController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\PasswordRecoveryController;
+use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\ClassAnnouncementController;
+use App\Http\Controllers\ClassAttendanceController;
+use App\Http\Controllers\ClassMeetingController;
+use App\Http\Controllers\CourseworkAssignmentController;
+use App\Http\Controllers\CourseworkAttachmentController;
+use App\Http\Controllers\CourseworkSubmissionController;
+use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Quiz\AssessmentController;
@@ -33,6 +42,8 @@ Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
     ->name('home');
 
 Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
+    Route::get('/search', GlobalSearchController::class)->middleware('throttle:30,1')->name('search.index');
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::patch('/settings/application', [SettingsController::class, 'updateApplication'])->name('settings.application.update');
@@ -47,6 +58,12 @@ Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
 });
 
 Route::middleware(['auth', 'twofactor.setup', 'can:access-admin'])->group(function () {
+    Route::get('/academics', [AcademicCatalogController::class, 'index'])->name('academics.index');
+    Route::post('/academics/years', [AcademicCatalogController::class, 'storeYear'])->name('academics.years.store');
+    Route::post('/academics/grades', [AcademicCatalogController::class, 'storeGrade'])->name('academics.grades.store');
+    Route::post('/academics/subjects', [AcademicCatalogController::class, 'storeSubject'])->name('academics.subjects.store');
+    Route::get('/academics/classes/{schoolClass}/edit', [AcademicCatalogController::class, 'edit'])->name('academics.classes.edit');
+    Route::patch('/academics/classes/{schoolClass}', [AcademicCatalogController::class, 'assignClass'])->name('academics.classes.update');
     Route::resource('roles', RoleController::class)->only('index');
     Route::resource('users', UserController::class);
 
@@ -98,6 +115,15 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
 
     Route::get('/classes/{schoolClass}/channels/{channel}', [SchoolClassChannelMessageController::class, 'show'])
         ->name('classes.channels.show');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices', [ClassAnnouncementController::class, 'store'])->name('classes.channels.notices.store');
+    Route::patch('/classes/{schoolClass}/channels/{channel}/notices/{notice}', [ClassAnnouncementController::class, 'update'])->name('classes.channels.notices.update');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/schedule', [ClassAnnouncementController::class, 'schedule'])->name('classes.channels.notices.schedule');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/draft', [ClassAnnouncementController::class, 'returnToDraft'])->name('classes.channels.notices.draft');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/publish', [ClassAnnouncementController::class, 'publish'])->name('classes.channels.notices.publish');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/pin', [ClassAnnouncementController::class, 'pin'])->name('classes.channels.notices.pin');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/unpin', [ClassAnnouncementController::class, 'unpin'])->name('classes.channels.notices.unpin');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/archive', [ClassAnnouncementController::class, 'archive'])->name('classes.channels.notices.archive');
+    Route::post('/classes/{schoolClass}/channels/{channel}/notices/{notice}/restore', [ClassAnnouncementController::class, 'restore'])->name('classes.channels.notices.restore');
     Route::post('/classes/{schoolClass}/channels/{channel}/messages', [SchoolClassChannelMessageController::class, 'store'])
         ->middleware('throttle:messages')
         ->name('classes.channels.messages.store');
@@ -151,6 +177,46 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::get('/classes/{schoolClass}/quiz-assignments/{assignment}/results', [QuizResultController::class, 'index'])->name('classes.quiz-assignments.results');
     Route::get('/classes/{schoolClass}/quiz-assignments/{assignment}/results/{attempt}', [QuizResultController::class, 'show'])->name('classes.quiz-assignments.results.show');
     Route::patch('/classes/{schoolClass}/quiz-assignments/{assignment}/results/{attempt}', [QuizResultController::class, 'update'])->name('classes.quiz-assignments.results.update');
+});
+
+Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
+    Route::get('/classes/{schoolClass}/coursework', [CourseworkAssignmentController::class, 'index'])->name('classes.coursework.index');
+    Route::get('/classes/{schoolClass}/coursework/create', [CourseworkAssignmentController::class, 'create'])->name('classes.coursework.assignments.create');
+    Route::post('/classes/{schoolClass}/coursework', [CourseworkAssignmentController::class, 'store'])->name('classes.coursework.assignments.store');
+    Route::get('/classes/{schoolClass}/coursework/{assignment}', [CourseworkAssignmentController::class, 'show'])->name('classes.coursework.assignments.show');
+    Route::get('/classes/{schoolClass}/coursework/{assignment}/edit', [CourseworkAssignmentController::class, 'edit'])->name('classes.coursework.assignments.edit');
+    Route::patch('/classes/{schoolClass}/coursework/{assignment}', [CourseworkAssignmentController::class, 'update'])->name('classes.coursework.assignments.update');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/publish', [CourseworkAssignmentController::class, 'publish'])->name('classes.coursework.assignments.publish');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/close', [CourseworkAssignmentController::class, 'close'])->name('classes.coursework.assignments.close');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/draft', [CourseworkSubmissionController::class, 'saveDraft'])->middleware('throttle:messages')->name('classes.coursework.drafts.save');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/submit', [CourseworkSubmissionController::class, 'submit'])->middleware('throttle:messages')->name('classes.coursework.submissions.submit');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/resubmit', [CourseworkSubmissionController::class, 'resubmit'])->middleware('throttle:messages')->name('classes.coursework.submissions.resubmit');
+    Route::get('/classes/{schoolClass}/coursework/{assignment}/submissions/{submission}', [CourseworkSubmissionController::class, 'show'])->name('classes.coursework.submissions.show');
+    Route::post('/classes/{schoolClass}/coursework/{assignment}/submissions/{submission}/grades', [CourseworkSubmissionController::class, 'grade'])->name('classes.coursework.submissions.grade');
+    Route::get('/classes/{schoolClass}/coursework/{assignment}/submissions/{submission}/revisions/{revision}/attachments/{attachment}', [CourseworkAttachmentController::class, 'download'])->name('classes.coursework.attachments.download');
+    Route::delete('/classes/{schoolClass}/coursework/{assignment}/submissions/{submission}/revisions/{revision}/attachments/{attachment}', [CourseworkAttachmentController::class, 'destroy'])->name('classes.coursework.attachments.destroy');
+});
+
+Route::middleware(['auth', 'twofactor.setup'])->group(function (): void {
+    Route::get('/attendance/mine', [ClassAttendanceController::class, 'mine'])->name('attendance.mine');
+    Route::get('/classes/{schoolClass}/attendance', [ClassAttendanceController::class, 'index'])->name('classes.attendance.index');
+    Route::post('/classes/{schoolClass}/attendance', [ClassAttendanceController::class, 'open'])->name('classes.attendance.open');
+    Route::get('/classes/{schoolClass}/attendance/report', [ClassAttendanceController::class, 'report'])->name('classes.attendance.report');
+    Route::get('/classes/{schoolClass}/attendance/export', [ClassAttendanceController::class, 'export'])->name('classes.attendance.export');
+    Route::get('/classes/{schoolClass}/attendance/{register}', [ClassAttendanceController::class, 'show'])->name('classes.attendance.show');
+    Route::patch('/classes/{schoolClass}/attendance/{register}/entries', [ClassAttendanceController::class, 'bulk'])->name('classes.attendance.bulk');
+    Route::post('/classes/{schoolClass}/attendance/{register}/review', [ClassAttendanceController::class, 'review'])->name('classes.attendance.review');
+    Route::post('/classes/{schoolClass}/attendance/{register}/finalize', [ClassAttendanceController::class, 'finalize'])->name('classes.attendance.finalize');
+    Route::post('/classes/{schoolClass}/attendance/{register}/records/{record}/corrections', [ClassAttendanceController::class, 'correct'])->name('classes.attendance.correct');
+});
+
+Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function (): void {
+    Route::get('/classes/{schoolClass}/meetings', [ClassMeetingController::class, 'index'])->name('classes.meetings.index');
+    Route::get('/classes/{schoolClass}/meetings/create', [ClassMeetingController::class, 'create'])->name('classes.meetings.create');
+    Route::post('/classes/{schoolClass}/meetings', [ClassMeetingController::class, 'store'])->name('classes.meetings.store');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'show'])->name('classes.meetings.show');
+    Route::patch('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'update'])->name('classes.meetings.update');
+    Route::post('/classes/{schoolClass}/meetings/{meeting}/cancel', [ClassMeetingController::class, 'cancel'])->name('classes.meetings.cancel');
 });
 
 // 2fa

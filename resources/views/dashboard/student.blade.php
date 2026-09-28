@@ -5,6 +5,7 @@
         <p>Welcome, {{ $user->name }}. Keep up with your classes, quizzes, results, and conversations.</p>
         <div class="teacher-dashboard-actions">
             <a class="btn teacher-primary-action" href="{{ route('classes.index') }}"><i class="ti ti-school" aria-hidden="true"></i> Open My Classes</a>
+            <a class="btn teacher-secondary-action" href="{{ route('attendance.mine') }}"><i class="ti ti-calendar-check" aria-hidden="true"></i> My Attendance</a>
             <a class="btn teacher-secondary-action" href="{{ route('assessments.index') }}"><i class="ti ti-clipboard-check" aria-hidden="true"></i> My Quizzes</a>
         </div>
     </div>

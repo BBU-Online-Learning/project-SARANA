@@ -51,7 +51,11 @@
     <div>
         <a href="{{ route('users.index') }}"><span class="is-violet"><i class="ti ti-user-cog"></i></span><strong>Manage Accounts</strong><small>Create, update, or review accounts</small></a>
         <a href="{{ route('classes.index') }}"><span class="is-blue"><i class="ti ti-school"></i></span><strong>Class Administration</strong><small>Owners, members, and classes</small></a>
-        <a href="{{ route('roles.index') }}"><span class="is-amber"><i class="ti ti-shield-check"></i></span><strong>Fixed Roles</strong><small>Review role permissions</small></a>
+        @if ($isSuperAdmin)
+            <a href="{{ route('roles.index') }}"><span class="is-amber"><i class="ti ti-shield-check"></i></span><strong>Fixed Roles</strong><small>Review role permissions</small></a>
+        @else
+            <a href="{{ route('academics.index') }}"><span class="is-amber"><i class="ti ti-books"></i></span><strong>Academic Structure</strong><small>Manage years, grades, and subjects</small></a>
+        @endif
         <a href="{{ route('chat.index') }}"><span class="is-teal"><i class="ti ti-message-circle"></i></span><strong>Open Chat</strong><small>Continue conversations</small></a>
     </div>
 </section>

@@ -13,18 +13,29 @@ use Illuminate\Validation\ValidationException;
 
 class ClassManagementService
 {
-    public function __construct(private AccountManagementService $accounts, private ClassAccessService $access) {}
+    public function __construct(private AccountManagementService $accounts, private ClassAccessService $access, private AcademicMembershipService $academicMemberships) {}
 
     public function synchronized(Closure $callback): mixed
     {
         $connection = SchoolClass::resolveConnection();
         if ($connection->getDriverName() === 'mysql') {
+            $tables = [
+                'school_classes', 'school_class_members', 'school_class_channels',
+                'school_class_channel_messages', 'class_membership_audits',
+                'academic_years', 'grade_levels', 'subjects', 'class_subjects',
+                'student_class_enrollments', 'teacher_class_assignments',
+                'coursework_assignments', 'coursework_submissions', 'coursework_revisions',
+                'coursework_attachments', 'coursework_grades',
+                'class_attendance_registers', 'class_attendance_records', 'class_attendance_corrections',
+                'class_announcements',
+                'class_meetings',
+            ];
             $engines = $connection->table('information_schema.TABLES')
                 ->where('TABLE_SCHEMA', $connection->getDatabaseName())
-                ->whereIn('TABLE_NAME', ['school_classes', 'school_class_members', 'school_class_channels', 'school_class_channel_messages', 'class_membership_audits'])
+                ->whereIn('TABLE_NAME', $tables)
                 ->pluck('ENGINE');
-            if ($engines->count() !== 5 || $engines->contains(fn (string $engine): bool => strtolower($engine) !== 'innodb')) {
-                throw ValidationException::withMessages(['class' => 'Back up the database and run the class authorization migration first.']);
+            if ($engines->count() !== count($tables) || $engines->contains(fn (string $engine): bool => strtolower($engine) !== 'innodb')) {
+                throw ValidationException::withMessages(['class' => 'Back up the database and run the class and academic migrations first.']);
             }
         }
 
@@ -203,6 +214,7 @@ class ClassManagementService
 
     public function audit(User $actor, SchoolClass $schoolClass, User $target, string $action, ?string $oldRole, ?string $newRole): void
     {
+        $this->academicMemberships->recordChange($schoolClass, $target, $oldRole, $newRole, $action);
         ClassMembershipAudit::query()->create([
             'school_class_id' => $schoolClass->id,
             'actor_id' => $actor->id,

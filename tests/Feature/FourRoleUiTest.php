@@ -3,8 +3,10 @@
 use App\Models\ChatRoom;
 use App\Models\Role;
 use App\Models\SchoolClass;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -92,11 +94,12 @@ test('shared navigation has permitted real links and no excluded template contro
             ->assertSee('class="workspace-header-icon"', false)
             ->assertSee('class="workspace-mobile-only workspace-topbar-button"', false)
             ->assertDontSee('apps-calendar.html')->assertDontSee('Products &amp; Inventory', false)->assertDontSee('dashboard-sales.js')
-            ->assertDontSee('href="#"', false)->assertDontSee('aria-label="Calls"', false)->assertDontSee('aria-label="Calendar"', false);
+            ->assertDontSee('href="#"', false)->assertDontSee('aria-label="Calls"', false);
         if (in_array($role, ['admin', 'super_admin'], true)) {
-            $response->assertSee(route('users.index'))->assertSee(route('roles.index'));
+            $response->assertSee(route('users.index'))->assertSee(route('roles.index'))->assertDontSee('aria-label="Calendar"', false);
         } else {
-            $response->assertDontSee(route('users.index'))->assertDontSee(route('roles.index'));
+            $response->assertDontSee(route('users.index'))->assertDontSee(route('roles.index'))
+                ->assertSee('aria-label="Calendar"', false)->assertSee(route('calendar.index'));
         }
         if ($directory = getenv('UI_PREVIEW_DIRECTORY')) {
             if (! preg_match('/^elearning_ui_[a-f0-9]{16}$/', basename($directory)) || realpath(dirname($directory)) !== realpath(sys_get_temp_dir())) {
@@ -119,21 +122,25 @@ test('shared navigation has permitted real links and no excluded template contro
         ->and(substr_count($chat->getContent(), asset('css/teamstyle.css')))->toBe(1);
 })->with(Role::NAMES);
 
-test('phone navigation exposes five permitted destinations and updates the active destination', function (string $role): void {
+test('phone navigation fits all permitted destinations and updates the active destination', function (string $role): void {
     $this->actingAs(securityTestUser($role));
     $dashboard = $this->get(route('home'))->assertOk()->assertSee(asset('css/mobile-workspace.css'), false);
     preg_match('/<nav class="workspace-mobile-nav"[^>]*>(.*?)<\/nav>/s', $dashboard->getContent(), $matches);
     $mobileNavigation = $matches[1] ?? '';
 
     expect($mobileNavigation)->not->toBeEmpty()
-        ->and(substr_count($mobileNavigation, 'data-workspace-nav'))->toBe(5)
+        ->and(substr_count($mobileNavigation, 'data-workspace-nav'))->toBe(in_array($role, ['admin', 'super_admin'], true) ? 6 : 7)
         ->and(substr_count($mobileNavigation, 'aria-current="page"'))->toBe(1)
-        ->and($mobileNavigation)->toContain(route('home'), route('classes.index'), route('chat.index'), route('profile.edit'));
+        ->and($mobileNavigation)->toContain(route('home'), route('classes.index'), route('search.index'), route('chat.index'), route('profile.edit'));
+
+    expect($dashboard->getContent())->toContain('--workspace-mobile-nav-count: '.(in_array($role, ['admin', 'super_admin'], true) ? 6 : 7))
+        ->and(file_get_contents(public_path('css/mobile-workspace.css')))
+        ->toContain('repeat(var(--workspace-mobile-nav-count, 5), minmax(0, 1fr))');
 
     if (in_array($role, ['admin', 'super_admin'], true)) {
-        expect($mobileNavigation)->toContain(route('users.index'))->not->toContain(route('assessments.index'));
+        expect($mobileNavigation)->toContain(route('users.index'))->not->toContain(route('assessments.index'), route('calendar.index'));
     } else {
-        expect($mobileNavigation)->toContain(route('assessments.index'))->not->toContain(route('users.index'));
+        expect($mobileNavigation)->toContain(route('assessments.index'), route('calendar.index'))->not->toContain(route('users.index'));
     }
 
     $chat = $this->get(route('chat.index'))->assertOk();
@@ -144,6 +151,59 @@ test('phone navigation exposes five permitted destinations and updates the activ
     expect(file_get_contents(public_path('js/workspace.js')))
         ->toContain('currentMobileNavigation.replaceWith(nextMobileNavigation)', 'mobileStyle.before(link)');
 })->with(Role::NAMES);
+
+test('management account cards open a filtered searchable and paginated directory', function (): void {
+    $superAdmin = securityTestUser('super_admin');
+    $teacherRole = Role::query()->where('name', 'teacher')->firstOrFail();
+    User::factory()->onboarded()->count(20)->create(['role_id' => $teacherRole->id]);
+    $namedTeacher = securityTestUser('teacher', ['name' => 'Ada Lin', 'email' => 'ada@example.test']);
+    $suspendedTeacher = securityTestUser('teacher', ['name' => 'Zoe Suspended', 'status' => 'suspended']);
+    $student = securityTestUser('student');
+    securityTestUser('admin');
+
+    $this->actingAs($superAdmin)->get(route('home'))->assertOk()
+        ->assertSee(route('users.index', ['role' => 'teacher']), false);
+
+    $this->get(route('users.index', ['role' => 'teacher']))->assertOk()
+        ->assertViewHas('users', fn (LengthAwarePaginator $users): bool => $users->total() === 22
+            && $users->count() === 20
+            && str_contains($users->nextPageUrl(), 'role=teacher'))
+        ->assertDontSee($student->email);
+
+    $this->get(route('users.index', ['role' => 'teacher', 'page' => 2]))->assertOk()
+        ->assertViewHas('users', fn (LengthAwarePaginator $users): bool => $users->total() === 22 && $users->count() === 2);
+
+    $this->get(route('users.index', ['role' => 'teacher', 'search' => '  Ada Lin  ', 'status' => 'active']))->assertOk()
+        ->assertViewHas('users', fn (LengthAwarePaginator $users): bool => $users->total() === 1 && $users->first()->is($namedTeacher))
+        ->assertSee('value="Ada Lin"', false)
+        ->assertDontSee($suspendedTeacher->email);
+
+    $this->get(route('users.index', ['role' => 'teacher', 'status' => 'suspended']))->assertOk()
+        ->assertViewHas('users', fn (LengthAwarePaginator $users): bool => $users->total() === 1 && $users->first()->is($suspendedTeacher));
+
+    $this->actingAs(securityTestUser('admin'))->get(route('users.index', ['role' => 'admin']))
+        ->assertRedirect()->assertSessionHasErrors('role');
+});
+
+test('account forms have associated labels and clear page headings', function (): void {
+    $this->actingAs(securityTestUser('super_admin'));
+    $teacher = securityTestUser('teacher');
+
+    foreach (['users.create', 'users.edit'] as $route) {
+        $response = $this->get($route === 'users.edit' ? route($route, $teacher) : route($route))->assertOk()
+            ->assertSee('<h1 class="h3 mb-1" id="account-form-title">', false)
+            ->assertSee('Back to accounts</a>', false)
+            ->assertDontSee('list_user');
+
+        foreach (['name', 'email', 'role_id', 'phone', 'profile'] as $field) {
+            $response->assertSee('for="'.$field.'"', false)->assertSee('id="'.$field.'"', false);
+        }
+    }
+
+    $this->get(route('users.create'))->assertOk()
+        ->assertSee('for="password"', false)
+        ->assertSee('for="password_confirmation"', false);
+});
 
 test('chat uses the same application sidebar as the rest of the workspace', function (): void {
     $workspaceStyles = file_get_contents(public_path('css/workspace.css'));
@@ -312,6 +372,11 @@ test('role dashboards show their own workspace and permitted quick actions', fun
 
     if ($user->can('access-admin')) {
         $response->assertSee('Manage accounts')->assertSee('Class administration');
+        if ($role === 'admin') {
+            $response->assertSee(route('academics.index'))->assertSee('Academic Structure')->assertSee('aria-label="Accounts"', false);
+        } else {
+            $response->assertSee('Fixed Roles')->assertDontSee('Academic Structure');
+        }
     } else {
         $response->assertSee('Open my classes')->assertSee(route('classes.index').'#join-class')
             ->assertDontSee('Manage accounts');
@@ -370,6 +435,20 @@ test('class forms and navigation match backend permissions for every role', func
         $response->assertSee('classes-page-hero', false)
             ->assertSee('classes-summary', false)
             ->assertSee('classes-directory', false);
+        if ($role === 'student') {
+            $response->assertSee('Class enrollment')
+                ->assertSee('Enter the class code from your teacher to join your learning space.')
+                ->assertDontSee('Create or join a space');
+        }
+    }
+
+    if (in_array($role, ['admin', 'super_admin'], true)) {
+        $response->assertSee('Use a code to access class content')
+            ->assertSee('Enroll your account to access class messages and learning content.');
+    } elseif ($role === 'teacher') {
+        $response->assertSee('Join as a student member')->assertDontSee('Use a code from your teacher');
+    } else {
+        $response->assertSee('Use a code from your teacher');
     }
 
     if ($user->can('manage-classes')) {
@@ -406,7 +485,8 @@ test('all roles use the shared visual system with role specific dashboard layout
     } elseif ($role === 'student') {
         $response->assertSee('Your next step starts here.')->assertSee('student-dashboard-hero', false)
             ->assertSee('student-metrics', false)->assertSee('student-dashboard-class-grid', false)
-            ->assertSee('Learning Overview')->assertSee('Quick Actions');
+            ->assertSee('Learning Overview')->assertSee('Quick Actions')
+            ->assertSee('class="btn teacher-secondary-action" href="'.route('attendance.mine').'"', false);
     } else {
         $response->assertSee('management-dashboard-hero', false)
             ->assertSee('management-metrics', false)

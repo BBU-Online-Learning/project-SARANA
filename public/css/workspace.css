@@ -363,6 +363,10 @@ body.application-shell.workspace-chat {
 .workspace-page-note { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 16px; padding: 11px 14px; border: 1px solid #ddd6fe; border-radius: 10px; color: #5b21b6; background: var(--workspace-purple-soft); font-size: 13px; }
 .workspace-page-note > i { flex: 0 0 auto; margin-top: 2px; font-size: 17px; }
 .workspace-data-card { overflow: hidden; border-color: var(--workspace-border) !important; box-shadow: 0 12px 32px rgb(15 23 42 / 8%) !important; }
+.account-filter-card .card-body { padding: 18px 20px !important; }
+.account-filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.account-filter-actions .btn { min-height: 40px; }
+.account-results-count { margin: 0 0 12px; color: #475569; font-size: 13px; }
 .workspace-data-card .table { --osen-table-hover-bg: #eff6ff; }
 .workspace-data-card .table thead { background: #eef4ff; }
 .workspace-data-card .table thead th { padding-block: 14px; color: #1e3a5f; border-bottom-color: #cbdcf7; font-size: 11px; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
@@ -452,6 +456,7 @@ body.application-shell.workspace-chat {
     .workspace-page-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); }
     .workspace-heading-action { grid-column: 1 / -1; }
     .workspace-data-card .table tbody td, .workspace-data-card .table thead th { padding-inline: 12px; }
+    .account-filter-actions .btn { flex: 1 1 auto; }
 }
 
 [data-bs-theme="dark"] [data-workspace-role] { --workspace-page-bg: #151923; --workspace-tint: #1e3158; --workspace-purple-soft: #2d214a; --workspace-teal-soft: #173b39; --workspace-success-soft: #173823; --workspace-warning-soft: #3d3017; --workspace-danger-soft: #421f26; }
@@ -460,6 +465,7 @@ body.application-shell.workspace-chat {
 [data-bs-theme="dark"] .workspace-data-card .table thead { background: #202d47; }
 [data-bs-theme="dark"] .workspace-data-card .table thead th { color: #c7d7f2; border-bottom-color: #384965; }
 [data-bs-theme="dark"] .workspace-data-card .table { --osen-table-hover-bg: #202d47; }
+[data-bs-theme="dark"] .account-results-count { color: #bdcad8; }
 [data-bs-theme="dark"] .dashboard-account-card { background: linear-gradient(105deg, #2d214a, var(--osen-secondary-bg, #202633) 32%) !important; }
 
 /* Profile workspace */

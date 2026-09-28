@@ -40,6 +40,11 @@
                         <p class="class-description mb-0">
                             {{ $schoolClass->description ?: 'No description yet.' }}
                         </p>
+                        <p class="small text-muted mt-2 mb-0">
+                            {{ $schoolClass->academicYear?->name ?? 'Academic year unassigned' }}
+                            @if ($schoolClass->gradeLevel) · {{ $schoolClass->gradeLevel->name }} @endif
+                            @if ($schoolClass->subjects->isNotEmpty()) · {{ $schoolClass->subjects->pluck('name')->join(', ') }} @endif
+                        </p>
                     </div>
 
                     <div class="d-flex flex-column align-items-stretch align-items-lg-end gap-2">
@@ -90,16 +95,36 @@
             </div>
         </div>
 
+        @can('manageMembers', $schoolClass)
+            <details class="card mb-3">
+                <summary class="card-header">Recent assignment history</summary>
+                <div class="card-body">
+                    <h2 class="h6">Students</h2>
+                    <ul>
+                        @forelse ($schoolClass->studentEnrollments as $enrollment)
+                            <li>{{ $enrollment->user?->name ?? 'Former user' }} · {{ $enrollment->academicYear?->name ?? 'Unassigned year' }} · {{ $enrollment->started_at->format('Y-m-d') }} to {{ $enrollment->ended_at?->format('Y-m-d') ?? 'present' }}</li>
+                        @empty
+                            <li>No student assignments recorded.</li>
+                        @endforelse
+                    </ul>
+                    <h2 class="h6">Teachers</h2>
+                    <ul class="mb-0">
+                        @forelse ($schoolClass->teacherAssignments as $assignment)
+                            <li>{{ $assignment->user?->name ?? 'Former user' }} ({{ $assignment->role }}) · {{ $assignment->academicYear?->name ?? 'Unassigned year' }} · {{ $assignment->started_at->format('Y-m-d') }} to {{ $assignment->ended_at?->format('Y-m-d') ?? 'present' }}</li>
+                        @empty
+                            <li>No teacher assignments recorded.</li>
+                        @endforelse
+                    </ul>
+                </div>
+            </details>
+        @endcan
+
+        @if (auth()->user()->can('report', [\App\Models\ClassAttendanceRegister::class, $schoolClass]) && ! in_array(auth()->user()->role->name, ['teacher', 'student'], true))
+            <p><a class="btn btn-outline-primary" href="{{ route('classes.attendance.report', $schoolClass) }}">Attendance report</a></p>
+        @endif
+
         @if(in_array(auth()->user()->role->name, ['teacher', 'student'], true))
-            <nav class="learning-class-nav" aria-label="Class sections">
-                <a href="{{ route('classes.assessments.index', $schoolClass) }}">Assessments</a>
-                <a href="#class-channels">Channels</a>
-                <a href="#class-members">Members</a>
-                @canany(['manageLifecycle', 'manageMembers', 'manageChannels'], $schoolClass)
-                    <a href="#class-actions">Class actions</a>
-                @endcanany
-                <a href="{{ route('chat.index') }}">Chats</a>
-            </nav>
+            @include('classes.partials.section-navigation', ['activeSection' => 'overview', 'includeHomeAnchors' => true])
             <section id="class-channels" class="learning-class-section" aria-label="Class channels">
                 <p class="learning-muted">Read announcements from your teaching team or open a channel to take part in the conversation.</p>
                 @include('classes.partials.class-channels')

@@ -35,7 +35,7 @@
         inset: auto 0 0;
         z-index: 1025;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(var(--workspace-mobile-nav-count, 5), minmax(0, 1fr));
         height: var(--workspace-mobile-nav-height);
         padding: 4px 5px env(safe-area-inset-bottom);
         border-top: 1px solid #dce5f1;
@@ -136,9 +136,11 @@
     .learning-workspace .teacher-metric { grid-template-columns: 1fr auto; gap: 8px; min-height: 112px; padding: 12px; }
     .learning-workspace .teacher-metric-icon { width: 34px; height: 34px; font-size: 17px; }
     .learning-workspace .teacher-metric-copy { grid-column: 1 / -1; }
+    .learning-workspace .teacher-metric-arrow { grid-column: 2; grid-row: 1; justify-self: end; }
     .learning-workspace .teacher-metric-copy strong { margin-block: 3px; font-size: 25px; }
     .learning-workspace .teacher-metric-copy small { font-size: 11px; }
     .learning-workspace .classes-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .learning-workspace .classes-summary > a:last-child { grid-column: 1 / -1; }
     .learning-workspace .classes-summary > a { min-height: 82px; padding: 11px; gap: 9px; }
     .learning-workspace .classes-summary > a > span:first-child { width: 36px; height: 36px; flex-basis: 36px; font-size: 18px; }
     .learning-workspace .classes-summary strong { font-size: 19px; }

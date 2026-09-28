@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SchoolClass extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -19,11 +20,48 @@ class SchoolClass extends Model
         'description',
         'created_by',
         'avatar',
+        'academic_year_id',
+        'grade_level_id',
     ];
 
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function academicYear(): BelongsTo
+    {
+        return $this->belongsTo(AcademicYear::class);
+    }
+
+    public function gradeLevel(): BelongsTo
+    {
+        return $this->belongsTo(GradeLevel::class);
+    }
+
+    public function subjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'class_subjects')->withTimestamps();
+    }
+
+    public function studentEnrollments(): HasMany
+    {
+        return $this->hasMany(StudentClassEnrollment::class);
+    }
+
+    public function attendanceRegisters(): HasMany
+    {
+        return $this->hasMany(ClassAttendanceRegister::class);
+    }
+
+    public function meetings(): HasMany
+    {
+        return $this->hasMany(ClassMeeting::class);
+    }
+
+    public function teacherAssignments(): HasMany
+    {
+        return $this->hasMany(TeacherClassAssignment::class);
     }
 
     protected function casts(): array
@@ -70,6 +108,11 @@ class SchoolClass extends Model
     public function quizAssignments(): HasMany
     {
         return $this->hasMany(QuizAssignment::class);
+    }
+
+    public function courseworkAssignments(): HasMany
+    {
+        return $this->hasMany(CourseworkAssignment::class);
     }
 
     public function assignments(): HasMany

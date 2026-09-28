@@ -79,15 +79,19 @@
         </div>
 
         <div class="col-lg-9">
+            @if ($channel->isAnnouncement())
+                @include('classes.channels.notices')
+            @endif
             <div class="card">
                 <div class="card-body">
+                    @if ($channel->isAnnouncement()) <h2 class="h5">Quick updates</h2> @endif
                     <div
                         id="class-channel-message-list"
                         class="border rounded-3 p-3 mb-4 bg-white"
                         style="min-height: 60vh; max-height: 60vh; overflow-y: auto;"
                     >
                         @forelse ($messages as $message)
-                            <div class="border-bottom py-3" data-class-message-id="{{ $message->id }}">
+                            <div class="border-bottom py-3" id="class-message-{{ $message->id }}" data-class-message-id="{{ $message->id }}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <strong>{{ ! $message->sender || $message->sender->trashed() ? 'Deleted user' : $message->sender->name }}</strong>
                                     <span class="text-muted small">
@@ -120,7 +124,7 @@
                         <input type="hidden" name="client_uuid" value="{{ is_string(old('client_uuid')) ? old('client_uuid') : (string) \Illuminate\Support\Str::uuid() }}">
 
                         <div class="mb-3">
-                            <label class="form-label" for="class-channel-body">Send Message</label>
+                            <label class="form-label" for="class-channel-body">{{ $channel->isAnnouncement() ? 'Send quick update' : 'Send Message' }}</label>
                             <textarea id="class-channel-body" name="body" rows="2" maxlength="5000" required class="form-control" placeholder="Write a message...">{{ is_string(old('body')) ? old('body') : '' }}</textarea>
                             <div id="class-channel-send-error" class="text-danger small mt-1" role="alert"></div>
 

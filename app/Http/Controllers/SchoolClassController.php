@@ -75,6 +75,8 @@ class SchoolClassController extends Controller
                 'description' => $validated['description'] ?? null,
                 'join_code' => $this->classes->joinCode(),
                 'created_by' => $actor->id,
+                'academic_year_id' => \App\Models\AcademicYear::query()->where('status', 'active')->orderByDesc('starts_on')->value('id')
+                    ?? \App\Models\AcademicYear::query()->where('is_legacy', true)->value('id'),
             ]);
             if ($request->hasFile('avatar')) {
                 $path = $request->file('avatar')->store('class-avatars', 'local');
@@ -142,7 +144,13 @@ class SchoolClassController extends Controller
     public function show(SchoolClass $schoolClass): View
     {
         Gate::authorize('view', $schoolClass);
-        $schoolClass->load(['creator', 'members.role', 'channels']);
+        $schoolClass->load(['creator', 'members.role', 'channels', 'academicYear', 'gradeLevel', 'subjects']);
+        if (Gate::allows('manageMembers', $schoolClass)) {
+            $schoolClass->load([
+                'studentEnrollments' => fn ($query) => $query->with(['user', 'academicYear'])->orderByDesc('started_at')->limit(20),
+                'teacherAssignments' => fn ($query) => $query->with(['user', 'academicYear'])->orderByDesc('started_at')->limit(20),
+            ]);
+        }
         $availableUsers = collect();
         if (Gate::allows('manageMembers', $schoolClass)) {
             $availableUsers = User::query()->with('role')->where('status', 'active')

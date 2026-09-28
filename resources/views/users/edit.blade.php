@@ -1,27 +1,16 @@
 @extends('layouts.app')
+@section('title', 'Edit user')
 @section('content')
-    <div class="page-container">
-
-
-        <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column gap-2">
-            <div class="flex-grow-1">
-                <h4 class="fs-18 fw-semibold mb-0">Edit User</h4>
+    <div class="page-container workspace-page account-form-page">
+        <a href="{{ route('users.index') }}" class="btn btn-link px-0 mb-3"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back to accounts</a>
+        <section class="workspace-page-heading account-page-heading mb-4" aria-labelledby="account-form-title">
+            <div class="workspace-heading-icon" aria-hidden="true"><i class="ti ti-user-edit"></i></div>
+            <div class="workspace-heading-copy">
+                <p class="workspace-eyebrow mb-1">School management</p>
+                <h1 class="h3 mb-1" id="account-form-title">Edit user</h1>
+                <p class="mb-0">Update {{ $user->name }}'s account details and institution role.</p>
             </div>
-
-            <div class="text-end">
-                <ol class="breadcrumb m-0 py-0">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}">home</a></li>
-
-                    <li class="breadcrumb-item"><a href="{{ route('users.index') }}">list_user</a></li>
-
-                    <li class="breadcrumb-item active">Edit User</li>
-                </ol>
-            </div>
-        </div>
-
-
-
-
+        </section>
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <div class="card">
@@ -46,9 +35,9 @@
 
                                 {{-- Name (if you still want name, keep it; otherwise remove this block) --}}
                                 <div class="col-md-6">
-                                    <label class="form-label">User Name</label>
-                                    <input type="text" class="form-control @error('name') is-invalid @enderror"
-                                        name="name" value="{{ old('name', $user->name) }}" required>
+                                    <label for="name" class="form-label">User name</label>
+                                    <input id="name" type="text" class="form-control @error('name') is-invalid @enderror"
+                                        name="name" value="{{ old('name', $user->name) }}" autocomplete="name" required>
                                     @error('name')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -56,9 +45,9 @@
 
                                 {{-- Email --}}
                                 <div class="col-md-6">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control @error('email') is-invalid @enderror"
-                                        name="email" value="{{ old('email', $user->email) }}" required>
+                                    <label for="email" class="form-label">Email</label>
+                                    <input id="email" type="email" class="form-control @error('email') is-invalid @enderror"
+                                        name="email" value="{{ old('email', $user->email) }}" autocomplete="email" required>
                                     @error('email')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -67,12 +56,12 @@
                                 {{-- Role --}}
 
                                 <div class="col-md-6">
-                                    <label class="form-label">Role</label>
-                                    <select name="role_id" class="form-select @error('role_id') is-invalid @enderror">
+                                    <label for="role_id" class="form-label">Role</label>
+                                    <select id="role_id" name="role_id" class="form-select @error('role_id') is-invalid @enderror" required>
                                         @foreach ($roles as $id => $name)
                                             <option value="{{ $id }}"
                                                 {{ old('role_id', $user->role_id) == $id ? 'selected' : '' }}>
-                                                {{ $name }}
+                                                {{ ucwords(str_replace('_', ' ', $name)) }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -82,9 +71,9 @@
                                 </div>
                                 {{-- phone --}}
                                 <div class="col-md-6">
-                                    <label class="form-label">Phone Number</label>
-                                    <input type="text" class="form-control @error('phone') is-invalid @enderror"
-                                        name="phone" value="{{ old('phone', $user->phone) }}" required>
+                                    <label for="phone" class="form-label">Phone number <span class="text-muted">(optional)</span></label>
+                                    <input id="phone" type="tel" class="form-control @error('phone') is-invalid @enderror"
+                                        name="phone" value="{{ old('phone', $user->phone) }}" autocomplete="tel">
                                     @error('phone')
                                         <div class="invalid-feedback">{{ $message }}</div>
                                     @enderror
@@ -94,15 +83,15 @@
 
                                 {{-- Profile Image --}}
                                 <div class="col-md-6">
-                                    <label class="form-label">Profile Image</label>
-                                    <input type="file" class="form-control" name="profile"
+                                    <label for="profile" class="form-label">Profile image <span class="text-muted">(optional)</span></label>
+                                    <input id="profile" type="file" class="form-control" name="profile" accept="image/jpeg,image/png,image/gif"
                                         onchange="previewProfileImage(event)">
 
                                     {{-- Preview --}}
                                     <div class="mt-2">
                                         <img id="profilePreview"
                                             src="{{ $user->profileUrl() ?? asset('images/error.png') }}"
-                                            alt="Preview" class="img-thumbnail"
+                                            alt="Profile image preview" class="img-thumbnail"
                                             style="width:120px; height:120px; object-fit:cover;">
                                     </div>
                                 </div>
@@ -128,7 +117,7 @@
 
                                 <div class="col-12 text-end pt-3">
                                     <button type="submit" class="btn btn-primary">
-                                        Save User
+                                        Save changes
                                     </button>
                                     <a href="{{ route('users.index') }}" class="btn btn-light">
                                         Cancel
@@ -161,7 +150,7 @@
 
         </div>
 
-    </div> <!-- container -->
+    </div>
 
     <script>
         function previewProfileImage(event) {
@@ -170,8 +159,8 @@
 
             if (!file) return;
 
-            if (!file.type.startsWith('image/')) {
-                window.AppNotifications?.warning('Please select a JPG, PNG or WebP image.');
+            if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+                window.AppNotifications?.warning('Please select a JPG, PNG, or GIF image.');
                 event.target.value = '';
                 return;
             }

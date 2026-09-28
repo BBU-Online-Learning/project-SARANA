@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Users\IndexUserRequest;
 use App\Http\Requests\Users\StoreUserRequest;
 use App\Http\Requests\Users\UpdateUserRequest;
 use App\Models\Role;
@@ -16,15 +17,23 @@ class UserController extends Controller
 {
     public function __construct(private AccountManagementService $accounts) {}
 
-    public function index(Request $request): View
+    public function index(IndexUserRequest $request): View
     {
         Gate::authorize('viewAny', User::class);
         $names = Role::manageableNames($request->user());
+        $search = $request->validated('search') ?? '';
+        $role = $request->validated('role') ?? '';
+        $status = $request->validated('status') ?? '';
         $users = User::query()->with('role')
             ->whereHas('role', fn ($query) => $query->whereIn('name', $names))
-            ->orderBy('name')->get();
+            ->when($role !== '', fn ($query) => $query->whereHas('role', fn ($roles) => $roles->where('name', $role)))
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($search !== '', fn ($query) => $query->where(fn ($accounts) => $accounts
+                ->where('name', 'like', '%'.$search.'%')
+                ->orWhere('email', 'like', '%'.$search.'%')))
+            ->orderBy('name')->orderBy('id')->paginate(20)->withQueryString();
 
-        return view('users.index', compact('users'));
+        return view('users.index', compact('users', 'names', 'search', 'role', 'status'));
     }
 
     public function create(Request $request): View

@@ -54,9 +54,9 @@
             @endcan
 
             <details class="card workspace-anchor enrollment-disclosure" id="join-class" @if($errors->has('join_code')) open @endif>
-                <summary><span class="enrollment-summary-icon"><i class="ti ti-login" aria-hidden="true"></i></span><span><strong>Join Class</strong><small>Use a code from your teacher</small></span><i class="ti ti-chevron-down enrollment-chevron" aria-hidden="true"></i></summary>
+                <summary><span class="enrollment-summary-icon"><i class="ti ti-login" aria-hidden="true"></i></span><span><strong>Join Class</strong><small>{{ $classAdministration ? 'Use a code to access class content' : (auth()->user()->role->name === 'teacher' ? 'Join as a student member' : 'Use a code from your teacher') }}</small></span><i class="ti ti-chevron-down enrollment-chevron" aria-hidden="true"></i></summary>
                 <div class="card-body">
-                    <div class="enrollment-form-heading"><span><i class="ti ti-key" aria-hidden="true"></i></span><div><h2>Enter a class code</h2><p>Join an existing space as a student member.</p></div></div>
+                    <div class="enrollment-form-heading"><span><i class="ti ti-key" aria-hidden="true"></i></span><div><h2>Enter a class code</h2><p>{{ $classAdministration ? 'Enroll your account to access class messages and learning content.' : 'Join an existing space as a student member.' }}</p></div></div>
 
                     <form method="POST" action="{{ route('classes.join') }}" data-pending-form>
                         @csrf

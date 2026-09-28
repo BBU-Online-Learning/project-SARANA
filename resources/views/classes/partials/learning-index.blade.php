@@ -1,3 +1,6 @@
+@php
+    $canCreateClass = auth()->user()->can('manage-classes');
+@endphp
 <div class="page-container learning-page">
     <section class="classes-page-hero" aria-labelledby="classes-page-title">
         <div class="classes-page-hero-copy">
@@ -20,8 +23,8 @@
         <a href="{{ route('classes.index', ['status' => 'archived']) }}"><span class="is-amber"><i class="ti ti-archive"></i></span><span><strong>{{ $classSummary['archived'] }}</strong><small>Archived classes</small></span></a>
     </section>
 
-    <section class="learning-enrollment classes-enrollment" aria-label="Create or join a class">
-        <header class="classes-section-heading"><div><p>Class setup</p><h2>Create or join a space</h2><span>Use the options below to start teaching or enter an existing classroom.</span></div></header>
+    <section class="learning-enrollment classes-enrollment" aria-label="{{ $canCreateClass ? 'Create or join a class' : 'Join a class' }}">
+        <header class="classes-section-heading"><div><p>{{ $canCreateClass ? 'Class setup' : 'Class enrollment' }}</p><h2>{{ $canCreateClass ? 'Create or join a space' : 'Join a class' }}</h2><span>{{ $canCreateClass ? 'Use the options below to start teaching or enter an existing classroom.' : 'Enter the class code from your teacher to join your learning space.' }}</span></div></header>
         @include('classes.partials.enrollment-forms')
     </section>
 
