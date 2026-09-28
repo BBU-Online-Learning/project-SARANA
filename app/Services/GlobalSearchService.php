@@ -62,7 +62,16 @@ class GlobalSearchService
 
         $coursework = CourseworkAssignment::query()->whereHas('schoolClass')->where(function (Builder $query) use ($viewerId, $teacher): void {
             if ($teacher) {
-                $query->whereHas('schoolClass.memberRecords', fn (Builder $member) => $member->where('user_id', $viewerId)->whereIn('role', ['owner', 'teacher']));
+                $query->whereHas('schoolClass.memberRecords', fn (Builder $member) => $member->where('user_id', $viewerId)->whereIn('role', ['owner', 'teacher']))
+                    ->where(function (Builder $visible) use ($viewerId): void {
+                        $activeSubjectAssignment = fn (Builder $assignment) => $assignment
+                            ->whereColumn('teacher_subject_assignments.subject_id', 'coursework_assignments.subject_id')
+                            ->where('active_slot', 1);
+                        $visible->where('status', '!=', 'draft')->orWhereNull('subject_id')
+                            ->orWhereHas('schoolClass.memberRecords', fn (Builder $member) => $member->where('user_id', $viewerId)->where('role', 'owner'))
+                            ->orWhereDoesntHave('schoolClass.subjectTeacherAssignments', $activeSubjectAssignment)
+                            ->orWhereHas('schoolClass.subjectTeacherAssignments', fn (Builder $assignment) => $activeSubjectAssignment($assignment)->where('user_id', $viewerId));
+                    });
             }
             $query->orWhere(function (Builder $student) use ($viewerId): void {
                 $student->whereIn('status', ['published', 'closed'])

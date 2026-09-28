@@ -44,7 +44,14 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
                 }
                 static async getLocalDevices(kind) { return devices[kind]; }
                 on(event, callback) { this.handlers[event] = callback; }
-                async connect() {}
+                async connect() {
+                    window.__connectCount = (window.__connectCount || 0) + 1;
+                    if (window.__connectCount > 1) {
+                        this.localParticipant.isMicrophoneEnabled = false;
+                        this.localParticipant.isCameraEnabled = false;
+                        this.localParticipant.isScreenShareEnabled = false;
+                    }
+                }
                 disconnect() { this.handlers.disconnected?.(); }
                 getActiveDevice(kind) { return this.activeDevices[kind]; }
                 async switchActiveDevice(kind, id) { this.activeDevices[kind] = id; return true; }
@@ -58,7 +65,11 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
                     Disconnected: "disconnected", AudioPlaybackStatusChanged: "audioPlaybackStatusChanged" },
                 Track: { Kind: { Video: "video" }, Source: { ScreenShare: "screen_share" } },
             };
-            window.fetch = async () => ({ ok: true, json: async () => ({ url: "wss://example.livekit.cloud", token: "test" }) });
+            window.fetch = async () => {
+                window.__credentialsRequests = (window.__credentialsRequests || 0) + 1;
+                if (window.__denyCredentials) return { ok: false, status: 403 };
+                return { ok: true, json: async () => ({ url: "wss://example.livekit.cloud", token: "test" }) };
+            };
         });
         await page.addScriptTag({ content: source });
         await page.locator("#meeting-connect").click();
@@ -70,13 +81,32 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         assert.deepEqual(await page.evaluate(() => window.__room.activeDevices), { audioinput: "mic-b", videoinput: "cam-b" });
         await page.locator("#meeting-microphone").click();
         assert.equal(await page.locator("#meeting-microphone").getAttribute("aria-pressed"), "true");
+        await page.locator("#meeting-camera").click();
+        assert.equal(await page.locator("#meeting-camera").getAttribute("aria-pressed"), "true");
         await page.locator("#meeting-screen").click();
         assert.equal(await page.locator("#meeting-screen").getAttribute("aria-pressed"), "true");
         await page.evaluate(() => window.__room.handlers.localTrackUnpublished({ source: "screen_share" }));
         assert.equal(await page.locator("#meeting-screen").getAttribute("aria-pressed"), "false");
         assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector(".meeting-controls")).display), "grid");
+        await page.evaluate(() => window.__room.handlers.disconnected());
+        await page.waitForFunction(() => window.__connectCount === 2, { timeout: 5000 });
+        await page.waitForFunction(() => document.getElementById('meeting-microphone').getAttribute('aria-pressed') === 'true'
+            && document.getElementById('meeting-camera').getAttribute('aria-pressed') === 'true');
+        assert.equal(await page.evaluate(() => window.__credentialsRequests), 2, "reconnection must request a fresh authorized token");
+        assert.equal(await page.locator("#meeting-microphone").getAttribute("aria-pressed"), "true");
+        assert.equal(await page.locator("#meeting-camera").getAttribute("aria-pressed"), "true");
+        assert.equal(await page.locator("#meeting-screen").getAttribute("aria-pressed"), "false");
+        await page.evaluate(() => { window.__denyCredentials = true; window.__room.handlers.disconnected(); });
+        await page.waitForFunction(() => window.__credentialsRequests === 3, { timeout: 5000 });
+        assert.equal(await page.locator("#meeting-connect").isEnabled(), true, "rejected access must stop automatic reconnects");
+        assert.match(await page.locator("#meeting-room-status").textContent(), /access is unavailable/i);
+        await page.evaluate(() => { window.__denyCredentials = false; });
+        await page.locator("#meeting-connect").click();
+        assert.equal(await page.evaluate(() => window.__connectCount), 3);
         await page.locator("#meeting-leave").click();
         assert.equal(await page.locator("#meeting-participant-count").textContent(), "0 participants");
+        await page.waitForTimeout(1200);
+        assert.equal(await page.evaluate(() => window.__credentialsRequests), 4, "leaving must not start another connection");
     } finally {
         await browser.close();
     }

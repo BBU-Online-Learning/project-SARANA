@@ -27,7 +27,7 @@ class CourseworkAssignmentController extends Controller
         $isTeacher = $this->access->teachingRole(Auth::user(), $schoolClass) !== null;
         $blockedSubjects = [];
         if ($isTeacher && $this->access->teachingRole(Auth::user(), $schoolClass) !== 'owner') {
-            $restricted = $schoolClass->subjectTeacherAssignments()->distinct()->pluck('subject_id');
+            $restricted = $schoolClass->subjectTeacherAssignments()->where('active_slot', 1)->distinct()->pluck('subject_id');
             $assigned = $schoolClass->subjectTeacherAssignments()->where('user_id', Auth::id())
                 ->where('active_slot', 1)->pluck('subject_id');
             $blockedSubjects = $restricted->diff($assigned)->all();

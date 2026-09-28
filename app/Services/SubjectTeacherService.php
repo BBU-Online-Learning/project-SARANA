@@ -62,10 +62,11 @@ class SubjectTeacherService
             return true;
         }
 
-        $assignments = $schoolClass->subjectTeacherAssignments()->where('subject_id', $subjectId);
+        $assignments = $schoolClass->subjectTeacherAssignments()
+            ->where('subject_id', $subjectId)->where('active_slot', 1);
 
         return ! (clone $assignments)->exists()
-            || (clone $assignments)->where('user_id', $user->id)->where('active_slot', 1)->exists();
+            || (clone $assignments)->where('user_id', $user->id)->exists();
     }
 
     /** @param array<int, int|string> $retainedSubjectIds */

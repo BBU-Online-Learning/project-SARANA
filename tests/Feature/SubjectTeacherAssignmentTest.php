@@ -73,6 +73,10 @@ test('subject teacher assignments restrict subject coursework while preserving g
         'subject_id' => $subject->id, 'user_id' => $otherTeacher->id,
     ])->assertForbidden();
     $this->actingAs($student)->post(route('classes.subject-teachers.end', [$schoolClass, $assignment]))->assertForbidden();
+
+    $this->actingAs($owner)->post(route('classes.subject-teachers.end', [$schoolClass, $assignment]))->assertRedirect();
+    expect($service->canManageCoursework($otherTeacher, $schoolClass, $subject->id))->toBeTrue();
+    $this->actingAs($otherTeacher)->post(route('classes.coursework.assignments.store', $schoolClass), $payload)->assertRedirect();
 });
 
 test('subject teacher history survives removal, year changes, and subject removal', function (): void {

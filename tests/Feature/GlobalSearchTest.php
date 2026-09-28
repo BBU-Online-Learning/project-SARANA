@@ -10,7 +10,9 @@ use App\Models\QuizAssignment;
 use App\Models\Role;
 use App\Models\SchoolClass;
 use App\Models\SchoolClassChannelMessage;
+use App\Models\Subject;
 use App\Models\User;
+use App\Services\SubjectTeacherService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -71,6 +73,45 @@ test('global search scopes classes people quizzes coursework and announcements b
     $this->actingAs($student)->get(route('search.index', ['q' => 'Alpha']))->assertOk()
         ->assertDontSee('Shared Alpha Class')->assertDontSee('Assigned Alpha Quiz')->assertDontSee('Published Alpha Coursework')
         ->assertDontSee('Published Alpha Notice')->assertDontSee('Private Alpha Person');
+});
+
+test('search hides subject coursework drafts from teachers without the active assignment', function (): void {
+    $owner = searchUser('teacher', 'Search Owner');
+    $assignedTeacher = searchUser('teacher', 'Assigned Teacher');
+    $otherTeacher = searchUser('teacher', 'Other Teacher');
+    $schoolClass = searchClass($owner);
+    $schoolClass->members()->attach($assignedTeacher, ['role' => 'teacher', 'joined_at' => now()]);
+    $schoolClass->members()->attach($otherTeacher, ['role' => 'teacher', 'joined_at' => now()]);
+    $subject = Subject::factory()->create();
+    $schoolClass->subjects()->attach($subject);
+    $subjectAssignment = app(SubjectTeacherService::class)->assign($owner, $schoolClass, $subject->id, $assignedTeacher->id);
+    $draft = CourseworkAssignment::factory()->create([
+        'school_class_id' => $schoolClass->id,
+        'created_by' => $owner->id,
+        'subject_id' => $subject->id,
+        'title' => 'Private Nebula Draft',
+        'instructions' => 'Quiet comet instructions',
+        'status' => 'draft',
+    ]);
+    $unrestrictedSubject = Subject::factory()->create();
+    $schoolClass->subjects()->attach($unrestrictedSubject);
+    $unrestrictedDraft = CourseworkAssignment::factory()->create([
+        'school_class_id' => $schoolClass->id,
+        'created_by' => $owner->id,
+        'subject_id' => $unrestrictedSubject->id,
+        'title' => 'Open Nebula Draft',
+        'status' => 'draft',
+    ]);
+
+    $this->actingAs($otherTeacher)->get(route('search.index', ['q' => 'Nebula']))->assertOk()
+        ->assertDontSee($draft->title)->assertSee($unrestrictedDraft->title);
+    $this->get(route('search.index', ['q' => 'Quiet comet']))->assertOk()->assertDontSee($draft->title);
+    $this->actingAs($assignedTeacher)->get(route('search.index', ['q' => 'Nebula']))->assertOk()->assertSee($draft->title);
+    $this->actingAs($owner)->get(route('search.index', ['q' => 'Nebula']))->assertOk()->assertSee($draft->title);
+
+    app(SubjectTeacherService::class)->end($owner, $schoolClass, $subjectAssignment);
+    $this->actingAs($otherTeacher)->get(route('search.index', ['q' => 'Nebula']))->assertOk()->assertSee($draft->title);
+    $this->get(route('classes.coursework.assignments.show', [$schoolClass, $draft]))->assertOk();
 });
 
 test('global search omits hidden deleted and attachment content while keeping visible room and class text', function (): void {

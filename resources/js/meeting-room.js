@@ -15,7 +15,41 @@ if (root) {
     const participantCount = document.getElementById('meeting-participant-count');
     const participants = document.getElementById('meeting-participants');
     const room = new Room({ adaptiveStream: true, dynacast: true });
+    const closesAt = Date.parse(root.dataset.endAt);
     let connected = false;
+    let connecting = false;
+    let reconnectWanted = false;
+    let reconnectTimer = null;
+    let reconnectAttempts = 0;
+    const mediaIntent = { microphone: false, camera: false };
+
+    function joinWindowClosed() {
+        return Number.isFinite(closesAt) && Date.now() >= closesAt;
+    }
+
+    function stopReconnect() {
+        reconnectWanted = false;
+        if (reconnectTimer !== null) window.clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+
+    function queueReconnect() {
+        if (!reconnectWanted || connected || connecting || reconnectTimer !== null) return;
+        if (joinWindowClosed() || reconnectAttempts >= 5) {
+            stopReconnect();
+            setStatus(joinWindowClosed() ? 'The meeting join window has closed.' : 'Could not reconnect. Select Connect to meeting to try again.');
+            connectButton.disabled = joinWindowClosed();
+            return;
+        }
+        const delay = Math.min(16000, 1000 * 2 ** reconnectAttempts);
+        reconnectAttempts += 1;
+        connectButton.disabled = true;
+        setStatus('Connection lost. Reconnecting to the meeting…');
+        reconnectTimer = window.setTimeout(() => {
+            reconnectTimer = null;
+            connect(true);
+        }, delay);
+    }
 
     function setStatus(message) {
         status.textContent = message;
@@ -42,6 +76,18 @@ if (root) {
                 select.replaceChildren(new Option('Connect to choose a device', ''));
             }
         }
+    }
+
+    function syncMediaControls() {
+        const microphoneEnabled = room.localParticipant.isMicrophoneEnabled;
+        const cameraEnabled = room.localParticipant.isCameraEnabled;
+        const screenEnabled = room.localParticipant.isScreenShareEnabled;
+        microphoneButton.setAttribute('aria-pressed', String(microphoneEnabled));
+        microphoneButton.textContent = microphoneEnabled ? 'Turn off microphone' : 'Turn on microphone';
+        cameraButton.setAttribute('aria-pressed', String(cameraEnabled));
+        cameraButton.textContent = cameraEnabled ? 'Turn off camera' : 'Turn on camera';
+        screenButton.setAttribute('aria-pressed', String(screenEnabled));
+        screenButton.textContent = screenEnabled ? 'Stop sharing screen' : 'Share screen';
     }
 
     function updateParticipantCount() {
@@ -137,15 +183,19 @@ if (root) {
     });
     room.on(RoomEvent.Disconnected, () => {
         setControls(false);
-        setStatus('Disconnected from the meeting.');
+        if (reconnectWanted && !joinWindowClosed()) queueReconnect();
+        else setStatus('Disconnected from the meeting.');
     });
     room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
         if (connected && !room.canPlaybackAudio) setStatus('Select Enable sound to hear other participants.');
     });
 
-    connectButton.addEventListener('click', async () => {
+    async function connect(recovering = false) {
+        if (connecting || connected || joinWindowClosed()) return;
+        reconnectWanted = true;
+        connecting = true;
         connectButton.disabled = true;
-        setStatus('Connecting…');
+        setStatus(recovering ? 'Reconnecting…' : 'Connecting…');
         try {
             const response = await fetch(root.dataset.credentialsUrl, {
                 method: 'POST',
@@ -156,28 +206,62 @@ if (root) {
                 credentials: 'same-origin',
                 cache: 'no-store',
             });
-            if (!response.ok) throw new Error('Meeting access is unavailable. Check the schedule and your class membership.');
+            if (!response.ok) {
+                const error = new Error('Meeting access is unavailable. Check the schedule and your class membership.');
+                error.retryable = response.status === 429 || response.status >= 500;
+                throw error;
+            }
             const { url, token } = await response.json();
+            if (!reconnectWanted) return;
             await room.connect(url, token);
+            if (!reconnectWanted) {
+                room.disconnect();
+                return;
+            }
             participantCard(room.localParticipant.identity, 'You');
             for (const participant of room.remoteParticipants.values()) {
                 participantCard(participant.identity, participant.name);
             }
+            const mediaWarnings = [];
+            if (recovering && mediaIntent.microphone && !room.localParticipant.isMicrophoneEnabled) {
+                try { await room.localParticipant.setMicrophoneEnabled(true); }
+                catch { mediaWarnings.push('microphone'); }
+            }
+            if (recovering && mediaIntent.camera && !room.localParticipant.isCameraEnabled) {
+                try { await room.localParticipant.setCameraEnabled(true); }
+                catch { mediaWarnings.push('camera'); }
+            }
+            if (!reconnectWanted) {
+                room.disconnect();
+                return;
+            }
+            reconnectAttempts = 0;
             setControls(true);
+            syncMediaControls();
             await refreshDevices().catch(() => {});
-            setStatus('Connected. Turn on your microphone or camera when ready.');
+            setStatus(mediaWarnings.length
+                ? `Connected, but could not restore your ${mediaWarnings.join(' or ')}. Check browser permissions.`
+                : 'Connected. Turn on your microphone or camera when ready.');
         } catch (error) {
             setControls(false);
-            setStatus(error.message || 'Could not connect to the meeting.');
+            if (!recovering || error.retryable === false) {
+                stopReconnect();
+                setStatus(error.message || 'Could not connect to the meeting.');
+            }
+        } finally {
+            connecting = false;
+            if (recovering && reconnectWanted && !connected) queueReconnect();
         }
-    });
+    }
+
+    connectButton.addEventListener('click', () => connect());
 
     microphoneButton.addEventListener('click', async () => {
         try {
             const enabled = !room.localParticipant.isMicrophoneEnabled;
             await room.localParticipant.setMicrophoneEnabled(enabled);
-            microphoneButton.setAttribute('aria-pressed', String(enabled));
-            microphoneButton.textContent = enabled ? 'Turn off microphone' : 'Turn on microphone';
+            mediaIntent.microphone = enabled;
+            syncMediaControls();
             await refreshDevices().catch(() => {});
         } catch {
             setStatus('Could not use your microphone. Check browser permissions.');
@@ -196,8 +280,8 @@ if (root) {
         try {
             const enabled = !room.localParticipant.isCameraEnabled;
             await room.localParticipant.setCameraEnabled(enabled);
-            cameraButton.setAttribute('aria-pressed', String(enabled));
-            cameraButton.textContent = enabled ? 'Turn off camera' : 'Turn on camera';
+            mediaIntent.camera = enabled;
+            syncMediaControls();
             await refreshDevices().catch(() => {});
         } catch {
             setStatus('Could not use your camera. Check browser permissions.');
@@ -207,8 +291,7 @@ if (root) {
         try {
             const enabled = !room.localParticipant.isScreenShareEnabled;
             await room.localParticipant.setScreenShareEnabled(enabled);
-            screenButton.textContent = enabled ? 'Stop sharing screen' : 'Share screen';
-            screenButton.setAttribute('aria-pressed', String(enabled));
+            syncMediaControls();
         } catch {
             setStatus('Could not share your screen. Check browser permissions.');
         }
@@ -216,13 +299,19 @@ if (root) {
     microphoneDevice.addEventListener('change', () => switchDevice('audioinput', microphoneDevice));
     cameraDevice.addEventListener('change', () => switchDevice('videoinput', cameraDevice));
     navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshDevices().catch(() => {}));
-    leaveButton.addEventListener('click', () => room.disconnect());
+    leaveButton.addEventListener('click', () => {
+        stopReconnect();
+        mediaIntent.microphone = false;
+        mediaIntent.camera = false;
+        room.disconnect();
+    });
     window.addEventListener('pagehide', () => {
+        stopReconnect();
         if (connected) room.disconnect();
     });
-    const closesAt = Date.parse(root.dataset.endAt);
     if (Number.isFinite(closesAt)) {
         window.setTimeout(() => {
+            stopReconnect();
             room.disconnect();
             connectButton.disabled = true;
             setStatus('The meeting join window has closed.');
