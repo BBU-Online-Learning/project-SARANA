@@ -47,6 +47,8 @@ test('teacher creates a finite weekly series visible to current students and cal
     $schoolClass = meetingClass($teacher, $student);
     $start = CarbonImmutable::now(config('app.timezone'))->addDays(3)->startOfHour();
 
+    $this->actingAs($teacher)->get(route('classes.meetings.create', $schoolClass))->assertOk()
+        ->assertSee('Meeting information')->assertSee('Repeat options')->assertSee('Before you schedule');
     $this->actingAs($teacher)->post(route('classes.meetings.store', $schoolClass), meetingForm($start, 'weekly', 3))
         ->assertRedirect()->assertSessionHasNoErrors();
     $meetings = $schoolClass->meetings()->orderBy('occurrence_number')->get();
@@ -61,11 +63,12 @@ test('teacher creates a finite weekly series visible to current students and cal
         ->and($student->notifications()->first()->data['body'])->toContain('3 weekly meetings')
         ->and($student->notifications()->first()->data['url'])->toBe(route('classes.meetings.show', [$schoolClass, $meetings[0]], false));
 
-    $this->actingAs($student)->get(route('classes.meetings.index', $schoolClass))->assertOk()
-        ->assertSee('Biology class meeting')->assertSee('Weekly · Meeting 1 of 3')
-        ->assertSee('class="meeting-date-tile"', false)
-        ->assertSee('class="class-status class-status--info"', false)
-        ->assertDontSee('>Join meeting<', false);
+    $meetingList = $this->actingAs($student)->get(route('classes.meetings.index', $schoolClass))->assertOk();
+    expect($meetingList->inertiaPage()['component'])->toBe('Meetings/Index')
+        ->and($meetingList->inertiaProps('meetings.0.title'))->toBe('Biology class meeting')
+        ->and($meetingList->inertiaProps('meetings.0.repeat'))->toBe('Weekly · Meeting 1 of 3')
+        ->and($meetingList->inertiaProps('meetings.0.status'))->toBe('scheduled')
+        ->and($meetingList->inertiaProps('meetings.0.roomUrl'))->toBeNull();
     $this->actingAs($student)->get(route('classes.meetings.show', [$schoolClass, $meetings[0]]))->assertOk()
         ->assertSee('Chapter review')->assertSee('Online joining is not available')
         ->assertDontSee('Save changes')->assertDontSee('>Join meeting<', false);
@@ -110,7 +113,8 @@ test('teacher reschedules and cancels only selected occurrences', function (): v
         ->and($cancellationNotice->data['url'])->toBe(route('classes.meetings.show', [$schoolClass, $meetings[1]], false));
     $this->post(route('classes.meetings.cancel', [$schoolClass, $meetings[1]]))->assertForbidden();
     expect($student->notifications()->count())->toBe(3);
-    $this->actingAs($student)->get(route('classes.meetings.index', $schoolClass))->assertOk()->assertSee('Cancelled');
+    $cancelledList = $this->actingAs($student)->get(route('classes.meetings.index', $schoolClass))->assertOk();
+    expect(collect($cancelledList->inertiaProps('meetings'))->firstWhere('id', $meetings[1]->id)['status'])->toBe('cancelled');
     $this->actingAs($student)->get(route('classes.meetings.show', [$schoolClass, $meetings[1]]))->assertOk()->assertSee('Cancelled');
     $calendar = app(CalendarEvents::class)->for($student, $start->startOfMonth());
     $nextMonth = app(CalendarEvents::class)->for($student, $start->startOfMonth()->addMonth());
@@ -204,6 +208,33 @@ test('meeting management and viewing follow current class membership', function 
     $this->actingAs($teacher)->get(route('classes.meetings.show', [$schoolClass, $meeting]))->assertOk();
     $this->get(route('classes.meetings.create', $schoolClass))->assertForbidden();
     $this->post(route('classes.meetings.cancel', [$schoolClass, $meeting]))->assertForbidden();
+});
+
+test('meeting list supports Inertia visits without exposing teacher actions to students', function (): void {
+    $teacher = meetingUser('teacher');
+    $student = meetingUser('student');
+    $outsider = meetingUser('student');
+    $schoolClass = meetingClass($teacher, $student);
+    $start = CarbonImmutable::now(config('app.timezone'))->addDay();
+    $meeting = ClassMeeting::factory()->create([
+        'school_class_id' => $schoolClass->id,
+        'created_by' => $teacher->id,
+        'starts_at' => $start,
+        'ends_at' => $start->addHour(),
+        'original_starts_at' => $start,
+    ]);
+
+    $initialPage = $this->actingAs($student)->get(route('classes.meetings.index', $schoolClass))->assertOk();
+    $this->withHeaders(['X-Inertia' => 'true', 'X-Inertia-Version' => $initialPage->inertiaPage()['version']])
+        ->get(route('classes.meetings.index', $schoolClass))
+        ->assertOk()
+        ->assertHeader('X-Inertia', 'true')
+        ->assertJsonPath('component', 'Meetings/Index')
+        ->assertJsonPath('props.meetings.0.id', $meeting->id)
+        ->assertJsonPath('props.meetings.0.group', 'upcoming')
+        ->assertJsonPath('props.scheduleUrl', null);
+    $this->actingAs($outsider)->withHeader('X-Inertia', 'true')
+        ->get(route('classes.meetings.index', $schoolClass))->assertForbidden();
 });
 
 test('meeting validation rejects invalid recurrence and duration without partial series', function (): void {

@@ -3,7 +3,7 @@
 @section('content')
 <div class="page-container my-3">
     <h1 class="h3">Search</h1>
-    <form method="GET" action="{{ route('search.index') }}" role="search" class="d-flex gap-2 mb-3">
+    <form method="GET" action="{{ route('search.index') }}" role="search" class="d-flex gap-2 mb-3" data-workspace-nav-form>
         <label for="global-search" class="visually-hidden">Search your classes and conversations</label>
         <input id="global-search" name="q" type="search" class="form-control" value="{{ $term }}" minlength="2" maxlength="100" placeholder="Search classes, people, learning and conversations" autocomplete="off" required>
         <button class="btn btn-primary" type="submit">Search</button>
@@ -33,11 +33,11 @@
                         @if ($results[$key]->onFirstPage())
                             <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Previous</span>
                         @else
-                            <a class="btn btn-sm btn-outline-primary" href="{{ route('search.index', ['q' => $term, 'category' => $key, 'page' => $results[$key]->currentPage() - 1]) }}">Previous</a>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('search.index', ['q' => $term, 'category' => $key, 'page' => $results[$key]->currentPage() - 1]) }}" data-workspace-nav>Previous</a>
                         @endif
                         <span class="small text-muted">Page {{ $results[$key]->currentPage() }} of {{ $results[$key]->lastPage() }}</span>
                         @if ($results[$key]->hasMorePages())
-                            <a class="btn btn-sm btn-outline-primary" href="{{ route('search.index', ['q' => $term, 'category' => $key, 'page' => $results[$key]->currentPage() + 1]) }}">Next</a>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ route('search.index', ['q' => $term, 'category' => $key, 'page' => $results[$key]->currentPage() + 1]) }}" data-workspace-nav>Next</a>
                         @else
                             <span class="btn btn-sm btn-outline-secondary disabled" aria-disabled="true">Next</span>
                         @endif

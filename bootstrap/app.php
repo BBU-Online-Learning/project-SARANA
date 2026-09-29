@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\EnsureAccountIsActive::class,
             \App\Http\Middleware\EnforceAccountOnboarding::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
         // This gives you a simple route alias called twofactor.setup.

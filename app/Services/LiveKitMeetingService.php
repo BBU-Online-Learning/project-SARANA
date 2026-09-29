@@ -43,7 +43,8 @@ class LiveKitMeetingService
             ->setRoomJoin(true)
             ->setRoomName('class-'.$meeting->school_class_id.'-meeting-'.$meeting->id)
             ->setCanPublish(true)
-            ->setCanSubscribe(true));
+            ->setCanSubscribe(true)
+            ->setCanUpdateOwnMetadata(true));
 
         return ['url' => config('livekit.url'), 'token' => $token->toJwt()];
     }

@@ -51,6 +51,15 @@ test('class leaving requires confirmation and dashboard filters target their sta
         ->assertSee(route('classes.index', ['status' => 'active']));
 });
 
+test('class filters, search and calendar expose in-place navigation', function (): void {
+    $this->actingAs(securityTestUser('student'));
+
+    $this->get(route('classes.index'))->assertOk()->assertSee('data-workspace-nav-form', false)
+        ->assertSee('data-workspace-nav', false);
+    $this->get(route('search.index'))->assertOk()->assertSee('data-workspace-nav-form', false);
+    $this->get(route('calendar.index'))->assertOk()->assertSee('data-workspace-nav', false);
+});
+
 test('login labels and password visibility are accessible', function (): void {
     $this->get(route('login'))->assertOk()->assertSee('for="email"', false)->assertSee('for="password"', false)
         ->assertSee('aria-controls="password"', false)->assertDontSee('Deverlop');

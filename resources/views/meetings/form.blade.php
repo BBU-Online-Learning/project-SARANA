@@ -7,9 +7,10 @@
         $breadcrumbs = [['label' => 'Meetings', 'url' => route('classes.meetings.index', $schoolClass)]];
     @endphp
     @include('classes.partials.section-header', ['activeSection' => 'meetings', 'title' => 'Schedule a class meeting', 'description' => 'Set the time and repeat pattern for this class.', 'breadcrumbs' => $breadcrumbs])
-    <p class="text-muted">Times use {{ config('app.timezone') }}. Create up to 26 fixed dates, or keep generating dates for an ongoing series.</p>
-    <form method="POST" action="{{ route('classes.meetings.store', $schoolClass) }}" class="card"><div class="card-body">
+    <div class="meeting-form-grid">
+    <form method="POST" action="{{ route('classes.meetings.store', $schoolClass) }}" class="card meeting-form-card"><div class="card-body">
         @csrf
+        <div class="meeting-form-intro"><span class="meeting-detail-eyebrow"><i class="ti ti-calendar-plus" aria-hidden="true"></i> New session</span><h2 class="h5">Meeting information</h2><p>Give your class a clear title and choose when to meet.</p></div>
         <div class="mb-3"><label class="form-label" for="meeting-title">Title</label>
             <input id="meeting-title" name="title" class="form-control @error('title') is-invalid @enderror" value="{{ old('title') }}" maxlength="180" required>
             @error('title')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -18,6 +19,7 @@
             <textarea id="meeting-description" name="description" class="form-control @error('description') is-invalid @enderror" rows="3" maxlength="5000">{{ old('description') }}</textarea>
             @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
+        <h3 class="meeting-form-section-title"><i class="ti ti-clock" aria-hidden="true"></i> Date and time</h3>
         <div class="row g-3 mb-3">
             <div class="col-md-6"><label class="form-label" for="meeting-start">Starts at</label>
                 <input id="meeting-start" name="starts_at" type="datetime-local" class="form-control @error('starts_at') is-invalid @enderror" value="{{ old('starts_at', now()->addDay()->format('Y-m-d\TH:i')) }}" required>
@@ -28,6 +30,7 @@
                 @error('ends_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
         </div>
+        <h3 class="meeting-form-section-title"><i class="ti ti-repeat" aria-hidden="true"></i> Repeat options</h3>
         <div class="row g-3 mb-3">
             <div class="col-md-6"><label class="form-label" for="meeting-recurrence">Repeat</label>
                 <select id="meeting-recurrence" name="recurrence" class="form-select @error('recurrence') is-invalid @enderror">
@@ -62,7 +65,17 @@
             <input id="meeting-until" name="repeat_until" type="date" class="form-control @error('repeat_until') is-invalid @enderror" value="{{ old('repeat_until') }}">
             @error('repeat_until')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
-        <button type="submit" class="btn btn-primary">Create schedule</button>
+        <div class="meeting-form-actions"><a class="btn btn-outline-secondary" href="{{ route('classes.meetings.index', $schoolClass) }}">Back to meetings</a><button type="submit" class="btn btn-primary">Create schedule</button></div>
     </div></form>
+    <aside class="card meeting-form-help"><div class="card-body">
+        <div class="meeting-join-icon"><i class="ti ti-info-circle" aria-hidden="true"></i></div>
+        <h2 class="h6">Before you schedule</h2>
+        <ul>
+            <li>Times use {{ config('app.timezone') }}.</li>
+            <li>Create up to 26 fixed dates, or keep generating dates for an ongoing series.</li>
+            <li>Students can join the room 15 minutes before the start when online meetings are configured.</li>
+        </ul>
+    </div></aside>
+    </div>
 </div>
 @endsection

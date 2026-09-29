@@ -104,7 +104,7 @@ assert(duplicatePrevented);
     const section = { closest: () => disclosure, scrollIntoView() { this.scrolled = true; } };
     const events = {};
     const learningWindow = {
-        location: { hash: '#class-actions' },
+        location: { href: 'http://localhost/classes#class-actions', hash: '#class-actions' },
         matchMedia: () => ({ matches: true, addEventListener() {} }),
         localStorage: { getItem: () => null, setItem() {} },
         addEventListener(name, callback) { events[name] = callback; },
@@ -117,7 +117,7 @@ assert(duplicatePrevented);
         getElementById: id => id === 'class-actions' ? section : null,
         addEventListener(name, callback) { if (name === 'DOMContentLoaded') ready = callback; },
     };
-    const learningContext = vm.createContext({ document: learningDocument, window: learningWindow });
+    const learningContext = vm.createContext({ document: learningDocument, window: learningWindow, URL });
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../public/js/workspace.js'), 'utf8'), learningContext);
     ready();
     assert(disclosure.open && section.scrolled);
@@ -170,8 +170,8 @@ assert(duplicatePrevented);
         createElement() { return { childNodes: [], replaceChildren(...nodes) { this.childNodes = nodes; }, hasChildNodes() { return this.childNodes.length > 0; } }; },
     };
     let restoredSearch;
-    const restoreWindow = { chat: { activeRoomId: 7 }, addEventListener() {}, filterConversationList(value) { restoredSearch = value; } };
-    vm.runInNewContext(testSource, { document: restoreDocument, window: restoreWindow });
+    const restoreWindow = { chat: { activeRoomId: 7 }, location: { href: 'http://localhost/chat' }, addEventListener() {}, filterConversationList(value) { restoredSearch = value; } };
+    vm.runInNewContext(testSource, { document: restoreDocument, window: restoreWindow, URL });
     restoreWindow.WorkspaceNavigation.cacheChatContent({ childNodes: [cachedSidebar, {}] });
     assert(restoreWindow.WorkspaceNavigation.restoreChatContent(main, { querySelector: () => freshSidebar }));
     assert.equal(main.sidebar, freshSidebar);

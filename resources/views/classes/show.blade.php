@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('bodyClass', 'class-page')
+@section('bodyClass', 'class-page workspace-full-page')
 @section('title', $schoolClass->name)
 @section('content')
     <div class="page-container">
