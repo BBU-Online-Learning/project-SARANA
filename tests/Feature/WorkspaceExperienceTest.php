@@ -19,13 +19,14 @@ test('class search and status filters preserve membership boundaries', function 
     }
 
     $this->actingAs($user)->get(route('classes.index', ['search' => 'algebra', 'status' => 'active']))
-        ->assertOk()->assertViewHas('classes', fn ($classes): bool => $classes->modelKeys() === [$active->id])
+        ->assertOk()->assertInertia(fn ($page) => $page->component('Classes/Index')->where('classes.0.id', $active->id)->has('classes', 1))
         ->assertDontSee($outside->name)->assertDontSee($archived->name);
     $this->get(route('classes.index', ['status' => 'archived']))->assertOk()
-        ->assertViewHas('classes', fn ($classes): bool => $classes->modelKeys() === [$archived->id]);
+        ->assertInertia(fn ($page) => $page->where('classes.0.id', $archived->id)->has('classes', 1));
     $this->get(route('classes.index', ['search' => 'Equations']))->assertOk()
-        ->assertViewHas('classes', fn ($classes): bool => $classes->modelKeys() === [$active->id]);
-    $this->get(route('classes.index', ['search' => 'missing']))->assertOk()->assertSee('No classes match these filters');
+        ->assertInertia(fn ($page) => $page->where('classes.0.id', $active->id)->has('classes', 1));
+    $this->get(route('classes.index', ['search' => 'missing']))->assertOk()
+        ->assertInertia(fn ($page) => $page->has('classes', 0)->where('filters.search', 'missing'));
 })->with(['teacher', 'student']);
 
 test('invalid class filters are rejected safely', function (): void {
@@ -33,12 +34,44 @@ test('invalid class filters are rejected safely', function (): void {
         ->assertUnprocessable()->assertJsonValidationErrors(['search', 'status']);
 });
 
+test('class directory sends only authorized management details and supports partial visits', function (): void {
+    $teacher = securityTestUser('teacher');
+    $student = securityTestUser('student');
+    $schoolClass = SchoolClass::create(['name' => 'Protected class', 'created_by' => $teacher->id, 'join_code' => 'SAFE1234']);
+    $schoolClass->members()->attach($teacher, ['role' => 'owner']);
+    $schoolClass->members()->attach($student, ['role' => 'student']);
+
+    $studentPage = $this->actingAs($student)->get(route('classes.index'))->assertOk();
+    expect($studentPage->inertiaProps('classes.0.joinCode'))->toBeNull()
+        ->and($studentPage->inertiaProps('classes.0.canManage'))->toBeFalse();
+
+    $this->withHeaders([
+        'X-Inertia' => 'true',
+        'X-Inertia-Version' => $studentPage->inertiaPage()['version'],
+        'X-Inertia-Partial-Component' => 'Classes/Index',
+        'X-Inertia-Partial-Data' => 'classes,filters,summary',
+    ])->get(route('classes.index', ['status' => 'active']))
+        ->assertOk()->assertHeader('X-Inertia', 'true')
+        ->assertJsonPath('props.classes.0.id', $schoolClass->id)
+        ->assertJsonPath('props.filters.status', 'active')
+        ->assertJsonMissingPath('props.eligibleTeachers');
+
+    $this->flushHeaders();
+    $teacherPage = $this->actingAs($teacher)->get(route('classes.index'))->assertOk();
+    expect($teacherPage->inertiaProps('classes.0.joinCode'))->toBe('SAFE1234')
+        ->and($teacherPage->inertiaProps('classes.0.canManage'))->toBeTrue();
+    $schoolClass->forceFill(['archived_at' => now()])->save();
+    $archivedPage = $this->get(route('classes.index'))->assertOk();
+    expect($archivedPage->inertiaProps('classes.0.joinCode'))->toBeNull()
+        ->and($archivedPage->inertiaProps('classes.0.canManage'))->toBeTrue();
+});
+
 test('class forms preserve invalid input and open the relevant disclosure', function (): void {
     $teacher = securityTestUser('teacher');
     $this->actingAs($teacher)->from(route('classes.index'))->post(route('classes.store'), ['name' => '', 'description' => 'Keep my notes'])
         ->assertSessionHasErrors('name');
-    $this->get(route('classes.index'))->assertOk()->assertSee('Keep my notes')
-        ->assertSee('id="create-class"  open', false)->assertSee('data-pending-label="Creating…"', false);
+    $this->get(route('classes.index'))->assertOk()
+        ->assertInertia(fn ($page) => $page->where('oldInput.description', 'Keep my notes')->has('errors.name'));
 });
 
 test('class leaving requires confirmation and dashboard filters target their status', function (): void {
@@ -54,8 +87,7 @@ test('class leaving requires confirmation and dashboard filters target their sta
 test('class filters, search and calendar expose in-place navigation', function (): void {
     $this->actingAs(securityTestUser('student'));
 
-    $this->get(route('classes.index'))->assertOk()->assertSee('data-workspace-nav-form', false)
-        ->assertSee('data-workspace-nav', false);
+    $this->get(route('classes.index'))->assertOk()->assertInertia(fn ($page) => $page->component('Classes/Index')->where('filters.status', 'all'));
     $this->get(route('search.index'))->assertOk()->assertSee('data-workspace-nav-form', false);
     $this->get(route('calendar.index'))->assertOk()->assertSee('data-workspace-nav', false);
 });
