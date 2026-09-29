@@ -13,16 +13,18 @@ function MeetingRoom({ config }) {
             <span className="meeting-page-note">Joining does not mark attendance</span>
         </header>
         <section id="class-meeting-room" className="meeting-room-shell" aria-label="Live meeting room"
-            data-credentials-url={config.credentialsUrl} data-end-at={config.endAt}>
+            data-credentials-url={config.credentialsUrl} data-can-manage={config.canManage}
+            data-waiting-room-url={config.waitingRoomUrl} data-join-requests-url={config.joinRequestsUrl}
+            data-end-at={config.endAt}>
             <div className="meeting-room-topbar">
                 <div className="meeting-room-heading">
                     <div className="meeting-live-mark"><i className="ti ti-video" aria-hidden="true" /></div>
-                    <div><h2 className="h5 mb-1">Live classroom</h2><p id="meeting-room-status" className="mb-0" role="status" aria-live="polite">Ready to connect. Your microphone and camera will start off.</p></div>
+                    <div><h2 className="h5 mb-1">Live classroom</h2><p id="meeting-room-status" className="mb-0" role="status" aria-live="polite">{config.canManage === 'true' ? 'Ready to connect. Your microphone and camera will start off.' : 'Ask your teacher to let you into the meeting.'}</p></div>
                 </div>
                 <div className="meeting-room-top-actions">
                     <span id="meeting-participant-count" className="meeting-participant-count" aria-live="polite">0 participants</span>
                     <button id="meeting-chat-toggle" type="button" className="meeting-top-button" aria-controls="meeting-chat-side" aria-expanded="false"><i className="ti ti-messages" aria-hidden="true" /> <span>Chat</span></button>
-                    <button id="meeting-details-toggle" type="button" className="meeting-top-button" aria-controls="meeting-room-side" aria-expanded="false"><i className="ti ti-adjustments-horizontal" aria-hidden="true" /> <span>Details</span></button>
+                    <button id="meeting-details-toggle" type="button" className="meeting-top-button" aria-controls="meeting-room-side" aria-expanded="false"><i className="ti ti-adjustments-horizontal" aria-hidden="true" /> <span>Details</span>{config.canManage === 'true' && <span id="meeting-waiting-top-count" className="meeting-waiting-top-count" hidden>0</span>}</button>
                     <button id="meeting-fullscreen" type="button" className="meeting-top-button" aria-pressed="false"><i className="ti ti-maximize" aria-hidden="true" /> <span>Full screen</span></button>
                 </div>
             </div>
@@ -31,8 +33,13 @@ function MeetingRoom({ config }) {
                     <div id="meeting-prejoin" className="meeting-prejoin">
                         <div className="meeting-prejoin-icon"><i className="ti ti-video" aria-hidden="true" /></div>
                         <h3>Ready for class?</h3>
-                        <p>Connect to the room first. Your microphone and camera start off, and you can choose when to turn them on.</p>
-                        <button id="meeting-connect" type="button" className="btn btn-primary meeting-control meeting-control-connect"><i className="ti ti-door-enter" aria-hidden="true" /> Connect to meeting</button>
+                        <p>{config.canManage === 'true' ? 'Connect to the room first. Your microphone and camera start off, and you can choose when to turn them on.' : 'Request entry and wait for a teacher to admit you. Your microphone and camera will start off.'}</p>
+                        <button id="meeting-connect" type="button" className="btn btn-primary meeting-control meeting-control-connect" disabled={config.canManage !== 'true'}><i className="ti ti-door-enter" aria-hidden="true" /> Connect to meeting</button>
+                        {config.canManage !== 'true' && <div id="meeting-waiting-student" className="meeting-waiting-student">
+                            <button id="meeting-request-entry" type="button" className="btn btn-primary">Request to join</button>
+                            <button id="meeting-cancel-entry" type="button" className="btn btn-outline-secondary" hidden>Cancel request</button>
+                            <p id="meeting-waiting-status" role="status" aria-live="polite">Checking your entry status…</p>
+                        </div>}
                     </div>
                     <div id="meeting-share-stage" className="meeting-share-stage" aria-label="Shared screen" hidden>
                         <div className="meeting-share-heading"><i className="ti ti-screen-share" aria-hidden="true" /> <strong id="meeting-share-name">Screen share</strong><span>Presentation</span></div>
@@ -48,6 +55,11 @@ function MeetingRoom({ config }) {
                             <div><label className="form-label" htmlFor="meeting-camera-device">Camera</label><select id="meeting-camera-device" className="form-select" disabled><option>Connect to choose a device</option></select></div>
                         </div>
                     </div>
+                    {config.canManage === 'true' && <div className="meeting-side-section meeting-waiting-host" id="meeting-waiting-host">
+                        <h3 className="h6">Waiting room <span id="meeting-waiting-count" className="badge bg-primary">0</span></h3>
+                        <p>Admit class members when you are ready.</p>
+                        <div id="meeting-waiting-requests" aria-live="polite">No one is waiting.</div>
+                    </div>}
                     <div className="meeting-side-tip"><i className="ti ti-info-circle" aria-hidden="true" /><span>Allow your browser to use the microphone or camera when you turn them on.</span></div>
                 </aside>
                 <aside id="meeting-chat-side" className="meeting-chat-side" aria-label="Meeting chat">

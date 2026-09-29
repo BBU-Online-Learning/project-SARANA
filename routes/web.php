@@ -7,6 +7,7 @@ use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\ClassAnnouncementController;
 use App\Http\Controllers\ClassAttendanceController;
 use App\Http\Controllers\ClassMeetingController;
+use App\Http\Controllers\ClassMeetingJoinRequestController;
 use App\Http\Controllers\CourseworkAssignmentController;
 use App\Http\Controllers\CourseworkAttachmentController;
 use App\Http\Controllers\CourseworkSubmissionController;
@@ -226,6 +227,11 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::post('/classes/{schoolClass}/meeting-series/{meetingSeries}/cancel', [ClassMeetingController::class, 'cancelSeries'])->name('classes.meetings.series.cancel');
     Route::get('/classes/{schoolClass}/meetings/{meeting}/room', [LiveKitMeetingController::class, 'show'])->name('classes.meetings.room');
     Route::post('/classes/{schoolClass}/meetings/{meeting}/credentials', [LiveKitMeetingController::class, 'credentials'])->middleware('throttle:30,1')->name('classes.meetings.credentials');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}/waiting-room', [ClassMeetingJoinRequestController::class, 'show'])->name('classes.meetings.waiting-room.show');
+    Route::post('/classes/{schoolClass}/meetings/{meeting}/waiting-room', [ClassMeetingJoinRequestController::class, 'store'])->middleware('throttle:10,1')->name('classes.meetings.waiting-room.store');
+    Route::delete('/classes/{schoolClass}/meetings/{meeting}/waiting-room', [ClassMeetingJoinRequestController::class, 'destroy'])->middleware('throttle:10,1')->name('classes.meetings.waiting-room.destroy');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}/join-requests', [ClassMeetingJoinRequestController::class, 'index'])->name('classes.meetings.join-requests.index');
+    Route::patch('/classes/{schoolClass}/meetings/{meeting}/join-requests/{joinRequest}', [ClassMeetingJoinRequestController::class, 'update'])->middleware('throttle:30,1')->name('classes.meetings.join-requests.update');
 });
 
 // 2fa

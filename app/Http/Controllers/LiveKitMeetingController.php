@@ -22,6 +22,7 @@ class LiveKitMeetingController extends Controller
     public function credentials(Request $request, SchoolClass $schoolClass, ClassMeeting $meeting, LiveKitMeetingService $liveKit): JsonResponse
     {
         $this->authorizeJoin($schoolClass, $meeting, $liveKit);
+        Gate::authorize('issueToken', $meeting);
 
         return response()->json($liveKit->credentials($request->user(), $meeting))
             ->header('Cache-Control', 'no-store, private');

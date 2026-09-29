@@ -48,4 +48,25 @@ class ClassMeetingPolicy
     {
         return $this->update($user, $classMeeting);
     }
+
+    public function manageJoinRequests(User $user, ClassMeeting $classMeeting): bool
+    {
+        return $this->view($user, $classMeeting)
+            && $this->access->teachingRole($user, $classMeeting->schoolClass) !== null;
+    }
+
+    public function issueToken(User $user, ClassMeeting $classMeeting): bool
+    {
+        if (! $this->view($user, $classMeeting)) {
+            return false;
+        }
+
+        if ($this->manageJoinRequests($user, $classMeeting)) {
+            return true;
+        }
+
+        return $classMeeting->joinRequests()
+            ->where('requester_user_id', $user->id)
+            ->first()?->admitsCurrentEntry() ?? false;
+    }
 }

@@ -26,6 +26,13 @@ if (root) {
     const chatSend = document.getElementById('meeting-chat-send');
     const chatMessages = document.getElementById('meeting-chat-messages');
     const fullscreenButton = document.getElementById('meeting-fullscreen');
+    const canManage = root.dataset.canManage !== 'false';
+    const requestEntryButton = document.getElementById('meeting-request-entry');
+    const cancelEntryButton = document.getElementById('meeting-cancel-entry');
+    const waitingStatus = document.getElementById('meeting-waiting-status');
+    const waitingRequests = document.getElementById('meeting-waiting-requests');
+    const waitingCount = document.getElementById('meeting-waiting-count');
+    const waitingTopCount = document.getElementById('meeting-waiting-top-count');
     const room = new Room({ adaptiveStream: true, dynacast: true });
     const closesAt = Date.parse(root.dataset.endAt);
     let connected = false;
@@ -37,6 +44,8 @@ if (root) {
     const seenChatMessages = new Set();
     const mediaIntent = { microphone: false, camera: false };
     let handRaised = false;
+    let canEnter = canManage;
+    let waitingPoll = null;
 
     function joinWindowClosed() {
         return Number.isFinite(closesAt) && Date.now() >= closesAt;
@@ -68,6 +77,92 @@ if (root) {
 
     function setStatus(message) {
         status.textContent = message;
+    }
+
+    async function waitingRequest(method, url, body = null) {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                'Accept': 'application/json',
+                ...(method !== 'GET' ? { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } : {}),
+            },
+            credentials: 'same-origin',
+            cache: 'no-store',
+            ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        if (!response.ok) throw new Error(response.status === 403 ? 'Meeting access is unavailable.' : 'Could not update the waiting room. Try again.');
+        return response.json();
+    }
+
+    function showStudentRequest(joinRequest, meetingOpen = true) {
+        if (!waitingStatus) return;
+        canEnter = meetingOpen && Boolean(joinRequest?.can_enter);
+        connectButton.disabled = connected || connecting || !canEnter;
+        requestEntryButton.hidden = !meetingOpen || joinRequest?.status === 'pending' || canEnter;
+        cancelEntryButton.hidden = joinRequest?.status !== 'pending' || !meetingOpen;
+        waitingStatus.textContent = !meetingOpen ? 'The meeting is closed.'
+            : canEnter ? 'Your teacher admitted you. Select Connect to meeting.'
+                : joinRequest?.status === 'pending' ? 'Waiting for your teacher to admit you.'
+                    : joinRequest?.status === 'denied' ? 'Your request was declined. You can ask again.'
+                        : 'Request entry to join this class meeting.';
+    }
+
+    async function refreshStudentRequest() {
+        if (!root.dataset.waitingRoomUrl || connected) return;
+        try {
+            const result = await waitingRequest('GET', root.dataset.waitingRoomUrl);
+            showStudentRequest(result.request, result.meeting_open);
+        } catch {
+            waitingStatus.textContent = 'Could not check entry status. Trying again…';
+            connectButton.disabled = true;
+        }
+    }
+
+    function renderPendingRequests(requests) {
+        if (!waitingRequests) return;
+        waitingCount.textContent = String(requests.length);
+        waitingTopCount.textContent = String(requests.length);
+        waitingTopCount.hidden = requests.length === 0;
+        if (requests.length === 0) {
+            waitingRequests.textContent = 'No one is waiting.';
+            return;
+        }
+        waitingRequests.replaceChildren(...requests.map((joinRequest) => {
+            const row = document.createElement('div');
+            row.className = 'meeting-waiting-request';
+            const name = document.createElement('strong');
+            name.textContent = joinRequest.display_name;
+            const actions = document.createElement('div');
+            for (const [decision, label] of [['admitted', 'Admit'], ['denied', 'Deny']]) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = decision === 'admitted' ? 'btn btn-primary btn-sm' : 'btn btn-outline-secondary btn-sm';
+                button.textContent = label;
+                button.addEventListener('click', async () => {
+                    for (const action of actions.querySelectorAll('button')) action.disabled = true;
+                    try {
+                        await waitingRequest('PATCH', `${root.dataset.joinRequestsUrl}/${encodeURIComponent(joinRequest.reference)}`, { decision });
+                        await refreshPendingRequests();
+                    } catch {
+                        setStatus('Could not decide this entry request. Try again.');
+                        for (const action of actions.querySelectorAll('button')) action.disabled = false;
+                    }
+                });
+                actions.append(button);
+            }
+            row.append(name, actions);
+            return row;
+        }));
+    }
+
+    async function refreshPendingRequests() {
+        if (!root.dataset.joinRequestsUrl) return;
+        try {
+            const result = await waitingRequest('GET', root.dataset.joinRequestsUrl);
+            renderPendingRequests(result.requests);
+        } catch {
+            if (waitingRequests) waitingRequests.textContent = 'Could not load waiting requests. Trying again…';
+        }
     }
 
     function setControlLabel(button, label) {
@@ -106,7 +201,7 @@ if (root) {
     function setControls(active) {
         connected = active;
         root.classList.toggle('is-connected', active);
-        connectButton.disabled = active;
+        connectButton.disabled = active || !canEnter;
         for (const button of [microphoneButton, soundButton, cameraButton, screenButton, handButton, leaveButton]) {
             button.disabled = !active;
         }
@@ -287,7 +382,7 @@ if (root) {
     });
 
     async function connect(recovering = false) {
-        if (connecting || connected || joinWindowClosed()) return;
+        if (connecting || connected || joinWindowClosed() || !canEnter) return;
         reconnectWanted = true;
         connecting = true;
         connectButton.disabled = true;
@@ -305,6 +400,10 @@ if (root) {
             if (!response.ok) {
                 const error = new Error('Meeting access is unavailable. Check the schedule and your class membership.');
                 error.retryable = response.status === 429 || response.status >= 500;
+                if (response.status === 403 && !canManage) {
+                    canEnter = false;
+                    refreshStudentRequest();
+                }
                 throw error;
             }
             const { url, token } = await response.json();
@@ -357,6 +456,42 @@ if (root) {
     }
 
     connectButton.addEventListener('click', () => connect());
+
+    requestEntryButton?.addEventListener('click', async () => {
+        requestEntryButton.disabled = true;
+        try {
+            const result = await waitingRequest('POST', root.dataset.waitingRoomUrl);
+            showStudentRequest(result.request);
+        } catch {
+            waitingStatus.textContent = 'Could not request entry. Try again.';
+        } finally {
+            requestEntryButton.disabled = false;
+        }
+    });
+
+    cancelEntryButton?.addEventListener('click', async () => {
+        cancelEntryButton.disabled = true;
+        try {
+            const result = await waitingRequest('DELETE', root.dataset.waitingRoomUrl);
+            showStudentRequest(result.request);
+        } catch {
+            waitingStatus.textContent = 'Could not cancel your request. Try again.';
+        } finally {
+            cancelEntryButton.disabled = false;
+        }
+    });
+
+    if (canManage && root.dataset.joinRequestsUrl) {
+        refreshPendingRequests();
+        waitingPoll = window.setInterval(() => {
+            if (document.visibilityState === 'visible' && !joinWindowClosed()) refreshPendingRequests();
+        }, 3000);
+    } else if (!canManage && root.dataset.waitingRoomUrl) {
+        refreshStudentRequest();
+        waitingPoll = window.setInterval(() => {
+            if (document.visibilityState === 'visible' && !joinWindowClosed()) refreshStudentRequest();
+        }, 3000);
+    }
 
     detailsButton.addEventListener('click', () => {
         const expanded = !root.classList.contains('show-details');
@@ -472,13 +607,16 @@ if (root) {
     });
     window.addEventListener('pagehide', () => {
         stopReconnect();
+        if (waitingPoll !== null) window.clearInterval(waitingPoll);
         if (connected) room.disconnect();
     });
     if (Number.isFinite(closesAt)) {
         window.setTimeout(() => {
             stopReconnect();
+            if (waitingPoll !== null) window.clearInterval(waitingPoll);
             room.disconnect();
             connectButton.disabled = true;
+            if (!canManage) showStudentRequest(null, false);
             setStatus('The meeting join window has closed.');
         }, Math.max(0, closesAt - Date.now()));
     }

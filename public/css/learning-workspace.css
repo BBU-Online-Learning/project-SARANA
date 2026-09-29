@@ -637,6 +637,10 @@ body.learning-workspace.class-page { background: var(--learning-background); }
 .learning-workspace .meeting-prejoin-icon { display: grid; place-items: center; width: 72px; height: 72px; margin-bottom: 20px; border: 1px solid #46618b; border-radius: 22px; color: #bfdbfe; background: #263d63; font-size: 32px; }
 .learning-workspace .meeting-prejoin h3 { color: #fff; font-size: 23px; font-weight: 700; }
 .learning-workspace .meeting-prejoin p { max-width: 390px; margin: 4px 0 22px; color: #afc0dc; font-size: 14px; line-height: 1.65; }
+.learning-workspace .meeting-waiting-student { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-top: 16px; }
+.learning-workspace .meeting-waiting-student p { flex-basis: 100%; margin: 0; color: #dbeafe; }
+.learning-workspace .meeting-waiting-student button[hidden], .learning-workspace .meeting-waiting-top-count[hidden] { display: none; }
+.learning-workspace .meeting-waiting-top-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border-radius: 999px; color: #fff; background: #dc2626; font-size: 11px; font-weight: 800; }
 .learning-workspace .meeting-room-shell.is-connected .meeting-prejoin { display: none; }
 .learning-workspace .meeting-participants { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; align-content: center; min-height: 434px; }
 .learning-workspace .meeting-participant { min-width: 0; }
@@ -655,6 +659,10 @@ body.learning-workspace.class-page { background: var(--learning-background); }
 .learning-workspace .meeting-side-section h3 { margin: 7px 0 12px; color: #fff; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
 .learning-workspace .meeting-side-section p { display: flex; gap: 8px; margin: 0 0 9px; color: #afc0dc; font-size: 12px; line-height: 1.55; }
 .learning-workspace .meeting-side-section p .ti { flex: none; font-size: 16px; }
+.learning-workspace .meeting-waiting-host h3 { display: flex; align-items: center; gap: 8px; }
+.learning-workspace .meeting-waiting-request { display: grid; gap: 9px; padding: 11px 0; border-top: 1px solid #33435e; color: #f8fafc; font-size: 13px; }
+.learning-workspace .meeting-waiting-request > div { display: flex; gap: 7px; }
+.learning-workspace .meeting-waiting-request .btn { flex: 1; }
 .learning-workspace .meeting-device-grid { display: grid; gap: 12px; margin-top: 15px; }
 .learning-workspace .meeting-device-grid label { color: #dbe7fa; font-size: 12px; }
 .learning-workspace .meeting-device-grid .form-select { width: 100%; font-size: 12px; }

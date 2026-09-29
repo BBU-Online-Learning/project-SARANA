@@ -8,6 +8,9 @@
     data-start-label="{{ $meeting->starts_at->format('D, M j · g:i A') }}"
     data-back-url="{{ route('classes.meetings.show', [$schoolClass, $meeting]) }}"
     data-credentials-url="{{ route('classes.meetings.credentials', [$schoolClass, $meeting]) }}"
+    data-can-manage="{{ \Illuminate\Support\Facades\Gate::allows('manageJoinRequests', $meeting) ? 'true' : 'false' }}"
+    data-waiting-room-url="{{ route('classes.meetings.waiting-room.show', [$schoolClass, $meeting]) }}"
+    data-join-requests-url="{{ route('classes.meetings.join-requests.index', [$schoolClass, $meeting]) }}"
     data-end-at="{{ $meeting->ends_at->copy()->addMinutes(config('livekit.join_after_minutes'))->toIso8601String() }}"></div>
 @endsection
 @section('scripts')

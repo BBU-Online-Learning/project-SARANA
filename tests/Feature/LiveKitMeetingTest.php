@@ -47,6 +47,11 @@ test('live meeting tokens are limited to current class members and the scheduled
         ->assertSee('meeting-react-root', false)
         ->assertSee('data-credentials-url', false)
         ->assertSee('resources/js/meeting-room.jsx');
+    $this->post(route('classes.meetings.credentials', [$schoolClass, $meeting]))->assertForbidden();
+    $this->postJson(route('classes.meetings.waiting-room.store', [$schoolClass, $meeting]))->assertCreated();
+    $joinRequest = $meeting->joinRequests()->firstOrFail();
+    $this->actingAs($teacher)->patchJson(route('classes.meetings.join-requests.update', [$schoolClass, $meeting, $joinRequest]), ['decision' => 'admitted'])->assertOk();
+    $this->actingAs($student);
     $response = $this->post(route('classes.meetings.credentials', [$schoolClass, $meeting]))->assertOk()
         ->assertHeader('Cache-Control', 'no-store, private');
     $claims = JWT::decode($response->json('token'), new Key('test-secret-with-sufficient-length', 'HS256'));
@@ -102,6 +107,12 @@ test('six class members receive distinct credentials for the same meeting', func
 
     foreach ($members as $member) {
         $this->actingAs($member)->get(route('classes.meetings.room', [$schoolClass, $meeting]))->assertOk();
+        if (! $member->is($teacher)) {
+            $this->postJson(route('classes.meetings.waiting-room.store', [$schoolClass, $meeting]))->assertCreated();
+            $joinRequest = $meeting->joinRequests()->where('requester_user_id', $member->id)->firstOrFail();
+            $this->actingAs($teacher)->patchJson(route('classes.meetings.join-requests.update', [$schoolClass, $meeting, $joinRequest]), ['decision' => 'admitted'])->assertOk();
+            $this->actingAs($member);
+        }
         $response = $this->post(route('classes.meetings.credentials', [$schoolClass, $meeting]))->assertOk();
         $claims = JWT::decode($response->json('token'), new Key('test-secret-with-sufficient-length', 'HS256'));
 
