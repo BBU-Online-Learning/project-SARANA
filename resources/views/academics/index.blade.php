@@ -5,6 +5,7 @@
     <a href="{{ route('classes.index') }}" class="btn btn-link mb-3">Back to classes</a>
     <h1 class="h3 mb-2">Academic structure</h1>
     <p class="text-muted">Set up years, grade levels and subjects, then assign them to existing classes. Current membership and quiz access stay with each class.</p>
+    <a class="btn btn-outline-primary mb-3" href="{{ route('academics.reporting-periods.index') }}">Manage reporting periods</a>
     @if (session('success')) <div class="alert alert-success">{{ session('success') }}</div> @endif
     @if ($errors->any())
         <div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error) <li>{{ $error }}</li> @endforeach</ul></div>

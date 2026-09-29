@@ -21,6 +21,7 @@ use App\Http\Controllers\Quiz\QuizAttemptController;
 use App\Http\Controllers\Quiz\QuizController;
 use App\Http\Controllers\Quiz\QuizQuestionController;
 use App\Http\Controllers\Quiz\QuizResultController;
+use App\Http\Controllers\ReportingPeriodController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SchoolClassChannelMessageController;
 use App\Http\Controllers\SchoolClassController;
@@ -65,6 +66,10 @@ Route::middleware(['auth', 'twofactor.setup', 'can:access-admin'])->group(functi
     Route::post('/academics/years', [AcademicCatalogController::class, 'storeYear'])->name('academics.years.store');
     Route::post('/academics/grades', [AcademicCatalogController::class, 'storeGrade'])->name('academics.grades.store');
     Route::post('/academics/subjects', [AcademicCatalogController::class, 'storeSubject'])->name('academics.subjects.store');
+    Route::get('/academics/reporting-periods', [ReportingPeriodController::class, 'index'])->name('academics.reporting-periods.index');
+    Route::post('/academics/reporting-periods', [ReportingPeriodController::class, 'store'])->name('academics.reporting-periods.store');
+    Route::patch('/academics/reporting-periods/{reportingPeriod}', [ReportingPeriodController::class, 'update'])->name('academics.reporting-periods.update');
+    Route::post('/academics/reporting-periods/{reportingPeriod}/transition', [ReportingPeriodController::class, 'transition'])->name('academics.reporting-periods.transition');
     Route::get('/academics/classes/{schoolClass}/edit', [AcademicCatalogController::class, 'edit'])->name('academics.classes.edit');
     Route::patch('/academics/classes/{schoolClass}', [AcademicCatalogController::class, 'assignClass'])->name('academics.classes.update');
     Route::resource('roles', RoleController::class)->only('index');

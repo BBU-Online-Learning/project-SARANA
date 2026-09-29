@@ -12,7 +12,7 @@ class CourseworkAssignment extends Model
     /** @use HasFactory<\Database\Factories\CourseworkAssignmentFactory> */
     use HasFactory;
 
-    protected $fillable = ['school_class_id', 'created_by', 'academic_year_id', 'subject_id', 'title', 'instructions', 'max_points', 'due_at', 'allow_resubmissions', 'status', 'published_at', 'closed_at'];
+    protected $fillable = ['school_class_id', 'created_by', 'academic_year_id', 'subject_id', 'reporting_period_id', 'title', 'instructions', 'max_points', 'due_at', 'allow_resubmissions', 'status', 'published_at', 'closed_at'];
 
     protected function casts(): array
     {
@@ -37,6 +37,11 @@ class CourseworkAssignment extends Model
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
+    }
+
+    public function reportingPeriod(): BelongsTo
+    {
+        return $this->belongsTo(ReportingPeriod::class);
     }
 
     public function submissions(): HasMany

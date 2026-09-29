@@ -33,6 +33,7 @@ class UpdateCourseworkAssignmentRequest extends FormRequest
             'due_at' => ['nullable', 'date'],
             'allow_resubmissions' => ['required', 'boolean'],
             'subject_id' => ['nullable', 'integer', Rule::exists('class_subjects', 'subject_id')->where('school_class_id', $this->route('schoolClass')->id)],
+            'reporting_period_id' => ['nullable', 'integer', Rule::exists('reporting_periods', 'id')->where('academic_year_id', $this->route('assignment')->academic_year_id)],
         ];
     }
 
@@ -44,6 +45,7 @@ class UpdateCourseworkAssignmentRequest extends FormRequest
             'max_points.decimal' => 'Use no more than two decimal places.',
             'due_at.date' => 'Enter a valid due date.',
             'subject_id.exists' => 'Choose a subject assigned to this class.',
+            'reporting_period_id.exists' => 'Choose a reporting period from this assignment academic year.',
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Coursework\StoreCourseworkAssignmentRequest;
 use App\Http\Requests\Coursework\UpdateCourseworkAssignmentRequest;
 use App\Models\CourseworkAssignment;
+use App\Models\ReportingPeriod;
 use App\Models\SchoolClass;
 use App\Models\User;
 use App\Notifications\ActivityNotification;
@@ -32,7 +33,7 @@ class CourseworkAssignmentController extends Controller
                 ->where('active_slot', 1)->pluck('subject_id');
             $blockedSubjects = $restricted->diff($assigned)->all();
         }
-        $assignments = $schoolClass->courseworkAssignments()->with(['creator', 'academicYear', 'subject'])
+        $assignments = $schoolClass->courseworkAssignments()->with(['creator', 'academicYear', 'subject', 'reportingPeriod'])
             ->when(! $isTeacher, fn ($query) => $query->whereIn('status', ['published', 'closed']))
             ->when($blockedSubjects !== [], fn ($query) => $query->where(function ($query) use ($blockedSubjects): void {
                 $query->where('status', '!=', 'draft')->orWhereNull('subject_id')->orWhereNotIn('subject_id', $blockedSubjects);
@@ -47,9 +48,10 @@ class CourseworkAssignmentController extends Controller
         Gate::authorize('create', [CourseworkAssignment::class, $schoolClass]);
         $schoolClass->load('subjects');
         $availableSubjects = $schoolClass->subjects->filter(fn ($subject): bool => $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $subject->id));
+        $reportingPeriods = ReportingPeriod::query()->where('academic_year_id', $schoolClass->academic_year_id)->orderBy('sequence')->get();
         $assignment = null;
 
-        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects'));
+        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects', 'reportingPeriods'));
     }
 
     public function store(StoreCourseworkAssignmentRequest $request, SchoolClass $schoolClass): RedirectResponse
@@ -58,6 +60,7 @@ class CourseworkAssignmentController extends Controller
         $assignment = $this->classes->withClass($request->user(), $schoolClass, function (User $actor, SchoolClass $lockedClass) use ($validated): CourseworkAssignment {
             Gate::forUser($actor)->authorize('create', [CourseworkAssignment::class, $lockedClass]);
             $this->ensureSubject($lockedClass, $validated['subject_id'] ?? null);
+            $this->ensureReportingPeriod($lockedClass->academic_year_id, $validated['reporting_period_id'] ?? null);
             abort_unless($this->subjectTeachers->canManageCoursework($actor, $lockedClass, $validated['subject_id'] ?? null), 403);
 
             return $lockedClass->courseworkAssignments()->create($validated + [
@@ -73,7 +76,7 @@ class CourseworkAssignmentController extends Controller
     {
         $this->ensureClass($schoolClass, $assignment);
         Gate::authorize('view', $assignment);
-        $assignment->load(['creator', 'academicYear', 'subject']);
+        $assignment->load(['creator', 'academicYear', 'subject', 'reportingPeriod']);
         $isTeacher = $this->access->teachingRole(Auth::user(), $schoolClass) !== null;
         $canReviewSubmissions = $isTeacher && $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $assignment->subject_id);
         $submissions = null;
@@ -96,8 +99,9 @@ class CourseworkAssignmentController extends Controller
         Gate::authorize('update', $assignment);
         $schoolClass->load('subjects');
         $availableSubjects = $schoolClass->subjects->filter(fn ($subject): bool => $this->subjectTeachers->canManageCoursework(Auth::user(), $schoolClass, $subject->id));
+        $reportingPeriods = ReportingPeriod::query()->where('academic_year_id', $assignment->academic_year_id)->orderBy('sequence')->get();
 
-        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects'));
+        return view('coursework.form', compact('schoolClass', 'assignment', 'availableSubjects', 'reportingPeriods'));
     }
 
     public function update(UpdateCourseworkAssignmentRequest $request, SchoolClass $schoolClass, CourseworkAssignment $assignment): RedirectResponse
@@ -107,6 +111,7 @@ class CourseworkAssignmentController extends Controller
             $locked = $lockedClass->courseworkAssignments()->lockForUpdate()->findOrFail($assignment->id);
             Gate::forUser($actor)->authorize('update', $locked);
             $this->ensureSubject($lockedClass, $validated['subject_id'] ?? null);
+            $this->ensureReportingPeriod($locked->academic_year_id, $validated['reporting_period_id'] ?? null);
             abort_unless($this->subjectTeachers->canManageCoursework($actor, $lockedClass, $validated['subject_id'] ?? null), 403);
             $locked->update($validated);
         });
@@ -153,6 +158,14 @@ class CourseworkAssignmentController extends Controller
     {
         if ($subjectId !== null && ! $schoolClass->subjects()->whereKey($subjectId)->exists()) {
             throw ValidationException::withMessages(['subject_id' => 'Choose a subject assigned to this class.']);
+        }
+    }
+
+    private function ensureReportingPeriod(?int $academicYearId, ?int $reportingPeriodId): void
+    {
+        if ($reportingPeriodId !== null && ! ReportingPeriod::query()->whereKey($reportingPeriodId)
+            ->where('academic_year_id', $academicYearId)->exists()) {
+            throw ValidationException::withMessages(['reporting_period_id' => 'Choose a reporting period from this assignment academic year.']);
         }
     }
 }
