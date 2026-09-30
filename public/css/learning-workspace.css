@@ -642,9 +642,12 @@ body.learning-workspace.class-page { background: var(--learning-background); }
 .learning-workspace .meeting-waiting-student button[hidden], .learning-workspace .meeting-waiting-top-count[hidden] { display: none; }
 .learning-workspace .meeting-waiting-top-count { display: inline-grid; min-width: 20px; height: 20px; place-items: center; border-radius: 999px; color: #fff; background: #dc2626; font-size: 11px; font-weight: 800; }
 .learning-workspace .meeting-room-shell.is-connected .meeting-prejoin { display: none; }
-.learning-workspace .meeting-participants { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; align-content: center; min-height: 434px; }
+.learning-workspace .meeting-participants { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; align-content: safe center; min-height: 434px; }
 .learning-workspace .meeting-participant { min-width: 0; }
-.learning-workspace .meeting-participant-card { height: 100%; overflow: hidden; border: 1px solid #3a4b68; border-radius: 13px; background: #1d2b45; }
+.learning-workspace .meeting-participant-card { position: relative; height: 100%; overflow: hidden; border: 1px solid #3a4b68; border-radius: 13px; background: #1d2b45; }
+.learning-workspace .meeting-participant-remove { position: absolute; z-index: 2; top: 7px; right: 7px; display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid #f5a7a7; border-radius: 50%; color: #fff; background: #a91f2d; font-size: 21px; line-height: 1; cursor: pointer; }
+.learning-workspace .meeting-participant-remove:hover { background: #851827; }
+.learning-workspace .meeting-participant-remove:disabled { opacity: .55; cursor: wait; }
 .learning-workspace .meeting-participant-media { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 10; overflow: hidden; background: linear-gradient(145deg, #273b5e, #18253e); }
 .learning-workspace .meeting-participant-placeholder { display: grid; place-items: center; width: 66px; height: 66px; border-radius: 50%; color: #fff; background: linear-gradient(135deg, #2563eb, #7c3aed); font-size: 22px; font-weight: 750; }
 .learning-workspace .meeting-participant-media.has-video .meeting-participant-placeholder { display: none; }

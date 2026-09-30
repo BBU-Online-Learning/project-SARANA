@@ -26,6 +26,11 @@ class LiveKitMeetingService
             && now()->lessThan($meeting->ends_at->copy()->addMinutes(config('livekit.join_after_minutes')));
     }
 
+    public function roomName(ClassMeeting $meeting): string
+    {
+        return 'class-'.$meeting->school_class_id.'-meeting-'.$meeting->id;
+    }
+
     /** @return array{url: string, token: string} */
     public function credentials(User $user, ClassMeeting $meeting): array
     {
@@ -41,7 +46,7 @@ class LiveKitMeetingService
         );
         $token->setGrant((new VideoGrant)
             ->setRoomJoin(true)
-            ->setRoomName('class-'.$meeting->school_class_id.'-meeting-'.$meeting->id)
+            ->setRoomName($this->roomName($meeting))
             ->setCanPublish(true)
             ->setCanSubscribe(true)
             ->setCanUpdateOwnMetadata(true));

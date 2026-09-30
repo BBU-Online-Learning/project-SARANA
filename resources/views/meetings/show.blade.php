@@ -26,6 +26,9 @@
             @if ($meeting->cancelled_at)
                 <p class="meeting-detail-note">Cancelled {{ $meeting->cancelled_at->format('M j, Y g:i A') }} by {{ $meeting->canceller?->name ?? 'a teacher' }}.</p>
             @endif
+            @if ($meeting->ended_at)
+                <p class="meeting-detail-note">Ended for everyone {{ $meeting->ended_at->format('M j, Y g:i A') }} by {{ $meeting->ender?->name ?? 'a teacher' }}.</p>
+            @endif
         </div></section>
         <aside class="meeting-detail-side">
             <div class="card meeting-join-panel mb-3"><div class="card-body">
@@ -84,6 +87,12 @@
         <form method="POST" action="{{ route('classes.meetings.cancel', [$schoolClass, $meeting]) }}" data-confirm-title="Cancel this meeting?" data-confirm-message="This occurrence will be marked cancelled for the class." data-confirm-label="Cancel meeting">
             @csrf
             <button type="submit" class="btn btn-outline-danger">Cancel this meeting</button>
+        </form>
+    @endcan
+    @can('end', $meeting)
+        <form method="POST" action="{{ route('classes.meetings.end', [$schoolClass, $meeting]) }}" class="mt-2" data-confirm-title="End this meeting for everyone?" data-confirm-message="Everyone in the LiveKit room will be disconnected." data-confirm-label="End meeting">
+            @csrf
+            <button type="submit" class="btn btn-outline-danger">{{ $meeting->status === 'ending' ? 'Retry ending the meeting' : 'End meeting for everyone' }}</button>
         </form>
     @endcan
     @if ($meeting->series?->status === 'active')

@@ -46,7 +46,7 @@ test('live meeting tokens are limited to current class members and the scheduled
         ->assertOk()
         ->assertSee('meeting-react-root', false)
         ->assertSee('data-credentials-url', false)
-        ->assertSee('resources/js/meeting-room.jsx');
+        ->assertSee('data-waiting-room-url', false);
     $this->post(route('classes.meetings.credentials', [$schoolClass, $meeting]))->assertForbidden();
     $this->postJson(route('classes.meetings.waiting-room.store', [$schoolClass, $meeting]))->assertCreated();
     $joinRequest = $meeting->joinRequests()->firstOrFail();

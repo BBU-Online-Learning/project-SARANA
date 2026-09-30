@@ -32,6 +32,8 @@ class ClassMeetingJoinService
                 ]);
             }
 
+            abort_if($joinRequest->status === ClassMeetingJoinRequest::REMOVED, 403, 'The teacher removed you from this meeting.');
+
             if ($joinRequest->status !== ClassMeetingJoinRequest::PENDING && ! $joinRequest->admitsCurrentEntry()) {
                 $joinRequest->update([
                     'status' => ClassMeetingJoinRequest::PENDING,

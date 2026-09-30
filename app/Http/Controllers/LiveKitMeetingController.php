@@ -16,7 +16,11 @@ class LiveKitMeetingController extends Controller
     {
         $this->authorizeJoin($schoolClass, $meeting, $liveKit);
 
-        return view('meetings.room', compact('schoolClass', 'meeting'));
+        $removableUserIds = Gate::allows('manageJoinRequests', $meeting)
+            ? $schoolClass->memberRecords()->where('role', 'student')->pluck('user_id')->all()
+            : [];
+
+        return view('meetings.room', compact('schoolClass', 'meeting', 'removableUserIds'));
     }
 
     public function credentials(Request $request, SchoolClass $schoolClass, ClassMeeting $meeting, LiveKitMeetingService $liveKit): JsonResponse

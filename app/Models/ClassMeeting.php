@@ -15,7 +15,7 @@ class ClassMeeting extends Model
     protected $fillable = [
         'school_class_id', 'created_by', 'series_key', 'title', 'description', 'recurrence',
         'occurrence_number', 'occurrence_count', 'original_starts_at', 'starts_at', 'ends_at',
-        'status', 'rescheduled_at', 'rescheduled_by', 'cancelled_at', 'cancelled_by',
+        'status', 'rescheduled_at', 'rescheduled_by', 'cancelled_at', 'cancelled_by', 'ended_at', 'ended_by',
         'class_meeting_series_id', 'series_occurrence_on', 'series_override_at',
     ];
 
@@ -23,7 +23,7 @@ class ClassMeeting extends Model
     {
         return [
             'original_starts_at' => 'datetime', 'starts_at' => 'datetime', 'ends_at' => 'datetime',
-            'rescheduled_at' => 'datetime', 'cancelled_at' => 'datetime',
+            'rescheduled_at' => 'datetime', 'cancelled_at' => 'datetime', 'ended_at' => 'datetime',
             'series_occurrence_on' => 'date', 'series_override_at' => 'datetime',
             'occurrence_number' => 'integer', 'occurrence_count' => 'integer',
         ];
@@ -52,6 +52,11 @@ class ClassMeeting extends Model
     public function canceller(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by')->withTrashed();
+    }
+
+    public function ender(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'ended_by')->withTrashed();
     }
 
     public function joinRequests(): HasMany

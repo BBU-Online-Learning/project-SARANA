@@ -20,6 +20,8 @@ class ClassMeetingJoinRequest extends Model
 
     public const CANCELLED = 'cancelled';
 
+    public const REMOVED = 'removed';
+
     protected $fillable = [
         'public_uuid', 'class_meeting_id', 'requester_user_id', 'status',
         'requested_at', 'decided_at', 'decided_by',

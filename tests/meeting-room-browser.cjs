@@ -3,11 +3,11 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
 const source = fs.readFileSync("resources/js/meeting-room.js", "utf8")
-    .replace("import { Room, RoomEvent, Track } from 'livekit-client';", "const { Room, RoomEvent, Track } = window.__liveKitMock;");
+    .replace("import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';", "const { DisconnectReason, Room, RoomEvent, Track } = window.__liveKitMock;");
 const css = fs.readFileSync("public/css/learning-workspace.css", "utf8");
 
 const fixture = `<!doctype html><html><head><meta name="csrf-token" content="test"><style>${css}</style></head>
-<body class="learning-workspace meeting-room-page"><div id="class-meeting-room" class="meeting-room-shell" data-credentials-url="/credentials" data-end-at="${new Date(Date.now() + 60 * 60 * 1000).toISOString()}">
+<body class="learning-workspace meeting-room-page"><div id="class-meeting-room" class="meeting-room-shell" data-credentials-url="/credentials" data-end-url="/end" data-remove-url-template="/participants/__USER__/remove" data-removable-user-ids="1,2,3,4,5" data-can-manage="true" data-end-at="${new Date(Date.now() + 60 * 60 * 1000).toISOString()}">
 <div class="meeting-room-topbar"><div class="meeting-room-heading"><div><h2>Live classroom</h2><p id="meeting-room-status"></p></div></div>
 <div class="meeting-room-top-actions"><span id="meeting-participant-count">0 participants</span>
 <button id="meeting-chat-toggle" class="meeting-top-button" aria-expanded="false">Chat</button><button id="meeting-details-toggle" class="meeting-top-button" aria-expanded="false">Details</button><button id="meeting-fullscreen" class="meeting-top-button" aria-pressed="false"><span>Full screen</span></button></div>
@@ -23,7 +23,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
 <button id="meeting-camera" class="meeting-control" disabled>Camera</button><button id="meeting-screen" class="meeting-control" disabled>Share</button>
 <button id="meeting-hand" class="meeting-control" aria-pressed="false" disabled><span>Raise hand</span></button>
 <label class="meeting-share-audio-option"><input id="meeting-share-audio" type="checkbox"> Include tab audio</label>
-<button id="meeting-sound" class="meeting-control" disabled>Sound</button><button id="meeting-leave" class="meeting-control meeting-control-leave" disabled>Leave</button></div>
+<button id="meeting-sound" class="meeting-control" disabled>Sound</button><button id="meeting-leave" class="meeting-control meeting-control-leave" disabled>Leave</button><button id="meeting-end" class="meeting-control">End for everyone</button></div>
 <select id="meeting-microphone-device" disabled></select><select id="meeting-camera-device" disabled></select>
 </div></body></html>`;
 
@@ -80,6 +80,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
             }
             window.__liveKitMock = {
                 Room,
+                DisconnectReason: { PARTICIPANT_REMOVED: 4, ROOM_DELETED: 5 },
                 RoomEvent: { ParticipantConnected: "participantConnected", ParticipantDisconnected: "participantDisconnected",
                     TrackSubscribed: "trackSubscribed", TrackUnsubscribed: "trackUnsubscribed",
                     LocalTrackPublished: "localTrackPublished", LocalTrackUnpublished: "localTrackUnpublished",
@@ -96,7 +97,12 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
                 window.__fullScreenRoom = null;
                 document.dispatchEvent(new Event("fullscreenchange"));
             };
-            window.fetch = async () => {
+            window.confirm = () => true;
+            window.fetch = async (url) => {
+                if (url === "/participants/1/remove" || url === "/end") {
+                    window.__moderationRequest = url;
+                    return { ok: true, json: async () => ({ status: url === "/end" ? "ended" : "removed" }) };
+                }
                 window.__credentialsRequests = (window.__credentialsRequests || 0) + 1;
                 if (window.__denyCredentials) return { ok: false, status: 403 };
                 return { ok: true, json: async () => ({ url: "wss://example.livekit.cloud", token: "test" }) };
@@ -110,7 +116,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         assert.equal(await page.locator("#meeting-participant-count").textContent(), "1 participant");
         await page.evaluate(() => {
             for (let number = 1; number <= 5; number += 1) {
-                const participant = { identity: `student-${number}`, name: `Student ${number}` };
+                const participant = { identity: `user-${number}`, name: `Student ${number}` };
                 window.__room.remoteParticipants.set(participant.identity, participant);
                 window.__room.handlers.participantConnected(participant);
             }
@@ -120,15 +126,17 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
             ["You", "Student 1", "Student 2", "Student 3", "Student 4", "Student 5"]);
         assert.deepEqual(await page.locator(".meeting-participant-placeholder").allTextContents(),
             ["Y", "S1", "S2", "S3", "S4", "S5"]);
+        await page.getByRole("button", { name: "Remove Student 1 from meeting" }).click();
+        assert.equal(await page.evaluate(() => window.__moderationRequest), "/participants/1/remove");
         await page.locator("#meeting-hand").click();
         assert.equal(await page.locator("#meeting-hand").getAttribute("aria-pressed"), "true");
         assert.equal(await page.locator(".meeting-participant[data-identity='teacher'] .meeting-participant-hand").isVisible(), true);
         await page.evaluate(() => {
-            const participant = window.__room.remoteParticipants.get("student-1");
+            const participant = window.__room.remoteParticipants.get("user-1");
             participant.attributes = { "class.handRaised": "true" };
             window.__room.handlers.participantAttributesChanged({ "class.handRaised": "true" }, participant);
         });
-        assert.equal(await page.locator(".meeting-participant[data-identity='student-1'] .meeting-participant-hand").isVisible(), true);
+        assert.equal(await page.locator(".meeting-participant[data-identity='user-1'] .meeting-participant-hand").isVisible(), true);
         await page.locator("#meeting-hand").click();
         assert.equal(await page.locator("#meeting-hand").getAttribute("aria-pressed"), "false");
         await page.evaluate(() => {
@@ -142,7 +150,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
             }
             window.__remoteScreenTrack = screenTrack();
             window.__room.handlers.trackSubscribed(window.__remoteScreenTrack, { source: "screen_share" },
-                window.__room.remoteParticipants.get("student-1"));
+                window.__room.remoteParticipants.get("user-1"));
             window.__localScreenTrack = screenTrack();
             window.__room.handlers.localTrackPublished({ track: window.__localScreenTrack, source: "screen_share" });
         });
@@ -169,7 +177,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         await page.locator("#meeting-chat-send").click();
         assert.match(await page.locator("#meeting-chat-messages").textContent(), /You\s+Hello class/);
         await page.evaluate(() => window.__room.handlers.chatMessage({ id: "remote-1", message: "<img src=x>", timestamp: Date.now() },
-            window.__room.remoteParticipants.get("student-1")));
+            window.__room.remoteParticipants.get("user-1")));
         assert.equal(await page.locator("#meeting-chat-messages img").count(), 0);
         assert.match(await page.locator("#meeting-chat-messages").textContent(), /Student 1\s+<img src=x>/);
         await page.locator("#meeting-fullscreen").click();
@@ -178,7 +186,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         await page.locator("#meeting-fullscreen").click();
         assert.equal(await page.locator("#meeting-fullscreen").getAttribute("aria-pressed"), "false");
         await page.evaluate(() => {
-            const participant = window.__room.remoteParticipants.get("student-5");
+            const participant = window.__room.remoteParticipants.get("user-5");
             window.__room.remoteParticipants.delete(participant.identity);
             window.__room.handlers.participantDisconnected(participant);
         });
@@ -200,7 +208,7 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         assert.equal(await page.locator("#meeting-screen").getAttribute("aria-pressed"), "false");
         assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector(".meeting-controls")).display), "grid");
         await page.evaluate(() => window.__room.handlers.trackSubscribed(window.__remoteScreenTrack,
-            { source: "screen_share" }, window.__room.remoteParticipants.get("student-1")));
+            { source: "screen_share" }, window.__room.remoteParticipants.get("user-1")));
         await page.evaluate(() => window.__room.handlers.disconnected());
         assert.equal(await page.locator("#meeting-share-stage").isVisible(), false);
         await page.waitForFunction(() => window.__connectCount === 2, { timeout: 5000 });
@@ -223,6 +231,9 @@ const fixture = `<!doctype html><html><head><meta name="csrf-token" content="tes
         assert.equal(await page.locator("#meeting-participant-count").textContent(), "0 participants");
         await page.waitForTimeout(1200);
         assert.equal(await page.evaluate(() => window.__credentialsRequests), 4, "leaving must not start another connection");
+        await page.locator("#meeting-end").click();
+        assert.equal(await page.evaluate(() => window.__moderationRequest), "/end");
+        assert.equal(await page.locator("#meeting-end").isDisabled(), true);
     } finally {
         await browser.close();
     }

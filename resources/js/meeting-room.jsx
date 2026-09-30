@@ -15,6 +15,8 @@ function MeetingRoom({ config }) {
         <section id="class-meeting-room" className="meeting-room-shell" aria-label="Live meeting room"
             data-credentials-url={config.credentialsUrl} data-can-manage={config.canManage}
             data-waiting-room-url={config.waitingRoomUrl} data-join-requests-url={config.joinRequestsUrl}
+            data-end-url={config.endUrl} data-remove-url-template={config.removeUrlTemplate}
+            data-removable-user-ids={config.removableUserIds} data-can-end={config.canEnd}
             data-end-at={config.endAt}>
             <div className="meeting-room-topbar">
                 <div className="meeting-room-heading">
@@ -81,6 +83,7 @@ function MeetingRoom({ config }) {
                 <label className="meeting-share-audio-option" title="Share audio when the browser supports it"><input id="meeting-share-audio" type="checkbox" /> Include tab audio</label>
                 <button id="meeting-sound" type="button" className="btn meeting-control" disabled><i className="ti ti-volume" aria-hidden="true" /> <span>Enable sound</span></button>
                 <button id="meeting-leave" type="button" className="btn meeting-control meeting-control-leave" disabled><i className="ti ti-door-exit" aria-hidden="true" /> <span>Leave meeting</span></button>
+                {config.canEnd === 'true' && <button id="meeting-end" type="button" className="btn meeting-control meeting-control-leave"><i className="ti ti-player-stop" aria-hidden="true" /> <span>End for everyone</span></button>}
             </div>
         </section>
     </div>;

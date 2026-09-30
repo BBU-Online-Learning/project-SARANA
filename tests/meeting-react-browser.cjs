@@ -11,6 +11,7 @@ const html = (canManage, waitingUrl = '', joinRequestsUrl = '') => `<!doctype ht
 <body class="learning-workspace meeting-room-page"><div id="meeting-react-root"
 data-meeting-title="Biology review" data-class-name="Science 1" data-start-label="Tue, Sep 29 · 9:00 AM"
 data-back-url="/meetings/1" data-credentials-url="/credentials" data-can-manage="${canManage}"
+data-can-end="${canManage}" data-end-url="/end" data-remove-url-template="/participants/__USER__/remove"
 data-waiting-room-url="${waitingUrl}" data-join-requests-url="${joinRequestsUrl}"
 data-end-at="${new Date(Date.now() + 3600000).toISOString()}"></div>
 <script type="module" src="/build/${entry.file}"></script></body></html>`;
@@ -80,6 +81,8 @@ const server = createServer((request, response) => {
         studentPage.on("pageerror", (error) => errors.push(error.message));
         await hostPage.goto(`http://127.0.0.1:${server.address().port}/host`);
         await studentPage.goto(`http://127.0.0.1:${server.address().port}/student`);
+        assert.equal(await hostPage.locator("#meeting-end").count(), 1);
+        assert.equal(await studentPage.locator("#meeting-end").count(), 0);
         await studentPage.getByText("Request entry to join this class meeting.").waitFor();
         await studentPage.locator("#meeting-request-entry").click();
         await studentPage.getByText("Waiting for your teacher to admit you.").waitFor();

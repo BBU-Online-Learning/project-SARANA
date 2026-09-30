@@ -1,4 +1,4 @@
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { DisconnectReason, Room, RoomEvent, Track } from 'livekit-client';
 
 const root = document.getElementById('class-meeting-room');
 
@@ -12,6 +12,7 @@ if (root) {
     const handButton = document.getElementById('meeting-hand');
     const shareAudioCheckbox = document.getElementById('meeting-share-audio');
     const leaveButton = document.getElementById('meeting-leave');
+    const endButton = document.getElementById('meeting-end');
     const microphoneDevice = document.getElementById('meeting-microphone-device');
     const cameraDevice = document.getElementById('meeting-camera-device');
     const participantCount = document.getElementById('meeting-participant-count');
@@ -27,6 +28,7 @@ if (root) {
     const chatMessages = document.getElementById('meeting-chat-messages');
     const fullscreenButton = document.getElementById('meeting-fullscreen');
     const canManage = root.dataset.canManage !== 'false';
+    const removableUserIds = new Set((root.dataset.removableUserIds || '').split(',').filter(Boolean));
     const requestEntryButton = document.getElementById('meeting-request-entry');
     const cancelEntryButton = document.getElementById('meeting-cancel-entry');
     const waitingStatus = document.getElementById('meeting-waiting-status');
@@ -46,6 +48,7 @@ if (root) {
     let handRaised = false;
     let canEnter = canManage;
     let waitingPoll = null;
+    let meetingEnded = false;
 
     function joinWindowClosed() {
         return Number.isFinite(closesAt) && Date.now() >= closesAt;
@@ -98,12 +101,13 @@ if (root) {
         if (!waitingStatus) return;
         canEnter = meetingOpen && Boolean(joinRequest?.can_enter);
         connectButton.disabled = connected || connecting || !canEnter;
-        requestEntryButton.hidden = !meetingOpen || joinRequest?.status === 'pending' || canEnter;
+        requestEntryButton.hidden = !meetingOpen || joinRequest?.status === 'pending' || joinRequest?.status === 'removed' || canEnter;
         cancelEntryButton.hidden = joinRequest?.status !== 'pending' || !meetingOpen;
         waitingStatus.textContent = !meetingOpen ? 'The meeting is closed.'
             : canEnter ? 'Your teacher admitted you. Select Connect to meeting.'
                 : joinRequest?.status === 'pending' ? 'Waiting for your teacher to admit you.'
-                    : joinRequest?.status === 'denied' ? 'Your request was declined. You can ask again.'
+                    : joinRequest?.status === 'removed' ? 'Your teacher removed you from this meeting.'
+                        : joinRequest?.status === 'denied' ? 'Your request was declined. You can ask again.'
                         : 'Request entry to join this class meeting.';
     }
 
@@ -294,6 +298,28 @@ if (root) {
         placeholder.textContent = (name || identity).trim().split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase();
         media.append(placeholder);
         body.append(media, heading, hand);
+        const userId = identity.startsWith('user-') ? identity.slice(5) : '';
+        if (canManage && removableUserIds.has(userId) && identity !== room.localParticipant.identity) {
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'meeting-participant-remove';
+            removeButton.textContent = '×';
+            removeButton.setAttribute('aria-label', `Remove ${name || 'student'} from meeting`);
+            removeButton.title = `Remove ${name || 'student'} from meeting`;
+            removeButton.addEventListener('click', async () => {
+                if (!window.confirm(`Remove ${name || 'this student'} from the meeting?`)) return;
+                removeButton.disabled = true;
+                try {
+                    const url = root.dataset.removeUrlTemplate.replace('__USER__', encodeURIComponent(userId));
+                    await waitingRequest('POST', url);
+                    setStatus(`${name || 'Student'} was removed from the meeting.`);
+                } catch {
+                    setStatus('Could not disconnect this student. Try removing them again.');
+                    removeButton.disabled = false;
+                }
+            });
+            panel.append(removeButton);
+        }
         panel.append(body);
         column.append(panel);
         participants.append(column);
@@ -366,8 +392,24 @@ if (root) {
             screenButton.setAttribute('aria-pressed', 'false');
         }
     });
-    room.on(RoomEvent.Disconnected, () => {
+    room.on(RoomEvent.Disconnected, (reason) => {
         setControls(false);
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+            stopReconnect();
+            canEnter = false;
+            connectButton.disabled = true;
+            setStatus('Your teacher removed you from this meeting.');
+            return;
+        }
+        if (reason === DisconnectReason.ROOM_DELETED || meetingEnded) {
+            stopReconnect();
+            meetingEnded = true;
+            canEnter = false;
+            connectButton.disabled = true;
+            if (endButton) endButton.disabled = true;
+            setStatus('The meeting has ended for everyone.');
+            return;
+        }
         if (reconnectWanted && !joinWindowClosed()) queueReconnect();
         else setStatus('Disconnected from the meeting.');
     });
@@ -604,6 +646,21 @@ if (root) {
         handRaised = false;
         room.disconnect();
         if (document.fullscreenElement === root) document.exitFullscreen().catch(() => {});
+    });
+    endButton?.addEventListener('click', async () => {
+        if (!window.confirm('End this meeting for everyone?')) return;
+        endButton.disabled = true;
+        try {
+            await waitingRequest('POST', root.dataset.endUrl);
+            meetingEnded = true;
+            stopReconnect();
+            room.disconnect();
+            connectButton.disabled = true;
+            setStatus('The meeting has ended for everyone.');
+        } catch {
+            setStatus('Could not close the LiveKit room. Try ending the meeting again.');
+            endButton.disabled = false;
+        }
     });
     window.addEventListener('pagehide', () => {
         stopReconnect();

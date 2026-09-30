@@ -112,7 +112,7 @@ class ClassMeetingController extends Controller
     {
         $this->assertClass($schoolClass, $meeting);
         Gate::authorize('view', $meeting);
-        $meeting->load(['creator', 'rescheduler', 'canceller', 'series']);
+        $meeting->load(['creator', 'rescheduler', 'canceller', 'ender', 'series']);
         $joinAvailable = $liveKit->joinable($meeting);
         $videoConfigured = $liveKit->configured();
 
