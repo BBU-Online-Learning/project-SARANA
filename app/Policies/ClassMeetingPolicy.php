@@ -55,6 +55,11 @@ class ClassMeetingPolicy
             && $this->access->teachingRole($user, $classMeeting->schoolClass) !== null;
     }
 
+    public function viewAttendance(User $user, ClassMeeting $classMeeting): bool
+    {
+        return $this->manageJoinRequests($user, $classMeeting);
+    }
+
     public function end(User $user, ClassMeeting $classMeeting): bool
     {
         return in_array($classMeeting->status, ['scheduled', 'ending'], true)

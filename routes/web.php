@@ -14,6 +14,7 @@ use App\Http\Controllers\CourseworkAttachmentController;
 use App\Http\Controllers\CourseworkSubmissionController;
 use App\Http\Controllers\GlobalSearchController;
 use App\Http\Controllers\LiveKitMeetingController;
+use App\Http\Controllers\MeetingAttendanceController;
 use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Quiz\AssessmentController;
@@ -228,6 +229,8 @@ Route::middleware(['auth', 'twofactor.setup'])->scopeBindings()->group(function 
     Route::get('/classes/{schoolClass}/meetings/create', [ClassMeetingController::class, 'create'])->name('classes.meetings.create');
     Route::post('/classes/{schoolClass}/meetings', [ClassMeetingController::class, 'store'])->name('classes.meetings.store');
     Route::get('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'show'])->name('classes.meetings.show');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}/attendance', [MeetingAttendanceController::class, 'show'])->name('classes.meetings.attendance.show');
+    Route::get('/classes/{schoolClass}/meetings/{meeting}/attendance/export', [MeetingAttendanceController::class, 'export'])->name('classes.meetings.attendance.export');
     Route::patch('/classes/{schoolClass}/meetings/{meeting}', [ClassMeetingController::class, 'update'])->name('classes.meetings.update');
     Route::post('/classes/{schoolClass}/meetings/{meeting}/cancel', [ClassMeetingController::class, 'cancel'])->name('classes.meetings.cancel');
     Route::post('/classes/{schoolClass}/meeting-series/{meetingSeries}/cancel', [ClassMeetingController::class, 'cancelSeries'])->name('classes.meetings.series.cancel');

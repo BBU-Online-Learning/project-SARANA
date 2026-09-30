@@ -12,7 +12,7 @@ use Throwable;
 
 class ClassMeetingModerationService
 {
-    public function __construct(private ClassManagementService $classes, private LiveKitRoomControl $rooms) {}
+    public function __construct(private ClassManagementService $classes, private LiveKitRoomControl $rooms, private MeetingAttendanceService $attendance) {}
 
     public function end(User $actor, SchoolClass $schoolClass, ClassMeeting $meeting): ClassMeeting
     {
@@ -37,6 +37,7 @@ class ClassMeetingModerationService
             $locked = $schoolClass->meetings()->lockForUpdate()->findOrFail($meeting->id);
             if ($locked->status === 'ending') {
                 $locked->update(['status' => 'ended', 'ended_at' => now(), 'ended_by' => $actor->id]);
+                $this->attendance->closeForMeeting($locked, $locked->ended_at->toImmutable());
             }
 
             return $locked;

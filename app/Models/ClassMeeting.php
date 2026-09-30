@@ -63,4 +63,9 @@ class ClassMeeting extends Model
     {
         return $this->hasMany(ClassMeetingJoinRequest::class, 'class_meeting_id');
     }
+
+    public function attendanceSessions(): HasMany
+    {
+        return $this->hasMany(MeetingAttendanceSession::class, 'class_meeting_id');
+    }
 }

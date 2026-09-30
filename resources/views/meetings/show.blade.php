@@ -57,6 +57,13 @@
                     @endif
                 </dl>
             </div></div>
+            @can('viewAttendance', $meeting)
+                <div class="card mt-3"><div class="card-body">
+                    <h2 class="h6">Meeting attendance</h2>
+                    <p>See verified room time for each participant and students who did not join.</p>
+                    <a class="btn btn-outline-primary" href="{{ route('classes.meetings.attendance.show', [$schoolClass, $meeting]) }}">View attendance</a>
+                </div></div>
+            @endcan
         </aside>
     </div>
     @can('update', $meeting)
