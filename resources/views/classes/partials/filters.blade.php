@@ -1,4 +1,4 @@
-<form method="GET" action="{{ route('classes.index') }}" class="class-filters classes-modern-filters" role="search" aria-label="Find classes">
+<form method="GET" action="{{ route('classes.index') }}" class="class-filters classes-modern-filters" role="search" aria-label="Find classes" data-workspace-nav-form>
     <div class="flex-grow-1 classes-search-field">
         <label for="class-search" class="form-label">Search classes</label>
         <div><i class="ti ti-search" aria-hidden="true"></i><input id="class-search" type="search" name="search" value="{{ $search }}" maxlength="100" class="form-control" placeholder="Class name or description"></div>
@@ -14,6 +14,6 @@
     </div>
     <button class="btn btn-primary" type="submit">Apply filters</button>
     @if($search !== '' || $status !== 'all')
-        <a class="btn btn-outline-secondary" href="{{ route('classes.index') }}">Clear filters</a>
+        <a class="btn btn-outline-secondary" href="{{ route('classes.index') }}" data-workspace-nav>Clear filters</a>
     @endif
 </form>

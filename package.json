@@ -9,6 +9,7 @@
     "devDependencies": {
         "@popperjs/core": "^2.11.6",
         "@tailwindcss/vite": "^4.0.0",
+        "@vitejs/plugin-react": "^5.2.0",
         "axios": "^1.11.0",
         "bootstrap": "^5.2.3",
         "concurrently": "^9.0.1",
@@ -20,6 +21,9 @@
         "vite": "^7.0.7"
     },
     "dependencies": {
-        "livekit-client": "^2.22.3"
+        "@inertiajs/react": "^3.7.1",
+        "livekit-client": "^2.22.3",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0"
     }
 }

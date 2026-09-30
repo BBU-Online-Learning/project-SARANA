@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('bodyClass', 'workspace-full-page')
 
 @section('title', $room->name.' settings')
 

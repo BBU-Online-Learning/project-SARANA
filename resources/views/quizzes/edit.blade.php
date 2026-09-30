@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('bodyClass', 'workspace-full-page')
 @section('title', 'Quiz Builder')
 @section('styles')<link rel="stylesheet" href="{{ asset('css/quiz.css') }}">@endsection
 @section('content')<div class="page-container quiz-page"><div class="quiz-hero"><div><span class="quiz-status">Draft</span><h1>{{ $quiz->title }}</h1><p>Build and preview your assessment before assigning it.</p></div><div class="quiz-actions"><a class="btn btn-light" href="{{ route('classes.quizzes.preview', [$schoolClass, $quiz]) }}">Preview</a>@if($quiz->questions->isNotEmpty())<form method="POST" action="{{ route('classes.quizzes.publish', [$schoolClass, $quiz]) }}">@csrf<button class="btn btn-primary">Publish & assign</button></form>@endif</div></div>

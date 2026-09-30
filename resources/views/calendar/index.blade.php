@@ -8,9 +8,9 @@
             <p class="text-muted mb-0">Quiz and coursework deadlines, and class meetings · {{ $timezone }} time</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a class="btn btn-outline-primary" href="{{ route('calendar.index', ['month' => $month->subMonth()->format('Y-m')]) }}" aria-label="Previous month">←</a>
+            <a class="btn btn-outline-primary" href="{{ route('calendar.index', ['month' => $month->subMonth()->format('Y-m')]) }}" aria-label="Previous month" data-workspace-nav>←</a>
             <strong>{{ $month->format('F Y') }}</strong>
-            <a class="btn btn-outline-primary" href="{{ route('calendar.index', ['month' => $month->addMonth()->format('Y-m')]) }}" aria-label="Next month">→</a>
+            <a class="btn btn-outline-primary" href="{{ route('calendar.index', ['month' => $month->addMonth()->format('Y-m')]) }}" aria-label="Next month" data-workspace-nav>→</a>
         </div>
     </div>
 

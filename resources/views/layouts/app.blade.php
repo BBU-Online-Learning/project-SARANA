@@ -21,6 +21,7 @@
             publicScheme: @json(config('reverb.browser.public_scheme')),
         });
     </script>
+    @viteReactRefresh
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="{{ asset('css/teamstyle.css') }}" rel="stylesheet">
     <link href="{{ asset('css/workspace.css') }}" rel="stylesheet">
@@ -34,6 +35,7 @@
     <link href="{{ asset('css/settings.css') }}" rel="stylesheet">
     <link href="{{ asset('css/mobile-workspace.css') }}" rel="stylesheet" data-workspace-mobile-style>
     <link href="{{ asset('css/touch-zoom.css') }}" rel="stylesheet">
+    @yield('inertiaHead')
 </head>
 <body class="application-shell learning-workspace @yield('bodyClass')" data-workspace-role="{{ auth()->user()->role->name }}">
     <a href="#main-content" class="workspace-skip-link">Skip to content</a>

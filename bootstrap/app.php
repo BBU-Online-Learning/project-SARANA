@@ -15,7 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
-
+        then: function (): void {
+            Route::middleware('api')->post('/api/livekit/webhook', \App\Http\Controllers\LiveKitWebhookController::class)
+                ->name('livekit.webhook');
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: ['127.0.0.1', '::1']);
@@ -27,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\EnsureAccountIsActive::class,
             \App\Http\Middleware\EnforceAccountOnboarding::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
         // This gives you a simple route alias called twofactor.setup.

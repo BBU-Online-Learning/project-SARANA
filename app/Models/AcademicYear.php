@@ -22,4 +22,9 @@ class AcademicYear extends Model
     {
         return $this->hasMany(SchoolClass::class);
     }
+
+    public function reportingPeriods(): HasMany
+    {
+        return $this->hasMany(ReportingPeriod::class);
+    }
 }

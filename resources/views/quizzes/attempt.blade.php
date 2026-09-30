@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@section('bodyClass', 'workspace-full-page')
 @section('title', $attempt->assignment->quiz->title)
 @section('styles')<link rel="stylesheet" href="{{ asset('css/quiz.css') }}">@endsection
 @section('content')

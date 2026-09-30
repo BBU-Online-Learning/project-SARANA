@@ -15,6 +15,7 @@
                     <div class="class-list-meta">
                         <span><i class="ti ti-book" aria-hidden="true"></i>{{ $assignment->subject?->name ?? 'General' }}</span>
                         <span>{{ $assignment->academicYear?->name ?? 'Unassigned year' }}</span>
+                        @if ($assignment->reportingPeriod)<span>{{ $assignment->reportingPeriod->name }}</span>@endif
                         <span><i class="ti ti-calendar" aria-hidden="true"></i>{{ $assignment->due_at ? 'Due '.$assignment->due_at->format('Y-m-d H:i').' '.config('app.timezone') : 'No due date' }}</span>
                         <span>{{ $assignment->max_points }} points</span>
                     </div>

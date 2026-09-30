@@ -407,8 +407,7 @@ test('core workspace pages use the shared semantic color system', function (): v
         ->assertSee('account-table-card', false);
 
     $this->get(route('classes.index'))->assertOk()
-        ->assertSee('class-hero', false)
-        ->assertSee('class-total-badge', false);
+        ->assertInertia(fn ($page) => $page->component('Classes/Index')->where('isAdministrator', true));
 
     $this->get(route('roles.index'))->assertOk()
         ->assertSee('roles-page-heading', false)
@@ -429,35 +428,28 @@ test('core workspace pages use the shared semantic color system', function (): v
 test('class forms and navigation match backend permissions for every role', function (string $role): void {
     $user = securityTestUser($role);
     $response = $this->actingAs($user)->get(route('classes.index'))->assertOk()
-        ->assertSee('id="join-class"', false);
+        ->assertInertia(fn ($page) => $page->component('Classes/Index')->where('role', $role)->has('urls.join'));
 
     if (in_array($role, ['teacher', 'student'], true)) {
-        $response->assertSee('classes-page-hero', false)
-            ->assertSee('classes-summary', false)
-            ->assertSee('classes-directory', false);
+        expect($response->inertiaProps('isAdministrator'))->toBeFalse();
         if ($role === 'student') {
-            $response->assertSee('Class enrollment')
-                ->assertSee('Enter the class code from your teacher to join your learning space.')
-                ->assertDontSee('Create or join a space');
+            expect($response->inertiaProps('introduction'))->toContain('Join a class with your teacher');
         }
     }
 
     if (in_array($role, ['admin', 'super_admin'], true)) {
-        $response->assertSee('Use a code to access class content')
-            ->assertSee('Enroll your account to access class messages and learning content.');
+        expect($response->inertiaProps('isAdministrator'))->toBeTrue();
     } elseif ($role === 'teacher') {
-        $response->assertSee('Join as a student member')->assertDontSee('Use a code from your teacher');
+        expect($response->inertiaProps('role'))->toBe('teacher');
     } else {
-        $response->assertSee('Use a code from your teacher');
+        expect($response->inertiaProps('role'))->toBe('student');
     }
 
     if ($user->can('manage-classes')) {
-        $response->assertSee('id="create-class"', false)
-            ->assertSee('action="'.route('classes.store').'"', false)
-            ->assertSee('class="ti ti-school"', false)
-            ->assertDontSee('ti-school-plus', false);
+        expect($response->inertiaProps('canCreateClass'))->toBeTrue()
+            ->and($response->inertiaProps('urls.create'))->toBe(route('classes.store'));
     } else {
-        $response->assertDontSee('id="create-class"', false)->assertDontSee('method="POST" action="'.route('classes.store').'"', false);
+        expect($response->inertiaProps('canCreateClass'))->toBeFalse();
         $this->postJson(route('classes.store'), ['name' => 'Forbidden class'])->assertForbidden();
     }
 

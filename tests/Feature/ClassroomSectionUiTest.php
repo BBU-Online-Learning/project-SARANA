@@ -47,10 +47,11 @@ test('teacher class pages share navigation with the active section and permitted
         ->assertSee('Reports and export')
         ->assertSee('href="#attendance-open-form"', false)
         ->assertSee('id="attendance-open-form"', false);
-    $this->get(route('classes.meetings.index', $schoolClass))->assertOk()
-        ->assertSee('class="is-active" aria-current="page" >Meetings', false)
-        ->assertSee('class="class-empty"', false)
-        ->assertSee('Schedule meeting');
+    $meetingList = $this->get(route('classes.meetings.index', $schoolClass))->assertOk();
+    expect($meetingList->inertiaPage()['component'])->toBe('Meetings/Index')
+        ->and($meetingList->inertiaProps('meetings'))->toBe([])
+        ->and($meetingList->inertiaProps('scheduleUrl'))->toBe(route('classes.meetings.create', $schoolClass))
+        ->and(collect($meetingList->inertiaProps('sections'))->pluck('label'))->toContain('Meetings');
 });
 
 test('student class pages use the same navigation without teacher actions', function (): void {
@@ -66,9 +67,9 @@ test('student class pages use the same navigation without teacher actions', func
         ->assertSee('My attendance')
         ->assertDontSee('Reports and export')
         ->assertDontSee('Open dated roster');
-    $this->get(route('classes.meetings.index', $schoolClass))->assertOk()
-        ->assertSee('class="is-active" aria-current="page" >Meetings', false)
-        ->assertDontSee('Schedule meeting');
+    $meetingList = $this->get(route('classes.meetings.index', $schoolClass))->assertOk();
+    expect($meetingList->inertiaPage()['component'])->toBe('Meetings/Index')
+        ->and($meetingList->inertiaProps('scheduleUrl'))->toBeNull();
 });
 
 test('teacher section pages show a breadcrumb trail back to the class and section', function (): void {

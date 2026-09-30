@@ -48,4 +48,46 @@ class ClassMeetingPolicy
     {
         return $this->update($user, $classMeeting);
     }
+
+    public function manageJoinRequests(User $user, ClassMeeting $classMeeting): bool
+    {
+        return $this->view($user, $classMeeting)
+            && $this->access->teachingRole($user, $classMeeting->schoolClass) !== null;
+    }
+
+    public function viewAttendance(User $user, ClassMeeting $classMeeting): bool
+    {
+        return $this->manageJoinRequests($user, $classMeeting);
+    }
+
+    public function end(User $user, ClassMeeting $classMeeting): bool
+    {
+        return in_array($classMeeting->status, ['scheduled', 'ending'], true)
+            && ($classMeeting->status === 'ending' || (now()->greaterThanOrEqualTo($classMeeting->starts_at->copy()->subMinutes(config('livekit.join_before_minutes')))
+                && now()->lessThan($classMeeting->ends_at->copy()->addMinutes(config('livekit.join_after_minutes')))))
+            && $this->manageJoinRequests($user, $classMeeting);
+    }
+
+    public function removeParticipant(User $user, ClassMeeting $classMeeting, User $target): bool
+    {
+        return $classMeeting->status === 'scheduled'
+            && (int) $user->id !== (int) $target->id
+            && $this->manageJoinRequests($user, $classMeeting)
+            && $classMeeting->schoolClass->memberRecords()->where('user_id', $target->id)->where('role', 'student')->exists();
+    }
+
+    public function issueToken(User $user, ClassMeeting $classMeeting): bool
+    {
+        if (! $this->view($user, $classMeeting)) {
+            return false;
+        }
+
+        if ($this->manageJoinRequests($user, $classMeeting)) {
+            return true;
+        }
+
+        return $classMeeting->joinRequests()
+            ->where('requester_user_id', $user->id)
+            ->first()?->admitsCurrentEntry() ?? false;
+    }
 }

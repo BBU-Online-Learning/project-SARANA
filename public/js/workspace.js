@@ -1,5 +1,7 @@
 (() => {
     let navigationController = null;
+    let navigationVersion = 0;
+    let renderedUrl = new URL(window.location.href);
     let chatContentCache = null;
 
     function revealLearningSection() {
@@ -94,9 +96,10 @@
         }));
     }
 
-    async function loadPageScripts(nextDocument) {
+    async function loadPageScripts(nextDocument, isCurrent) {
         const scripts = [...nextDocument.querySelectorAll('script[data-workspace-page-script]')];
         for (const source of scripts) {
+            if (!isCurrent()) return;
             const key = source.dataset.workspacePageScript;
             if (!key || hasPageAsset('data-workspace-page-script', key)) continue;
 
@@ -146,7 +149,7 @@
         return true;
     }
 
-    async function applyDocument(nextDocument, destination, updateHistory) {
+    async function applyDocument(nextDocument, destination, updateHistory, isCurrent) {
         const nextMain = nextDocument.getElementById('main-content');
         const nextNavigation = nextDocument.querySelector('#workspace-navigation .workspace-nav');
         const nextHeaderContext = nextDocument.querySelector('.workspace-header-context');
@@ -156,7 +159,9 @@
         const currentHeaderContext = document.querySelector('.workspace-header-context');
         const currentMobileNavigation = document.querySelector('.workspace-mobile-nav');
 
-        if (!nextMain || !nextNavigation || !nextHeaderContext || !nextMobileNavigation || !currentMain || !currentNavigation || !currentHeaderContext || !currentMobileNavigation) {
+        if (!isCurrent() || nextDocument.body.classList.contains('workspace-full-page')
+            || currentMain?.querySelector('#app') || nextMain?.querySelector('#app')
+            || !nextMain || !nextNavigation || !nextHeaderContext || !nextMobileNavigation || !currentMain || !currentNavigation || !currentHeaderContext || !currentMobileNavigation) {
             return false;
         }
 
@@ -176,11 +181,13 @@
         currentHeaderContext.replaceWith(nextHeaderContext);
         currentMobileNavigation.replaceWith(nextMobileNavigation);
 
-        await loadPageStyles(nextDocument);
-        await loadPageScripts(nextDocument);
+        await loadPageScripts(nextDocument, isCurrent);
+        if (!isCurrent()) return false;
         if (restoredChat && window.chat?.activeRoomId) await window.loadRoom?.(window.chat.activeRoomId);
+        if (!isCurrent()) return false;
 
         if (updateHistory) window.history.pushState({ workspaceNavigation: true }, '', destination);
+        renderedUrl = destination;
 
         document.body.classList.remove('workspace-nav-open');
         const backdrop = document.querySelector('.workspace-backdrop');
@@ -200,23 +207,34 @@
 
     async function navigate(destination, { updateHistory = true } = {}) {
         const url = destination instanceof URL ? destination : new URL(destination, window.location.href);
-        const current = new URL(window.location.href);
+        const version = ++navigationVersion;
+        navigationController?.abort();
+        navigationController = null;
 
-        if (url.pathname === current.pathname && url.search === current.search) {
+        if (url.pathname === renderedUrl.pathname && url.search === renderedUrl.search) {
             if (updateHistory) window.history.pushState({ workspaceNavigation: true }, '', url);
+            renderedUrl = url;
+            setNavigationState(false, 'Page loaded.');
             revealLearningSection();
             return;
         }
 
-        navigationController?.abort();
-        navigationController = new AbortController();
+        if (document.body.classList.contains('workspace-full-page') || document.querySelector('#main-content #app')) {
+            if (updateHistory) window.location.assign(url);
+            else window.location.reload();
+            return;
+        }
+
+        const controller = new AbortController();
+        navigationController = controller;
+        const isCurrent = () => version === navigationVersion && !controller.signal.aborted;
         setNavigationState(true, `Loading ${url.pathname.split('/').filter(Boolean).pop() || 'dashboard'}…`);
 
         try {
             const response = await fetch(url, {
                 credentials: 'same-origin',
                 cache: 'no-cache',
-                signal: navigationController.signal,
+                signal: controller.signal,
                 headers: {
                     Accept: 'text/html',
                     'X-Workspace-Navigation': 'true',
@@ -227,15 +245,26 @@
             const finalUrl = new URL(response.url || url, window.location.href);
             finalUrl.hash = url.hash;
             const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
-            if (!await applyDocument(nextDocument, finalUrl, updateHistory)) {
+            if (!isCurrent()) return;
+            if (nextDocument.body.classList.contains('workspace-full-page') || nextDocument.querySelector('#main-content #app')) {
+                window.location.assign(finalUrl);
+                return;
+            }
+            await loadPageStyles(nextDocument);
+            if (!isCurrent()) return;
+            if (!await applyDocument(nextDocument, finalUrl, updateHistory, isCurrent)) {
+                if (!isCurrent()) return;
                 window.location.assign(finalUrl);
                 return;
             }
         } catch (error) {
-            if (error.name === 'AbortError') return;
+            if (!isCurrent() || error.name === 'AbortError') return;
             window.location.assign(url);
         } finally {
-            setNavigationState(false, 'Page loaded.');
+            if (isCurrent()) {
+                navigationController = null;
+                setNavigationState(false, 'Page loaded.');
+            }
         }
     }
 
@@ -316,6 +345,15 @@
             if (!canNavigate(link, event)) return;
             event.preventDefault();
             navigate(new URL(link.href, window.location.href));
+        });
+        document.addEventListener('submit', (event) => {
+            const form = event.target.closest?.('form[data-workspace-nav-form]');
+            if (!form || form.method.toLowerCase() !== 'get' || (form.target && form.target !== '_self')) return;
+            const destination = new URL(form.action, window.location.href);
+            if (destination.origin !== window.location.origin) return;
+            event.preventDefault();
+            destination.search = new URLSearchParams(new FormData(form, event.submitter)).toString();
+            navigate(destination);
         });
         window.addEventListener('popstate', () => navigate(window.location.href, { updateHistory: false }));
         window.addEventListener('hashchange', revealLearningSection);

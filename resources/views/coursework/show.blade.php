@@ -11,7 +11,7 @@
     @if ($errors->any())<div class="alert alert-danger"><ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <div class="card mb-3"><div class="card-body">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-            <div><h2 class="visually-hidden">Assignment details</h2><p class="text-muted">{{ $schoolClass->name }} · {{ $assignment->subject?->name ?? 'General' }} · {{ $assignment->academicYear?->name ?? 'Unassigned year' }} · {{ $assignment->max_points }} points · {{ $assignment->due_at ? 'Due '.$assignment->due_at->format('Y-m-d H:i').' '.config('app.timezone') : 'No due date' }}</p></div>
+            <div><h2 class="visually-hidden">Assignment details</h2><p class="text-muted">{{ $schoolClass->name }} · {{ $assignment->subject?->name ?? 'General' }} · {{ $assignment->academicYear?->name ?? 'Unassigned year' }} @if ($assignment->reportingPeriod) · {{ $assignment->reportingPeriod->name }} @endif · {{ $assignment->max_points }} points · {{ $assignment->due_at ? 'Due '.$assignment->due_at->format('Y-m-d H:i').' '.config('app.timezone') : 'No due date' }}</p></div>
             <x-class-status :value="$assignment->status" />
         </div>
         <div style="white-space: pre-wrap">{{ $assignment->instructions ?: 'No additional instructions.' }}</div>

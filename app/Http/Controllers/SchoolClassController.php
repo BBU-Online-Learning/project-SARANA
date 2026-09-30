@@ -18,6 +18,7 @@ use App\Services\ClassAccessService;
 use App\Services\ClassChannelReadService;
 use App\Services\ClassManagementService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -25,19 +26,23 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SchoolClassController extends Controller
 {
     public function __construct(private ClassManagementService $classes, private ClassAccessService $access, private ClassChannelReadService $channelReads) {}
 
-    public function index(IndexClassRequest $request): View
+    public function index(IndexClassRequest $request): Response
     {
         abort_unless($this->access->ready(Auth::user()), 403);
+        $user = $request->user();
+        $isAdministrator = $this->access->administrator($user);
         $search = trim($request->validated('search') ?? '');
         $status = $request->validated('status') ?? 'all';
         $accessibleClasses = SchoolClass::query()
-            ->when(! $this->access->administrator(Auth::user()), function (Builder $query): void {
+            ->when(! $isAdministrator, function (Builder $query): void {
                 $query->whereHas('members', fn (Builder $members): Builder => $members->where('users.id', Auth::id()));
             });
         $classSummary = [
@@ -45,7 +50,10 @@ class SchoolClassController extends Controller
             'active' => (clone $accessibleClasses)->whereNull('archived_at')->count(),
             'archived' => (clone $accessibleClasses)->whereNotNull('archived_at')->count(),
         ];
-        $classes = (clone $accessibleClasses)->with(['creator', 'channels'])->withCount('members')
+        $classes = (clone $accessibleClasses)->with([
+            'creator', 'channels',
+            'memberRecords' => fn (HasMany $query): HasMany => $query->where('user_id', $user->id),
+        ])->withCount('members')
             ->when($status === 'active', fn (Builder $query): Builder => $query->whereNull('archived_at'))
             ->when($status === 'archived', fn (Builder $query): Builder => $query->whereNotNull('archived_at'))
             ->when($search !== '', function (Builder $query) use ($search): void {
@@ -54,9 +62,58 @@ class SchoolClassController extends Controller
                         ->orWhere('description', 'like', '%'.$search.'%');
                 });
             })->latest()->get();
-        $eligibleTeachers = $this->access->administrator(Auth::user()) ? $this->eligibleTeachers()->get() : collect();
+        $eligibleTeachers = $isAdministrator ? $this->eligibleTeachers()->get() : collect();
+        $canCreateClass = $user->can('manage-classes');
 
-        return view('classes.index', compact('classes', 'eligibleTeachers', 'search', 'status', 'classSummary'));
+        return Inertia::render('Classes/Index', [
+            'title' => 'Classes',
+            'role' => $user->role->name,
+            'isAdministrator' => $isAdministrator,
+            'canCreateClass' => $canCreateClass,
+            'introduction' => $isAdministrator
+                ? 'Organize institution classes, assign teacher owners and manage membership.'
+                : ($canCreateClass
+                    ? 'Prepare your class spaces, connect with students and open your teaching conversations.'
+                    : 'Join a class with your teacher’s code, then open its announcements and discussions.'),
+            'summary' => $classSummary,
+            'filters' => ['search' => $search, 'status' => $status],
+            'urls' => [
+                'index' => route('classes.index'),
+                'active' => route('classes.index', ['status' => 'active']),
+                'archived' => route('classes.index', ['status' => 'archived']),
+                'create' => route('classes.store'),
+                'join' => route('classes.join'),
+                'academics' => $isAdministrator ? route('academics.index') : null,
+            ],
+            'oldInput' => [
+                'name' => old('name', ''),
+                'description' => old('description', ''),
+                'ownerId' => old('owner_id', ''),
+                'joinCode' => old('join_code', ''),
+            ],
+            'eligibleTeachers' => $eligibleTeachers->map(fn (User $teacher): array => [
+                'id' => $teacher->id,
+                'name' => $teacher->name,
+            ])->values(),
+            'classes' => $classes->map(function (SchoolClass $schoolClass) use ($isAdministrator): array {
+                $membershipRole = $schoolClass->memberRecords->first()?->role;
+                $canTeach = in_array($membershipRole, ['owner', 'teacher'], true);
+                $archived = $schoolClass->isArchived();
+
+                return [
+                    'id' => $schoolClass->id,
+                    'name' => $schoolClass->name,
+                    'description' => $schoolClass->description,
+                    'archived' => $archived,
+                    'memberCount' => $schoolClass->members_count,
+                    'channelCount' => $schoolClass->channels->count(),
+                    'creatorName' => $schoolClass->creator?->name,
+                    'joinCode' => ! $archived && ($isAdministrator || $canTeach) ? $schoolClass->join_code : null,
+                    'canManage' => $isAdministrator || ($canTeach && (! $archived || $membershipRole === 'owner')),
+                    'showUrl' => route('classes.show', $schoolClass),
+                ];
+            })->values(),
+        ]);
     }
 
     public function store(StoreClassRequest $request): RedirectResponse
