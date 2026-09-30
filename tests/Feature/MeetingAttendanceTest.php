@@ -50,7 +50,7 @@ function attendanceWebhook($test, ClassMeeting $meeting, string $event, int $occ
     $token = (new AccessToken(config('livekit.api_key'), config('livekit.api_secret'), (new AccessTokenOptions)->setIdentity('webhook')))
         ->setSha256(base64_encode(hash('sha256', $body, true)))->toJwt();
     $test->call('POST', route('livekit.webhook'), [], [], [], [
-        'CONTENT_TYPE' => 'application/json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token,
+        'CONTENT_TYPE' => 'application/webhook+json', 'HTTP_AUTHORIZATION' => 'Bearer '.$token,
     ], $body)->assertOk()->assertJsonPath('accepted', true);
 }
 
